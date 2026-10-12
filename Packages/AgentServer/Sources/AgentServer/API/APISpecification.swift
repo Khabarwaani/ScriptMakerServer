@@ -105,10 +105,10 @@ enum APISpecification {
         let definition = object(
             [
                 "version": string, "role": string, "instructions": string, "input_schema": .bool(true),
-                "output_schema": .bool(true),
+                "output_schema": .bool(true), "notes": string,
             ], required: ["version", "role", "instructions", "output_schema"])
         let agent = object(
-            ["id": string, "versions": array(string), "latest": string, "definitions": array(definition)],
+            ["id": string, "versions": array(string), "latest": string, "definitions": array(definition), "readme": string],
             required: ["id", "versions", "definitions"])
         let provider = object(
             ["id": string, "available": boolean, "readiness": string],
