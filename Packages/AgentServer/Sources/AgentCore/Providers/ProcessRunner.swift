@@ -1,9 +1,8 @@
-import Darwin
 import Foundation
 
 /// Owns exactly one child. Pipe readiness callbacks avoid blocking an HTTP
 /// executor; bounded chunks prevent unbounded output accumulation.
-public final class ProcessRunner: @unchecked Sendable {
+public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var cancelled = false
@@ -16,7 +15,7 @@ public final class ProcessRunner: @unchecked Sendable {
         cancelled = true
         let process = self.process
         lock.unlock()
-        if let process, process.isRunning { signal(process, with: SIGTERM) }
+        if let process, process.isRunning { platformSignal(process: process, graceful: true) }
         DispatchQueue.global().asyncAfter(deadline: .now() + 5) { [self] in
             forceTerminate()
             lock.lock()
@@ -41,17 +40,18 @@ public final class ProcessRunner: @unchecked Sendable {
         child.standardOutput = stdout
         child.standardError = stderr
         child.standardInput = stdin
-        _ = fcntl(stdin.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
+        configurePlatformPipe(stdin.fileHandleForWriting)
         var environment = ProcessInfo.processInfo.environment
         environment["NO_COLOR"] = "1"
         environment["TERM"] = "dumb"
         let existingPath = environment["PATH"] ?? ""
-        let standardPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
-        let existingSegments = existingPath.split(separator: ":").map(String.init)
+        let standardPaths = Self.platformStandardPaths
+        let separator = Self.platformPathSeparator
+        let existingSegments = existingPath.split(separator: separator).map(String.init)
         let missingPaths = standardPaths.filter { !existingSegments.contains($0) }
         if !missingPaths.isEmpty {
             let combined = (missingPaths + [existingPath]).filter { !$0.isEmpty }
-            environment["PATH"] = combined.joined(separator: ":")
+            environment["PATH"] = combined.joined(separator: String(separator))
         }
         child.environment = environment
         let (chunks, continuation) = AsyncThrowingStream<Data, any Error>.makeStream(
@@ -180,17 +180,14 @@ public final class ProcessRunner: @unchecked Sendable {
         outputContinuation = continuation
         lock.unlock()
     }
-    public var processID: pid_t? {
+    public var processID: Int32? {
         lock.lock()
         defer { lock.unlock() }
         return process.flatMap { $0.isRunning ? $0.processIdentifier : nil }
     }
     public var residentMemoryBytes: UInt64 {
         guard let pid = processID else { return 0 }
-        var info = proc_taskinfo()
-        guard proc_pidinfo(pid, PROC_PIDTASKINFO, 0, &info, Int32(MemoryLayout<proc_taskinfo>.size)) > 0
-        else { return 0 }
-        return info.pti_resident_size
+        return platformResidentMemory(pid: pid)
     }
     private func wasCancelled() -> Bool {
         lock.lock()
@@ -201,12 +198,6 @@ public final class ProcessRunner: @unchecked Sendable {
         lock.lock()
         let process = self.process
         lock.unlock()
-        if let process, process.isRunning { signal(process, with: SIGKILL) }
-    }
-    private func signal(_ process: Process, with signal: Int32) {
-        let pid = process.processIdentifier
-        // Foundation creates a fresh process group on macOS. Verify ownership
-        // before targeting the group, so cancellation also stops its tool children.
-        if getpgid(pid) == pid { _ = kill(-pid, signal) } else { _ = kill(pid, signal) }
+        if let process, process.isRunning { platformSignal(process: process, graceful: false) }
     }
 }
