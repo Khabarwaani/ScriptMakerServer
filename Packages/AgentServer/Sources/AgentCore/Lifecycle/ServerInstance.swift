@@ -33,13 +33,16 @@ public final class ServerInstance: Sendable {
     }
 
     private static func openLock(port: Int) throws -> Int32 {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("Khabarwaani-AgentServer", isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "Khabarwaani-AgentServer", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         var directoryInfo = stat()
         guard lstat(root.path, &directoryInfo) == 0,
-              directoryInfo.st_uid == getuid(),
-              directoryInfo.st_mode & S_IFMT == S_IFDIR,
-              directoryInfo.st_mode & 0o077 == 0 else {
+            directoryInfo.st_uid == getuid(),
+            directoryInfo.st_mode & S_IFMT == S_IFDIR,
+            directoryInfo.st_mode & 0o077 == 0
+        else {
             throw InstanceError.unsafeLockFile
         }
         let path = root.appendingPathComponent("port-\(port).lock").path
@@ -47,8 +50,9 @@ public final class ServerInstance: Sendable {
         guard descriptor >= 0 else { throw InstanceError.unsafeLockFile }
         var info = stat()
         guard fstat(descriptor, &info) == 0,
-              info.st_uid == getuid(), info.st_mode & S_IFMT == S_IFREG,
-              info.st_nlink == 1, info.st_mode & 0o077 == 0 else {
+            info.st_uid == getuid(), info.st_mode & S_IFMT == S_IFREG,
+            info.st_nlink == 1, info.st_mode & 0o077 == 0
+        else {
             close(descriptor)
             throw InstanceError.unsafeLockFile
         }
@@ -100,9 +104,11 @@ public final class ServerInstance: Sendable {
             switch self {
             case .unsafeLockFile: "Cannot open a secure server instance lock."
             case .lockInspectionFailed: "Cannot inspect the server instance lock."
-            case .unverifiedProcess: "The previous process could not be verified as AgentServer; it was not stopped."
+            case .unverifiedProcess:
+                "The previous process could not be verified as AgentServer; it was not stopped."
             case .signalFailed: "Could not request graceful server shutdown."
-            case .shutdownTimedOut: "The previous server did not shut down in time; no replacement was started."
+            case .shutdownTimedOut:
+                "The previous server did not shut down in time; no replacement was started."
             case .concurrentStartup: "Another server started concurrently; retry the command."
             }
         }

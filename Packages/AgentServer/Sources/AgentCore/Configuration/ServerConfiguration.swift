@@ -41,11 +41,13 @@ public struct ServerConfiguration: Sendable {
             throw ConfigurationError.invalidPort
         }
         self.port = port
-        self.agentsDirectory = URL(
-            fileURLWithPath: environment["AGENT_SERVER_AGENTS_DIR"] ?? settings.agents_directory ?? "Agents",
-            isDirectory: true,
-            relativeTo: baseDirectory
-        ).standardizedFileURL
+        self.agentsDirectory =
+            URL(
+                fileURLWithPath: environment["AGENT_SERVER_AGENTS_DIR"] ?? settings.agents_directory
+                    ?? "Agents",
+                isDirectory: true,
+                relativeTo: baseDirectory
+            ).standardizedFileURL
         let timeout = settings.shutdown_timeout_seconds ?? 900
         guard (1...900).contains(timeout) else { throw ConfigurationError.invalidShutdownTimeout }
         self.shutdownTimeoutSeconds = timeout
@@ -54,22 +56,28 @@ public struct ServerConfiguration: Sendable {
         let queued = settings.max_queued_executions ?? 64
         let retention = settings.retention_seconds ?? 3600
         guard (1...86400).contains(executionTimeout), (1...128).contains(processes),
-              (1...10000).contains(queued), (1...86400).contains(retention) else {
+            (1...10000).contains(queued), (1...86400).contains(retention)
+        else {
             throw ConfigurationError.invalidConfigurationFile
         }
-        self.executionTimeoutSeconds = executionTimeout; self.maxProcesses = processes
-        self.maxQueuedExecutions = queued; self.retentionSeconds = retention
+        self.executionTimeoutSeconds = executionTimeout
+        self.maxProcesses = processes
+        self.maxQueuedExecutions = queued
+        self.retentionSeconds = retention
         if let path = settings.runtime_directory {
-            self.runtimeDirectory = URL(fileURLWithPath: path, isDirectory: true, relativeTo: baseDirectory).standardizedFileURL
+            self.runtimeDirectory =
+                URL(fileURLWithPath: path, isDirectory: true, relativeTo: baseDirectory).standardizedFileURL
         } else {
-            self.runtimeDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            self.runtimeDirectory = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("Khabarwaani/AgentServer/Executions", isDirectory: true)
         }
-        self.providers = settings.providers ?? [
-            "codex": ProviderSettings(executable: "codex"),
-            "antigravity": ProviderSettings(executable: "agy"),
-            "grok": ProviderSettings(executable: "grok")
-        ]
+        self.providers =
+            settings.providers ?? [
+                "codex": ProviderSettings(executable: "codex"),
+                "antigravity": ProviderSettings(executable: "agy"),
+                "grok": ProviderSettings(executable: "grok"),
+            ]
         guard providers.keys.allSatisfy({ CLIProvider.Kind(rawValue: $0) != nil }) else {
             throw ConfigurationError.invalidConfigurationFile
         }
@@ -100,7 +108,8 @@ public struct ServerConfiguration: Sendable {
             case .invalidPort: "Server port must be between 1 and 65535."
             case .invalidConfigurationFile: "Server configuration must contain valid settings JSON."
             case .configurationFileNotFound: "The specified server configuration file does not exist."
-            case .remoteBindingUnavailable: "Only 127.0.0.1 is supported until remote authentication is implemented."
+            case .remoteBindingUnavailable:
+                "Only 127.0.0.1 is supported until remote authentication is implemented."
             case .invalidShutdownTimeout: "Shutdown timeout must be between 1 and 900 seconds."
             }
         }

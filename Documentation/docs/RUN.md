@@ -87,13 +87,13 @@ Codex checks cached login status. Antigravity/Grok perform local initialization 
 without querying remote model lists; expired or inaccessible credentials are reported
 when the actual provider attempts execution.
 
-First test the small `JSONEcho` agent with each provider:
+Test ScriptWriter with a small set of supplied facts using each provider:
 
 ```sh
 curl -N -X POST http://127.0.0.1:8080/execute \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
-  -d '{"agent_id":"JSONEcho","provider":"codex","input":{"text":"hello"}}'
+  -d '{"agent_id":"ScriptWriter","provider":"codex","input":{"facts":["The meeting starts at 10 AM."],"language":"English"}}'
 ```
 
 Replace `codex` with `antigravity` or `grok`. These are opt-in live integration calls

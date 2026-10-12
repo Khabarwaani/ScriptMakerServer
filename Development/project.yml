@@ -51,7 +51,8 @@ targets:
           cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${TARGET_BUILD_DIR}/Web/"
           mkdir -p "${TARGET_BUILD_DIR}/config"
           cp "${SRCROOT}/Packages/AgentServer/config/server.json" "${TARGET_BUILD_DIR}/config/server.json"
-          ditto "${SRCROOT}/Packages/AgentServer/Agents" "${TARGET_BUILD_DIR}/Agents"
+          mkdir -p "${TARGET_BUILD_DIR}/Agents"
+          rsync -a --delete --exclude='.build' --exclude='.swiftpm' "${SRCROOT}/Packages/AgentServer/Agents/" "${TARGET_BUILD_DIR}/Agents/"
         basedOnDependencyAnalysis: false
 schemes:
   AgentServer:

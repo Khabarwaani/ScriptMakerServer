@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["facts"],
+  "properties": {
+    "facts": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "language": { "type": "string", "default": "English" },
+    "duration_seconds": { "type": "integer", "minimum": 10, "maximum": 600 }
+  },
+  "examples": [{ "facts": ["Supply verified facts here"], "language": "English", "duration_seconds": 60 }]
+}

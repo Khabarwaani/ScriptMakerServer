@@ -6,7 +6,10 @@ public struct ExecuteRequest: Codable, Sendable {
     public let provider: String
     public let input: JSONValue
     public init(agentID: String, version: String? = nil, provider: String, input: JSONValue) {
-        self.agent_id = agentID; self.version = version; self.provider = provider; self.input = input
+        self.agent_id = agentID
+        self.version = version
+        self.provider = provider
+        self.input = input
     }
 }
 
@@ -43,4 +46,3 @@ public struct ExecutionSnapshot: Sendable {
     public let residentMemoryBytes: UInt64
     public let accepting: Bool
 }
-

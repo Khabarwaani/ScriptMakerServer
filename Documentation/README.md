@@ -72,7 +72,6 @@ Packages/AgentServer/
     AgentCoreTests/                   Deterministic core and mock-provider tests
     AgentServerTests/                 HTTP contract tests
   Agents/
-    JSONEcho/                         Small deterministic integration agent
     NewsResearcher/                   Research agent package
     ScriptWriter/                     Script-writing agent package
   config/                             Central server configuration

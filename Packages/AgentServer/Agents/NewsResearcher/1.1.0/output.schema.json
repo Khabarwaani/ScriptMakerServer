@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Research findings from one authoritative source",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "source", "findings"],
+  "properties": {
+    "summary": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "url"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https?://", "minLength": 1 }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "uncertainty"],
+        "properties": {
+          "claim": { "type": "string", "minLength": 1 },
+          "uncertainty": { "type": "string" }
+        }
+      }
+    }
+  },
+  "examples": [{
+    "summary": "Illustrative shape only; no research has been performed in this example.",
+    "source": { "title": "Selected authoritative source", "url": "https://example.com/source" },
+    "findings": [{ "claim": "A claim supported by the selected source", "uncertainty": "Any limitation of that source" }]
+  }]
+}

@@ -3,7 +3,11 @@ import Foundation
 /// Provider-independent versioned instructions usable by another Swift package.
 public enum ScriptWriterDefinition {
     public static let id = "ScriptWriter"
-    public static let versions = ["1.0.0"]
+    public static var versions: [String] {
+        guard let root = Bundle.module.resourceURL,
+              let directories = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil) else { return [] }
+        return directories.filter { FileManager.default.fileExists(atPath: $0.appendingPathComponent("role.md").path) }.map(\.lastPathComponent).sorted()
+    }
 
     public static func directory(version: String) throws -> URL {
         guard versions.contains(version),

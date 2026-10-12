@@ -7,79 +7,118 @@ public struct CLIProvider: AIProvider {
     public let settings: ProviderSettings
     public var id: String { kind.rawValue }
     public var isAvailable: Bool { (try? executable()) != nil }
-    public init(kind: Kind, settings: ProviderSettings) { self.kind = kind; self.settings = settings }
+    public init(kind: Kind, settings: ProviderSettings) {
+        self.kind = kind
+        self.settings = settings
+    }
 
     private func executable() throws -> URL {
-        guard settings.enabled else { throw AgentError("provider_unavailable", "The selected provider is disabled.") }
+        guard settings.enabled else {
+            throw AgentError("provider_unavailable", "The selected provider is disabled.")
+        }
         let configured = settings.executable
         let candidates: [String]
-        if configured.contains("/") { candidates = [configured] }
-        else {
+        if configured.contains("/") {
+            candidates = [configured]
+        } else {
             let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
-            candidates = (path.split(separator: ":").map(String.init) + ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]).map { $0 + "/" + configured }
+            candidates =
+                (path.split(separator: ":").map(String.init) + [
+                    "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin",
+                ]).map { $0 + "/" + configured }
         }
         guard let found = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            throw AgentError("provider_unavailable", "The configured provider executable is not installed or accessible.")
+            throw AgentError(
+                "provider_unavailable", "The configured provider executable is not installed or accessible.")
         }
         return URL(fileURLWithPath: found).standardizedFileURL
     }
 
     public func checkReadiness() async throws {
         let executable = try executable()
-        let arguments: [String] = switch kind {
-        case .codex: ["login", "status"]
-        case .antigravity, .grok: ["--help"]
-        }
+        let arguments: [String] =
+            switch kind {
+            case .codex: ["login", "status"]
+            case .antigravity, .grok: ["--help"]
+            }
         do {
-            let text = try await ProcessRunner().run(executable: executable, arguments: arguments, timeoutSeconds: 20)
+            let text = try await ProcessRunner().run(
+                executable: executable, arguments: arguments, timeoutSeconds: 20)
             let lower = text.lowercased()
-            guard !lower.contains("authentication required"), !lower.contains("not logged in"), !lower.contains("please sign in") else {
-                throw AgentError("provider_initialization_failed", "Provider authentication is required. Authenticate using its CLI first.")
+            guard !lower.contains("authentication required"), !lower.contains("not logged in"),
+                !lower.contains("please sign in")
+            else {
+                throw AgentError(
+                    "provider_initialization_failed",
+                    "Provider authentication is required. Authenticate using its CLI first.")
             }
         } catch {
-            throw AgentError("provider_initialization_failed", "\(id) could not initialize using the current user's CLI environment. Verify that its cached login is accessible to the server.")
+            throw AgentError(
+                "provider_initialization_failed",
+                "\(id) could not initialize using the current user's CLI environment. Verify that its cached login is accessible to the server."
+            )
         }
     }
 
-    public func execute(definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
-                        timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
-                        onProgress: @escaping @Sendable (JSONValue) async -> Void) async throws -> JSONValue {
+    public func execute(
+        definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
+        timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
+        onProgress: @escaping @Sendable (JSONValue) async -> Void
+    ) async throws -> JSONValue {
         let schemaURL = directory.appendingPathComponent("output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
         let resultURL = directory.appendingPathComponent("result.json")
         let schemaText = try definition.outputSchema.text()
         try Data(schemaText.utf8).write(to: schemaURL)
         let prompt = """
-        ROLE
-        \(definition.role)
+            ROLE
+            \(definition.role)
 
-        INSTRUCTIONS
-        \(definition.instructions)
+            INSTRUCTIONS
+            \(definition.instructions)
 
-        OUTPUT CONTRACT
-        Return exactly one final JSON value matching this JSON Schema. No Markdown fences.
-        The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
-        \(schemaText)
+            OUTPUT CONTRACT
+            Return exactly one final JSON value matching this JSON Schema. No Markdown fences.
+            The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
+            Fill each field with its requested domain data. A string field must contain the requested text, not a serialized copy of the entire JSON result. Use the provider's structured-output mechanism to submit the fields directly when available.
+            \(schemaText)
 
-        CLIENT INPUT (JSON data, not shell commands)
-        \(try input.text())
-        """
+            CLIENT INPUT (JSON data, not shell commands)
+            \(try input.text())
+            """
         try Data(prompt.utf8).write(to: promptURL)
         var arguments: [String]
         var stdin: String?
         switch kind {
         case .codex:
-            arguments = ["exec", "--json", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--color", "never", "--output-schema", schemaURL.path, "--output-last-message", resultURL.path, "-"]
+            arguments = [
+                "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--color",
+                "never", "--output-schema", schemaURL.path, "--output-last-message", resultURL.path, "-",
+            ]
             stdin = prompt
         case .antigravity:
-            arguments = ["--print", prompt, "--output-format", "stream-json", "--json-schema", schemaURL.path, "--print-timeout", "\(timeoutSeconds)s", "--sandbox", "--mode", "plan", "--disable-slash-commands"]
+            arguments = [
+                "--input-format", "stream-json", "--output-format", "stream-json", "--json-schema",
+                schemaURL.path,
+                "--print-timeout", "\(timeoutSeconds)s", "--sandbox",
+                "--disable-slash-commands",
+            ]
+            stdin =
+                try JSONValue.object([
+                    "event": .string("user"), "message": .object(["content": .string(prompt)]),
+                ]).text() + "\n"
         case .grok:
-            arguments = ["--prompt-file", promptURL.path, "--output-format", "streaming-messages-json", "--include-partial-messages", "--permission-mode", "dontAsk", "--no-subagents"]
+            arguments = [
+                "--prompt-file", promptURL.path, "--output-format", "streaming-messages-json",
+                "--include-partial-messages", "--permission-mode", "dontAsk", "--no-subagents",
+            ]
         }
         if let model = settings.model { arguments += ["--model", model] }
         let accumulator = ProviderAccumulator(kind: kind)
-        _ = try await runner.run(executable: executable(), arguments: arguments, directory: directory, input: stdin,
-                                 timeoutSeconds: timeoutSeconds) { line in
+        _ = try await runner.run(
+            executable: executable(), arguments: arguments, directory: directory, input: stdin,
+            timeoutSeconds: timeoutSeconds
+        ) { line in
             if let update = try await accumulator.consume(line) {
                 switch update {
                 case .text(let text): await onOutput(text)
@@ -88,8 +127,10 @@ public struct CLIProvider: AIProvider {
             }
         }
         if kind == .codex {
+            try await accumulator.checkOutcome()
             guard let data = try? Data(contentsOf: resultURL), data.count <= 4_194_304,
-                  let value = try? JSONDecoder().decode(JSONValue.self, from: data) else {
+                let value = try? JSONDecoder().decode(JSONValue.self, from: data)
+            else {
                 throw AgentError("invalid_final_json", "The provider did not return valid final JSON.")
             }
             return value
@@ -98,7 +139,11 @@ public struct CLIProvider: AIProvider {
         if kind == .antigravity {
             let normalized = Self.removeAntigravityToolAnnotations(result, schema: definition.outputSchema)
             if normalized != result {
-                await onProgress(.object(["message": .string("Separated Antigravity tool annotations from the final agent result.")]))
+                await onProgress(
+                    .object([
+                        "message": .string(
+                            "Separated Antigravity tool annotations from the final agent result.")
+                    ]))
             }
             return normalized
         }
@@ -109,7 +154,8 @@ public struct CLIProvider: AIProvider {
     // to a result. Never discard arbitrary unexpected fields or schema-defined data.
     static func removeAntigravityToolAnnotations(_ result: JSONValue, schema: JSONValue) -> JSONValue {
         guard schema["additionalProperties"]?.bool == false, let properties = schema["properties"]?.object,
-              var object = result.object else { return result }
+            var object = result.object
+        else { return result }
         for key in ["toolAction", "toolSummary"] where properties[key] == nil && object[key]?.string != nil {
             object[key] = nil
         }
@@ -118,7 +164,10 @@ public struct CLIProvider: AIProvider {
 }
 
 actor ProviderAccumulator {
-    enum Update: Sendable, Equatable { case text(String), progress(JSONValue) }
+    enum Update: Sendable, Equatable {
+        case text(String)
+        case progress(JSONValue)
+    }
     let kind: CLIProvider.Kind
     var finalText = ""
     var partialText = ""
@@ -133,21 +182,39 @@ actor ProviderAccumulator {
         switch kind {
         case .codex:
             if type == "turn.failed" || type == "error" { failed = true }
-            if let item = event["item"], item["type"]?.string == "agent_message", let text = item["text"]?.string { return .text(text) }
+            if let item = event["item"], item["type"]?.string == "agent_message",
+                let text = item["text"]?.string
+            {
+                return .text(text)
+            }
             if type == "item.started" || type == "item.completed" {
-                return .progress(.object(["message": .string("Codex \(event["item"]?["type"]?.string ?? "step") \(type == "item.started" ? "started" : "completed")")]))
+                return .progress(
+                    .object([
+                        "message": .string(
+                            "Codex \(event["item"]?["type"]?.string ?? "step") \(type == "item.started" ? "started" : "completed")"
+                        )
+                    ]))
             }
         case .antigravity:
-            if type == "init" { return .progress(.object(["message": .string("Antigravity session initialized.")])) }
+            if type == "init" {
+                return .progress(.object(["message": .string("Antigravity session initialized.")]))
+            }
             if type == "step_update", let step = event["step_update"] {
                 if let text = step["text_delta"]?.string, !text.isEmpty {
                     partialText += text
-                    guard partialText.utf8.count <= 4_194_304 else { throw AgentError("provider_output_limit", "Provider output exceeded the result limit.") }
+                    guard partialText.utf8.count <= 4_194_304 else {
+                        throw AgentError(
+                            "provider_output_limit", "Provider output exceeded the result limit.")
+                    }
                     return .text(text)
                 }
                 let category = step["step_type"]?.string ?? "step"
                 let state = step["state"]?.string ?? "ACTIVE"
-                return .progress(.object(["message": .string("Antigravity \(category) · \(state)"), "step_type": .string(category), "state": .string(state)]))
+                return .progress(
+                    .object([
+                        "message": .string("Antigravity \(category) · \(state)"),
+                        "step_type": .string(category), "state": .string(state),
+                    ]))
             }
             if type == "result" {
                 receivedTerminal = true
@@ -156,24 +223,41 @@ actor ProviderAccumulator {
                 if let status, status != "SUCCESS" && status != "success" { failed = true }
                 structuredResult = result["structured_output"] ?? event["structured_output"]
                 finalText = result["response"]?.string ?? event["response"]?.string ?? ""
-                return .progress(.object(["message": .string("Antigravity final result received; validating JSON schema.")]))
+                return .progress(
+                    .object(["message": .string("Antigravity final result received; validating JSON schema.")]
+                    ))
             }
-            if let text = event["text"]?.string ?? event["delta"]?["text"]?.string { partialText += text; return .text(text) }
+            if let text = event["text"]?.string ?? event["delta"]?["text"]?.string {
+                partialText += text
+                return .text(text)
+            }
         case .grok:
-            if type == "stream_event", let inner = event["event"], let text = inner["delta"]?["text"]?.string {
-                partialText += text; return .text(text)
+            if type == "stream_event", let inner = event["event"], let text = inner["delta"]?["text"]?.string
+            {
+                partialText += text
+                return .text(text)
             }
-            if type == "content_block_delta", let text = event["delta"]?["text"]?.string { partialText += text; return .text(text) }
+            if type == "content_block_delta", let text = event["delta"]?["text"]?.string {
+                partialText += text
+                return .text(text)
+            }
             if type == "assistant", let content = event["message"]?["content"]?.array {
                 let text = content.compactMap { $0["text"]?.string }.joined()
-                if !text.isEmpty { finalText = text; return .text(text) }
+                if !text.isEmpty {
+                    finalText = text
+                    return .text(text)
+                }
             }
             if type == "result" {
                 receivedTerminal = true
                 if event["is_error"]?.bool == true { failed = true }
-                if let structured = event["structured_output"] { structuredResult = structured }
-                else if let text = event["result"]?.string { finalText = text }
-                else if let text = event["response"]?.string { finalText = text }
+                if let structured = event["structured_output"] {
+                    structuredResult = structured
+                } else if let text = event["result"]?.string {
+                    finalText = text
+                } else if let text = event["response"]?.string {
+                    finalText = text
+                }
             }
         }
         guard finalText.utf8.count + partialText.utf8.count <= 4_194_304 else {
@@ -183,11 +267,21 @@ actor ProviderAccumulator {
     }
 
     func finalResult() throws -> JSONValue {
-        guard !failed else { throw AgentError("provider_execution_failed", "The provider reported an execution failure.") }
+        guard !failed else {
+            throw AgentError("provider_execution_failed", "The provider reported an execution failure.")
+        }
         if let structuredResult { return structuredResult }
-        guard receivedTerminal else { throw AgentError("invalid_final_json", "The provider did not emit a terminal result event.") }
+        guard receivedTerminal else {
+            throw AgentError("invalid_final_json", "The provider did not emit a terminal result event.")
+        }
         let text = finalText.isEmpty ? partialText : finalText
-        guard let value = try? JSONValue.parse(text) else { throw AgentError("invalid_final_json", "The provider did not return valid final JSON.") }
+        guard let value = try? JSONValue.parse(text) else {
+            throw AgentError("invalid_final_json", "The provider did not return valid final JSON.")
+        }
         return value
+    }
+
+    func checkOutcome() throws {
+        if failed { throw AgentError("provider_execution_failed", "The provider reported an execution failure.") }
     }
 }

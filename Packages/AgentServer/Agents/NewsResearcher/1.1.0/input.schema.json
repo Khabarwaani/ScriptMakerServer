@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "topic"
+  ],
+  "properties": {
+    "topic": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Research topic"
+    },
+    "language": {
+      "type": "string",
+      "default": "English"
+    },
+    "source_url": {
+      "type": "string",
+      "pattern": "^https?://",
+      "description": "Optional authoritative source to use for the entire run"
+    }
+  },
+  "examples": [
+    {
+      "topic": "India's semiconductor industry",
+      "language": "English"
+    }
+  ]
+}

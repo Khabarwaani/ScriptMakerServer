@@ -15,12 +15,16 @@ import Testing
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
     let file = directory.appendingPathComponent("server.json")
-    try Data("{\"port\":9091,\"agents_directory\":\"Definitions\",\"shutdown_timeout_seconds\":900}".utf8).write(to: file)
-    let configuration = try ServerConfiguration(environment: ["AGENT_SERVER_CONFIG": file.path], workingDirectory: directory)
+    try Data("{\"port\":9091,\"agents_directory\":\"Definitions\",\"shutdown_timeout_seconds\":900}".utf8)
+        .write(to: file)
+    let configuration = try ServerConfiguration(
+        environment: ["AGENT_SERVER_CONFIG": file.path], workingDirectory: directory)
     #expect(configuration.port == 9091)
     #expect(configuration.agentsDirectory.path == directory.appendingPathComponent("Definitions").path)
     #expect(configuration.shutdownTimeoutSeconds == 900)
-    let override = try ServerConfiguration(environment: ["AGENT_SERVER_CONFIG": file.path, "AGENT_SERVER_PORT": "8080"], workingDirectory: directory)
+    let override = try ServerConfiguration(
+        environment: ["AGENT_SERVER_CONFIG": file.path, "AGENT_SERVER_PORT": "8080"],
+        workingDirectory: directory)
     #expect(override.port == 8080)
 }
 
@@ -32,7 +36,7 @@ import Testing
 
 @Test func configurablePortAndAgentStorage() throws {
     let configuration = try ServerConfiguration(environment: [
-        "AGENT_SERVER_PORT": "9090", "AGENT_SERVER_AGENTS_DIR": "/tmp/custom-agents"
+        "AGENT_SERVER_PORT": "9090", "AGENT_SERVER_AGENTS_DIR": "/tmp/custom-agents",
     ])
     #expect(configuration.port == 9090)
     #expect(configuration.agentsDirectory.path == "/tmp/custom-agents")
