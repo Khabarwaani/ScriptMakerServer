@@ -4,6 +4,60 @@ The repository keeps Xcode entry points at its root. The executable and reusable
 library are the Swift package at `Packages/AgentServer`. Development guidance is in
 `Packages/AgentServer/AGENTS.md`; public documentation is in `Documentation`.
 
+## Three-Tier Architecture
+
+The system is structured as a modular, decoupled **Three-Tier Architecture**:
+
+```mermaid
+graph TD
+    subgraph Tier1["Tier 1: Presentation & API Tier (AgentServer)"]
+        HTTP[Hummingbird 2 HTTP Router]
+        OpenAPI[OpenAPI 3.1 & /help Web UI]
+        SSE[SSE Streaming & Output Mapper]
+        StatusTracker[Session & Lifecycle Tracking]
+    end
+
+    subgraph Tier2["Tier 2: Orchestration & Core Tier (AgentCore)"]
+        ExecMgr[ExecutionManager Actor]
+        MasterProtocol["Master Feasibility Protocol (Single-Turn Prompt)"]
+        ProviderCatalog[AI Provider Adapters: Codex / Antigravity / Grok]
+        Validator[OutputValidator JSON Schema 2020-12]
+        Platforms[Platform Extensions: macOS / Linux / Windows]
+    end
+
+    subgraph Tier3["Tier 3: Domain & Agent Tier (Agents/*)"]
+        ScriptRefiner[ScriptRefiner Agent Package]
+        NewsResearcher[NewsResearcher Agent Package]
+        FutureAgents[Future Domain Agent Packages]
+    end
+
+    HTTP --> ExecMgr
+    ExecMgr --> MasterProtocol
+    MasterProtocol --> ProviderCatalog
+    ProviderCatalog --> Validator
+    ScriptRefiner -.-> Tier2
+    NewsResearcher -.-> Tier2
+    FutureAgents -.-> Tier2
+```
+
+### 1. Presentation & API Tier (`AgentServer`)
+- **Composition Root & Web Server**: Powered by Hummingbird 2, providing loopback-bound HTTP routing for `/agents`, `/execute`, `/status`, `/openapi.json`, and `/logs`.
+- **Contract & SSE Transport**: Decouples transport from agent execution. Supports synchronous single-value responses (HTTP 200 / 422 / 400 / 404 / 500) and opt-in SSE streaming (`status=true`).
+- **Direct Error Pass-Through**: When the agent returns a feasibility error dictionary, `AgentServer` sets the response status code to **HTTP 422 Unprocessable Entity** and passes the raw agent error dictionary directly to the client without alteration.
+- **Web Reference & Diagnostic UI**: Serves interactive documentation, Try It console, and session log inspection via `AgentResources`.
+
+### 2. Orchestration & Core Tier (`AgentCore`)
+- **Execution Lifecycle & Concurrency**: Actor-isolated `ExecutionManager` enforces process concurrency limits (budget of 8), burst queueing, timeouts, and graceful shutdown draining.
+- **Master Feasibility Protocol**: Injects a generic, single-turn feasibility verification instruction into all provider prompts (`CLIProviders.swift`), requiring the model to return `{ "error": { "reason": "..." } }` if the client input is meaningless or unfeasible.
+- **Provider Adapters**: Common abstractions for CLI AI engines (Codex, Antigravity, Grok) with isolated process I/O, output streaming, and unified error handling.
+- **Strict Schema Validation**: Bounded JSON Schema (Draft 2020-12) engine (`OutputValidator.swift`) validates domain output before reporting successful completion.
+- **Cross-Platform Abstractions**: Formal platform contracts (`PlatformContracts.swift`) fulfilled by operating-system extensions for macOS (Mach/Darwin), Linux (Glibc/procfs), and Windows (Win32/PSAPI).
+
+### 3. Domain & Agent Tier (`Agents/*`)
+- **Independent Swift Packages**: Standalone libraries (e.g. `ScriptRefiner`, `NewsResearcher`) conforming to `AgentPackageContract`.
+- **Pure Domain Specifications**: Pure, immutable version directories containing `role.md`, `instructions.md`, optional `input.schema.json`, and `output.schema.json`.
+- **Zero Framework Pollution**: Agent packages contain no server or transport logic, allowing them to remain portable and clean.
+
 ## Boundaries
 
 `AgentServer` is the composition root, HTTP contract mapping and SSE transport.
