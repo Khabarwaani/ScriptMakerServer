@@ -153,27 +153,54 @@ Inspect an existing agent worktree before reusing it; preserve unfinished work.
 For a task without a bug/issue, use a descriptive branch name. After finishing
 the fix and running the required checks, commit with the issue reference, pull
 the latest `develop` into the task branch, resolve any conflicts and rerun affected
-checks before pushing:
+checks before pushing only the task branch and opening a pull request into `develop`:
 
 ```sh
 git add <changed-files>
 git commit -m "fix: describe the change (fixes #123)"
 git pull --no-rebase origin develop
-git push origin HEAD:develop
+git push -u origin HEAD
+gh pr create --repo Khabarwaani/ScriptMakerServer --base develop \
+  --head bug/123-short-description --title "Fix the reported bug" \
+  --body-file /tmp/pr-description.md
 ```
 
-Never force-push `develop`. If the remote advances, pull again, resolve conflicts,
-verify and retry. Verify that GitHub's `develop` contains the fix, then close the
-issue if it was not closed automatically:
+Write `/tmp/pr-description.md` with the problem, resulting behavior, validation
+and `Fixes #123` before creating the PR. Direct pushes to `develop` are forbidden:
+every change must go through a PR targeting `develop`. Satisfy required checks and
+reviews; do not bypass branch protections. If `develop` advances before merging,
+pull it into the task branch, resolve conflicts, rerun affected checks and push the
+task branch again.
+
+Squash merge every issue PR. The only exception is a PR solely for a version
+increase, which uses a regular merge preserving commits. A PR containing a bug fix
+or behavior change must use squash merge even if it also increases a version.
+Replace `<pr-number>` with the PR number returned by GitHub:
 
 ```sh
-gh issue close 123 --repo Khabarwaani/ScriptMakerServer --reason completed
+gh pr checks <pr-number> --repo Khabarwaani/ScriptMakerServer
+gh pr merge <pr-number> --repo Khabarwaani/ScriptMakerServer --squash
+# Only for PRs solely increasing a version, use --merge instead of --squash.
+gh pr view <pr-number> --repo Khabarwaani/ScriptMakerServer \
+  --json state,mergedAt,mergeCommit
+git fetch origin develop
+git merge-base --is-ancestor <merge-commit-sha> origin/develop
+```
+
+Verify that the PR is merged and its resulting commit is on remote `develop`.
+Return to the primary checkout and sync local `develop` for integration cleanup,
+then close the issue if it was not closed automatically:
+
+```sh
 cd ../..
+git pull --ff-only origin develop
+gh issue close 123 --repo Khabarwaani/ScriptMakerServer --reason completed
 git worktree remove .worktrees/codex
 ```
 
-Remove the clean worktree only after successful verification and push. Keep it
-when a merge, check or push fails. See [AGENTS.md](AGENTS.md) for the required workflow.
+Remove the clean worktree only after a successful PR merge and verification. Keep
+it when PR creation, checks, merge or verification fails. See [AGENTS.md](AGENTS.md)
+for the required workflow.
 
 ## Engineering practices
 
