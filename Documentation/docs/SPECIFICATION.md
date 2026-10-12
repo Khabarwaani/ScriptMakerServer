@@ -71,24 +71,25 @@ The server validates the final result before reporting successful completion.
 
 ## 5. Agent storage and discovery
 
-The initial implementation supports directory-based definitions:
+Registered Swift packages contain the declared version resources:
 
 ```text
-AgentServer/
+Packages/AgentServer/
 ├── Package.swift
 ├── Sources/
 ├── Tests/
 └── Agents/
     ├── NewsResearcher/
-    │   ├── 1.0.0/
-    │   │   ├── role.md
-    │   │   ├── instructions.md
-    │   │   └── output.schema.json
+    │   ├── Package.swift
+    │   ├── README.md
     │   └── 1.1.0/
     │       ├── role.md
     │       ├── instructions.md
+    │       ├── input.schema.json
     │       └── output.schema.json
-    ScriptRefiner/
+    └── ScriptRefiner/
+        ├── Package.swift
+        ├── README.md
         └── 1.0.0/
             ├── role.md
             ├── instructions.md
@@ -185,7 +186,7 @@ event: status
 data: {"execution_id":"exec_001","status":"running"}
 
 event: result
-data: {"execution_id":"exec_001","result":{"status":"pass","confidence":95,"key_notes":["Research complete"]}}
+data: {"execution_id":"exec_001","result":{"verified":true,"confidence":95,"date":"12-10-26","notes":["The reported claims were checked against an authoritative source."]}}
 
 event: completed
 data: {"execution_id":"exec_001"}
