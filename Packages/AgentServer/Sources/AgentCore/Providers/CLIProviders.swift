@@ -17,15 +17,26 @@ public struct CLIProvider: AIProvider {
             throw AgentError("provider_unavailable", "The selected provider is disabled.")
         }
         let configured = settings.executable
+        let extensions = ProcessRunner.platformExecutableExtensions
+        let separator = ProcessRunner.platformPathSeparator
+        let standardPaths = ProcessRunner.platformStandardPaths
+
+        var configuredVariants = [configured]
+        for ext in extensions where !ext.isEmpty && !configured.hasSuffix(ext) {
+            configuredVariants.append(configured + ext)
+        }
+
         let candidates: [String]
-        if configured.contains("/") {
-            candidates = [configured]
+        if configured.contains("/") || configured.contains("\\") {
+            candidates = configuredVariants
         } else {
             let path = ProcessInfo.processInfo.environment["PATH"] ?? ""
-            candidates =
-                (path.split(separator: ":").map(String.init) + [
-                    "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin",
-                ]).map { $0 + "/" + configured }
+            let segments = path.split(separator: separator).map(String.init) + standardPaths
+            candidates = segments.flatMap { dir in
+                configuredVariants.map { variant in
+                    URL(fileURLWithPath: dir).appendingPathComponent(variant).path
+                }
+            }
         }
         guard let found = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
             throw AgentError(

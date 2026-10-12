@@ -70,3 +70,10 @@ socket behavior need the separate integration run described in RUN.md.
 Do not mark every Version 1 acceptance criterion verified merely because mock tests
 pass. Live CLI behavior and resource-pressure behavior must be evaluated on the target
 Mac with the user's configured providers.
+
+## Platform portability
+
+Core business logic (`ProcessRunner`, `SystemResources`, `ServerInstance`, `CLIProviders`) remains common and platform-agnostic in `Sources/AgentCore`. Low-level operating system hooks are specified by formal protocol contracts (`Protocols/PlatformContracts.swift`) and fulfilled strictly via extensions in dedicated platform directories:
+- `Platform/macOS/`: Darwin `F_SETNOSIGPIPE`, Mach `proc_pidinfo` and `host_statistics64`, POSIX process groups, and `fcntl` instance locking.
+- `Platform/Linux/`: Glibc, `/proc/<pid>/statm`, `/proc/meminfo`, `SIGPIPE` ignore, and `/proc/<pid>/exe` link inspection.
+- `Platform/Windows/`: WinSDK, PSAPI `GetProcessMemoryInfo`, `GlobalMemoryStatusEx`, Win32 Named Mutexes/Events, and `;` PATH delimiter.
