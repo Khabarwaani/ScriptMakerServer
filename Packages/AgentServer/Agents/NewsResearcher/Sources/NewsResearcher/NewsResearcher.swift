@@ -3,7 +3,7 @@ import Foundation
 /// Provider-independent versioned instructions usable by another Swift package.
 public enum NewsResearcherDefinition: Sendable {
     public static let id = "NewsResearcher"
-    public static let versions: [String] = ["1.0.0", "1.1.0"]
+    public static let versions: [String] = ["1.1.0"]
 
     public static func directory(version: String) throws -> URL {
         guard versions.contains(version),
