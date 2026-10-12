@@ -26,15 +26,15 @@ struct ServerRoutes {
         router.get(RouterPath(APIOperation.listAgents.path)) { _, _ -> AgentsResponse in
             await AgentsResponse(agents: registry.list(), providers: providers.statuses())
         }
-        router.get(RouterPath(APIOperation.getStatus.path)) { _, _ -> StatusResponse in
+        router.get(RouterPath(APIOperation.getStatus.path)) { _, _ in
             let snapshot = await manager.snapshot()
-            return await StatusResponse(
+            return try await jsonResponse(StatusResponse(
                 status: snapshot.accepting ? "healthy" : "shutting_down",
                 server: .init(version: "1.0.0", uptime_seconds: Int(Date().timeIntervalSince(startedAt))),
                 active_executions: snapshot.activeCount, queued_executions: snapshot.queuedCount,
                 system_resources: SystemResources.sample(),
                 provider_resident_memory_bytes: snapshot.residentMemoryBytes,
-                executions: snapshot.records, providers: providers.statuses())
+                executions: snapshot.records, providers: providers.statuses()))
         }
         router.post(RouterPath(APIOperation.executeAgent.path)) { request, context in
             do {

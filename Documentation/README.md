@@ -8,7 +8,9 @@ independent.
 Open **AgentServer.xcworkspace**, select **AgentServer → My Mac**, and press **⌘R**.
 Then open **http://127.0.0.1:8080/**. The input page discovers agent IDs and versions
 from the registry. **/help** documents the API and dynamically displays each agent's
-role and input/output contracts.
+role and input/output contracts. Execution pages show start time and live running
+duration. Tracking is limited to the current server session, purged on shutdown,
+and retains only ID, state and timing after an execution finishes.
 
 The four API routes, in-process scheduling, provider adapters, validation and
 cancellation are implemented. See [run instructions](docs/RUN.md) for verification
@@ -121,6 +123,57 @@ Swift packages embed the resources listed in their manifests at compile time.
 The server independently scans runtime version directories. New Markdown versions
 in the configured running agent root need no server rebuild. Building the server
 copies the repository's definitions into its packaged defaults.
+
+## Bug tracking and agent worktrees
+
+Track bugs in [GitHub Issues](https://github.com/Khabarwaani/ScriptMakerServer/issues)
+using the GitHub CLI (`gh`), rather than local bug tracker files. Include the
+reproduction steps, actual behavior, expected behavior and verification criteria.
+Search existing issues first to avoid duplicates:
+
+```sh
+gh issue list --repo Khabarwaani/ScriptMakerServer --state open
+gh issue create --repo Khabarwaani/ScriptMakerServer --label bug \
+  --title "Brief description of the bug" --body-file /tmp/bug-description.md
+gh issue view 123 --repo Khabarwaani/ScriptMakerServer
+```
+
+Write the issue description to `/tmp/bug-description.md` before running the create
+command. Use the issue number returned by GitHub in the branch name. Each agent
+works only in a worktree named after itself (`codex`, `antigravity`, etc.). From
+the repository root, this example starts a Codex fix for issue 123:
+
+```sh
+git fetch origin develop
+git worktree add -b bug/123-short-description .worktrees/codex origin/develop
+cd .worktrees/codex
+```
+
+Inspect an existing agent worktree before reusing it; preserve unfinished work.
+For a task without a bug/issue, use a descriptive branch name. After finishing
+the fix and running the required checks, commit with the issue reference, pull
+the latest `develop` into the task branch, resolve any conflicts and rerun affected
+checks before pushing:
+
+```sh
+git add <changed-files>
+git commit -m "fix: describe the change (fixes #123)"
+git pull --no-rebase origin develop
+git push origin HEAD:develop
+```
+
+Never force-push `develop`. If the remote advances, pull again, resolve conflicts,
+verify and retry. Verify that GitHub's `develop` contains the fix, then close the
+issue if it was not closed automatically:
+
+```sh
+gh issue close 123 --repo Khabarwaani/ScriptMakerServer --reason completed
+cd ../..
+git worktree remove .worktrees/codex
+```
+
+Remove the clean worktree only after successful verification and push. Keep it
+when a merge, check or push fails. See [AGENTS.md](AGENTS.md) for the required workflow.
 
 ## Engineering practices
 

@@ -198,7 +198,9 @@ Return a snapshot of health and tracked executions, not an output stream.
       "provider": "codex",
       "status": "running",
       "streaming": true,
-      "started_at": "2026-10-12T06:00:00Z"
+      "started_at": "2026-10-12T06:00:00Z",
+      "running_at": "2026-10-12T06:00:02Z",
+      "elapsed_seconds": 30.5
     }
   ]
 }
@@ -208,6 +210,12 @@ Report overall health, tracked states, ID, agent ID, resolved version, provider,
 start time and whether output is actively streaming. Distinguish running,
 completed, failed, cancelling and cancelled; queued work may use an additional
 `queued` state. Include relevant aggregates such as active execution count.
+Timing uses ISO 8601 timestamps: `started_at` is acceptance time, `running_at` is
+when execution begins running, and `elapsed_seconds` excludes queue time and freezes
+at `ended_at` on termination. Queued work has zero running duration. SSE events also
+include timing metadata. Terminal records retain only ID, state and timing; active
+records include agent/provider and operational metadata. Tracking is in memory for
+the current server session and is purged after shutdown drains or cancels work.
 Do not expose prompts, credentials or environment variables.
 
 Assign an execution ID when accepted. The client must be able to obtain it even

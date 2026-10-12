@@ -9,7 +9,7 @@ public actor ExecutionManager {
     private struct Entry: Sendable {
         var record: ExecutionRecord
         var continuation: AsyncStream<StreamEvent>.Continuation?
-        let runner: ProcessRunner
+        var runner: ProcessRunner?
         var task: Task<Void, Never>?
         var timer: Task<Void, Never>?
         var timedOut = false
@@ -86,7 +86,9 @@ public actor ExecutionManager {
     }
 
     public func detach(_ id: String) {
-        entries[id]?.record.streaming = false
+        if let state = entries[id]?.record.status, !terminal(state) {
+            entries[id]?.record.streaming = false
+        }
         entries[id]?.continuation?.finish()
         entries[id]?.continuation = nil
     }
@@ -103,7 +105,7 @@ public actor ExecutionManager {
         } else {
             entries[id]?.record.status = "cancelling"
             emit(id, "status", ["status": .string("cancelling")])
-            entry.runner.cancel()
+            entry.runner?.cancel()
             entry.task?.cancel()
         }
         return entries[id]!.record
@@ -114,15 +116,18 @@ public actor ExecutionManager {
         pump()
         let records = entries.values.map { entry in
             var record = entry.record
-            record.process_id = entry.runner.processID
-            record.resident_memory_bytes = entry.runner.residentMemoryBytes
+            record.updateElapsed()
+            if let runner = entry.runner {
+                record.process_id = runner.processID
+                record.resident_memory_bytes = runner.residentMemoryBytes
+            }
             return record
         }.sorted { $0.started_at < $1.started_at }
         return ExecutionSnapshot(
             records: records,
             activeCount: records.filter { ["running", "cancelling"].contains($0.status) }.count,
             queuedCount: queue.count,
-            residentMemoryBytes: records.reduce(0) { $0 + $1.resident_memory_bytes }, accepting: accepting)
+            residentMemoryBytes: records.reduce(0) { $0 + ($1.resident_memory_bytes ?? 0) }, accepting: accepting)
     }
 
     public func maintenance() {
@@ -153,6 +158,9 @@ public actor ExecutionManager {
             // A cancelled shutdown task must still reap its provider processes.
             await Task.detached { try? await Task.sleep(for: .milliseconds(50)) }.value
         }
+        entries.removeAll()
+        pending.removeAll()
+        queue.removeAll()
     }
 
     private func terminal(_ state: String) -> Bool { ["completed", "failed", "cancelled"].contains(state) }
@@ -162,7 +170,7 @@ public actor ExecutionManager {
     }
     private func pump() {
         let active = entries.values.filter { $0.task != nil }.count
-        let memory = entries.values.reduce(UInt64(0)) { $0 + $1.runner.residentMemoryBytes }
+        let memory = entries.values.reduce(UInt64(0)) { $0 + ($1.runner?.residentMemoryBytes ?? 0) }
         let resources = resourceSample()
         guard memory < resources.physical_memory_bytes * 65 / 100 else { return }
         if let available = resources.available_memory_bytes,
@@ -178,6 +186,7 @@ public actor ExecutionManager {
                 continue
             }
             entries[id]?.record.status = "running"
+            entries[id]?.record.running_at = Date()
             emit(id, "status", ["status": .string("running")])
             entries[id]?.task = Task { await self.perform(id, work: work, runner: runner) }
             entries[id]?.timer = Task {
@@ -237,6 +246,18 @@ public actor ExecutionManager {
         guard let continuation = entries[id]?.continuation else { return }
         var data = fields
         data["execution_id"] = .string(id)
+        if var record = entries[id]?.record {
+            record.updateElapsed()
+            let formatter = ISO8601DateFormatter()
+            data["started_at"] = .string(formatter.string(from: record.started_at))
+            data["elapsed_seconds"] = .number(record.elapsed_seconds)
+            if let runningAt = record.running_at {
+                data["running_at"] = .string(formatter.string(from: runningAt))
+            }
+            if let endedAt = record.ended_at {
+                data["ended_at"] = .string(formatter.string(from: endedAt))
+            }
+        }
         switch continuation.yield(StreamEvent(name: name, data: .object(data))) {
         case .dropped, .terminated: detach(id)
         default: break
@@ -247,6 +268,7 @@ public actor ExecutionManager {
         failure?.execution_id = id
         entries[id]?.record.status = state
         entries[id]?.record.ended_at = Date()
+        entries[id]?.record.updateElapsed()
         entries[id]?.record.error = failure
         if let failure, let data = try? JSONEncoder().encode(failure),
             let json = try? JSONDecoder().decode(JSONValue.self, from: data)
@@ -257,7 +279,8 @@ public actor ExecutionManager {
         }
         entries[id]?.continuation?.finish()
         entries[id]?.continuation = nil
-        entries[id]?.record.streaming = false
+        entries[id]?.record.retainOnlyStateAndTiming()
+        entries[id]?.runner = nil
         entries[id]?.timer?.cancel()
         entries[id]?.timer = nil
         entries[id]?.task = nil
