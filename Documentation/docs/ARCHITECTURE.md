@@ -83,3 +83,13 @@ Core business logic (`ProcessRunner`, `SystemResources`, `ServerInstance`, `CLIP
 - `Platform/macOS/`: Darwin `F_SETNOSIGPIPE`, Mach `proc_pidinfo` and `host_statistics64`, POSIX process groups, and `fcntl` instance locking.
 - `Platform/Linux/`: Glibc, `/proc/<pid>/statm`, `/proc/meminfo`, `SIGPIPE` ignore, and `/proc/<pid>/exe` link inspection.
 - `Platform/Windows/`: WinSDK, PSAPI `GetProcessMemoryInfo`, `GlobalMemoryStatusEx`, Win32 Named Mutexes/Events, and `;` PATH delimiter.
+
+## Session diagnostics
+
+Failed terminal tracking records retain bounded error code/message alongside ID,
+state and timing. Execution resources are still released and shutdown purges all
+in-memory records. ExecutionSessionLog appends compact JSONL state transitions to
+a per-port temporary file, reset only after the server acquires its instance lock
+on a fresh start. The Help-linked `/logs` viewer uses a bounded 200-entry tail;
+`/execution-logs/download` streams a fixed full-file snapshot in chunks. Inputs,
+results and provider output are excluded from the log.

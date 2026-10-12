@@ -42,12 +42,12 @@ struct MockProvider: AIProvider {
 
 func makeManager(
     _ fixture: AgentFixture, provider: MockProvider = MockProvider(), capacity: Int = 8, timeout: Int = 30,
-    retention: Int = 3600
+    retention: Int = 3600, sessionLog: ExecutionSessionLog? = nil
 ) -> ExecutionManager {
     ExecutionManager(
         registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents), providers: ProviderCatalog(providers: [provider]),
         runtimeRoot: fixture.runtime,
-        maxProcesses: capacity, timeoutSeconds: timeout, retentionSeconds: retention,
+        maxProcesses: capacity, timeoutSeconds: timeout, retentionSeconds: retention, sessionLog: sessionLog,
         resourceSample: {
             SystemResources(
                 physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296, load_average: 0,
@@ -101,7 +101,11 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(stream.last?.name == "failed")
     #expect(!stream.contains(where: { $0.name == "completed" || $0.name == "result" }))
     let record = try await waitForTerminal(manager, id: accepted.id)
-    #expect(record.status == "failed" && record.error == nil)
+    #expect(record.status == "failed")
+    #expect(record.error?.code == (schemaFailure ? "output_schema_validation_failed" : "provider_execution_failed"))
+    #expect(record.error?.message == stream.last?.data["error"]?["message"]?.string)
+    #expect(record.error?.execution_id == accepted.id)
+    #expect(record.agent_id == nil && record.provider == nil && record.process_id == nil)
     #expect(stream.last?.data["error"]?["execution_id"] == .string(accepted.id))
 }
 
@@ -147,6 +151,7 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     let timedManager = makeManager(fixture, provider: MockProvider(delayMilliseconds: 2000), timeout: 1)
     let timed = try await timedManager.execute(request("timeout"))
     #expect(await events(timed).last?.data["error"]?["code"] == .string("execution_timeout"))
+    #expect(await timedManager.snapshot().records.first?.error?.code == "execution_timeout")
 }
 
 @Test func shutdownDrainsAndRejectsNewWork() async throws {

@@ -16,7 +16,10 @@ configures Try it, and Copy buttons cover requests, responses, examples and sche
 The help page dynamically displays each agent's
 role and input/output contracts. Execution pages show start time and live running
 duration. Tracking is limited to the current server session, purged on shutdown,
-and retains only ID, state and timing after an execution finishes.
+and retains ID, state, timing and bounded error details after an execution finishes.
+Execution state/outcome logs are stored in a temporary JSONL file that resets on
+a fresh start. Open `/logs` from Help for ID/time/status and expandable details,
+or download the full session log.
 
 The four API routes, in-process scheduling, provider adapters, validation and
 cancellation are implemented. See [run instructions](docs/RUN.md) for verification

@@ -45,3 +45,13 @@ writing. Agent creation and version tooling refresh the affected README automati
 Author version notes in `notes.md` rather than editing generated agent READMEs.
 
 Follow [AGENTS.md](AGENTS.md) for the issue, worktree, PR, merge and cleanup workflow.
+
+## Session execution logs
+
+Open **Execution logs** from `/help` to list execution IDs, times and states,
+with expandable timing and error details. `/execution-logs` returns the latest
+200 state entries; `/execution-logs/download` streams the full JSONL file.
+The server writes this file in its temporary `AgentServer` directory, prints its
+path on startup, and clears it on a fresh start. It records accepted executions
+and outcomes without prompts, results or raw provider output. Failed tracked
+requests also retain a bounded error code and message; shutdown purges memory.

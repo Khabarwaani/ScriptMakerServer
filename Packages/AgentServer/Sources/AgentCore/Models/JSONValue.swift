@@ -82,7 +82,7 @@ public struct AgentError: Error, Codable, Sendable, Equatable {
         case "unknown_agent", "unknown_version", "unknown_execution": 404
         case "invalid_request", "invalid_json", "input_schema_validation_failed", "invalid_agent_definition": 400
         case "provider_unavailable", "provider_initialization_failed", "server_shutting_down",
-            "resource_pressure":
+            "resource_pressure", "execution_log_unavailable":
             503
         case "unsupported_provider": 400
         default: 500

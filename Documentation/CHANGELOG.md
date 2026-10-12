@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Failed tracked requests retain bounded error code/message so their failure reason
+  remains visible after completion.
+- A per-port temporary JSONL execution log records session state transitions and
+  outcomes, resets on a fresh start, and is available through Help's `/logs` viewer
+  and full-log download. Recent reads and downloads use bounded memory.
+- ScriptRefiner 1.1.0 adds automatic full prop lifecycle, character, spatial and
+  action continuity audits across every script point, shot and subscene. Both input
+  issue/focus options and detected-issue categories include the new continuity
+  types; 1.0.0 remains available unchanged.
+
 ## 1.1.0
 
 - `POST /execute` returns one final schema-validated JSON value or structured error

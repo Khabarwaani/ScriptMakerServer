@@ -17,6 +17,7 @@ public actor ExecutionManager {
     private let registry: AgentRegistry
     private let providers: ProviderCatalog
     private let runtimeRoot: URL
+    private let sessionLog: ExecutionSessionLog?
     private let maxProcesses: Int
     private let maxQueued: Int
     private let timeoutSeconds: Int
@@ -31,11 +32,13 @@ public actor ExecutionManager {
     public init(
         registry: AgentRegistry, providers: ProviderCatalog, runtimeRoot: URL,
         maxProcesses: Int = 8, maxQueued: Int = 64, timeoutSeconds: Int = 1800, retentionSeconds: Int = 3600,
+        sessionLog: ExecutionSessionLog? = nil,
         resourceSample: @escaping @Sendable () -> SystemResources = { SystemResources.sample() }
     ) {
         self.registry = registry
         self.providers = providers
         self.runtimeRoot = runtimeRoot
+        self.sessionLog = sessionLog
         self.maxProcesses = maxProcesses
         self.maxQueued = maxQueued
         self.timeoutSeconds = timeoutSeconds
@@ -75,6 +78,7 @@ public actor ExecutionManager {
         entries[id] = Entry(record: record, continuation: continuation, runner: ProcessRunner())
         pending[id] = Work(definition: definition, input: request.input, provider: provider)
         queue.append(id)
+        logState(id)
         emit(
             id, "started",
             [
@@ -104,6 +108,7 @@ public actor ExecutionManager {
             finish(id, state: "cancelled", event: "cancelled")
         } else {
             entries[id]?.record.status = "cancelling"
+            logState(id)
             emit(id, "status", ["status": .string("cancelling")])
             entry.runner?.cancel()
             entry.task?.cancel()
@@ -128,6 +133,22 @@ public actor ExecutionManager {
             activeCount: records.filter { ["running", "cancelling"].contains($0.status) }.count,
             queuedCount: queue.count,
             residentMemoryBytes: records.reduce(0) { $0 + ($1.resident_memory_bytes ?? 0) }, accepting: accepting)
+    }
+
+    public func recentExecutionLogs() throws -> [ExecutionRecord] {
+        guard let sessionLog else { throw AgentError("execution_log_unavailable", "Session execution logging is unavailable.") }
+        return try sessionLog.recentRecords()
+    }
+
+    public func executionLogFile() throws -> (url: URL, length: UInt64) {
+        guard let sessionLog else { throw AgentError("execution_log_unavailable", "Session execution logging is unavailable.") }
+        return try sessionLog.snapshotFile()
+    }
+
+    private func logState(_ id: String) {
+        guard var record = entries[id]?.record else { return }
+        record.updateElapsed()
+        sessionLog?.append(record)
     }
 
     public func maintenance() {
@@ -187,6 +208,7 @@ public actor ExecutionManager {
             }
             entries[id]?.record.status = "running"
             entries[id]?.record.running_at = Date()
+            logState(id)
             emit(id, "status", ["status": .string("running")])
             entries[id]?.task = Task { await self.perform(id, work: work, runner: runner) }
             entries[id]?.timer = Task {
@@ -279,7 +301,8 @@ public actor ExecutionManager {
         }
         entries[id]?.continuation?.finish()
         entries[id]?.continuation = nil
-        entries[id]?.record.retainOnlyStateAndTiming()
+        entries[id]?.record.retainOnlyStateTimingAndError()
+        logState(id)
         entries[id]?.runner = nil
         entries[id]?.timer?.cancel()
         entries[id]?.timer = nil
