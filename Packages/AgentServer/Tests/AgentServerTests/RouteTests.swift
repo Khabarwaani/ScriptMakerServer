@@ -109,11 +109,20 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(text.contains("event: output\n"))
             #expect(text.contains("event: result\n"))
             #expect(text.contains("event: completed\n"))
+            #expect(text.contains("\"started_at\":"))
+            #expect(text.contains("\"elapsed_seconds\":"))
         }
         try await client.execute(uri: "/status", method: .get) { response in
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["status"] == .string("healthy"))
             #expect(value["executions"]?.array?.first?["status"] == .string("completed"))
+            let record = try #require(value["executions"]?.array?.first)
+            let startedAt = try #require(record["started_at"]?.string)
+            #expect(ISO8601DateFormatter().date(from: startedAt) != nil)
+            #expect(record["running_at"]?.string != nil)
+            #expect(record["ended_at"]?.string != nil)
+            #expect(record["elapsed_seconds"] != nil)
+            #expect(record["agent_id"] == nil && record["provider"] == nil && record["error"] == nil)
         }
         try await client.execute(uri: "/executions/missing/cancel", method: .post) { response in
             #expect(response.status == .notFound)
@@ -126,6 +135,7 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(html.contains("HTTP API reference"))
             #expect(!html.contains("swift run"))
             #expect(html.contains("/try?operation="))
+            #expect(html.contains("Execution start time and duration"))
         }
         try await client.execute(uri: "/openapi.json", method: .get) { response in
             #expect(response.status == .ok)
@@ -134,6 +144,7 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(document["paths"]?["/execute"]?["post"]?["operationId"] == .string("executeAgent"))
             #expect(document["paths"]?["/executions/{execution_id}/cancel"] != nil)
             #expect(document["x-agents"]?.array?.first?["id"] == .string("Echo"))
+            #expect(document["components"]?["schemas"]?["ExecutionRecord"]?["properties"]?["elapsed_seconds"]?["minimum"] == .number(0))
         }
         try await client.execute(uri: "/try?operation=getStatus", method: .get) { response in
             #expect(response.status == .ok)

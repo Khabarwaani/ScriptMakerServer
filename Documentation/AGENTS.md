@@ -13,7 +13,11 @@ Keep the repository root limited to Xcode entry points, `.gitignore`, and groupe
   Store worktrees in the ignored `.worktrees/` directory. Never use another agent's
   worktree or modify the primary checkout for task work.
 - Create a task branch from the latest remote `develop`. Base the branch name on
-  the bug ID, for example `bug/BUG-123`. If no bug ID exists, use a descriptive
+  the GitHub issue number, for example `bug/123-execution-timing`. GitHub Issues is
+  the bug tracker: search for an existing issue with `gh issue list`, and create
+  missing bugs with `gh issue create` before fixing them. Do not create local bug
+  tracker files. Follow the commands in [README.md](README.md#bug-tracking-and-agent-worktrees).
+  For tasks that are not bugs and have no issue, use a descriptive
   task branch name, for example `chore/agent-worktree-instructions`.
 - If the agent's named worktree already exists, inspect it before reuse. Preserve
   unfinished work and never overwrite or delete it to start a new task.

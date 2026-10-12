@@ -83,7 +83,13 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(stream.map(\.name) == ["started", "status", "output", "result", "completed"])
     #expect(stream.first(where: { $0.name == "result" })?.data["result"]?["result"] == .string("first"))
     let record = try await waitForTerminal(manager, id: accepted.id)
-    #expect(record.status == "completed" && record.schema_validated == true)
+    #expect(record.status == "completed")
+    #expect(record.running_at != nil && record.ended_at != nil && record.elapsed_seconds > 0)
+    #expect(record.agent_id == nil && record.provider == nil && record.error == nil)
+    #expect(stream.allSatisfy { $0.data["started_at"] != nil && $0.data["elapsed_seconds"] != nil })
+    #expect(stream.last?.data["ended_at"] != nil)
+    let later = await manager.snapshot().records.first { $0.execution_id == accepted.id }
+    #expect(later?.elapsed_seconds == record.elapsed_seconds)
     #expect(!FileManager.default.fileExists(atPath: fixture.runtime.appendingPathComponent(accepted.id).path))
 }
 
@@ -95,7 +101,8 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(stream.last?.name == "failed")
     #expect(!stream.contains(where: { $0.name == "completed" || $0.name == "result" }))
     let record = try await waitForTerminal(manager, id: accepted.id)
-    #expect(record.error?.execution_id == accepted.id)
+    #expect(record.status == "failed" && record.error == nil)
+    #expect(stream.last?.data["error"]?["execution_id"] == .string(accepted.id))
 }
 
 @Test func concurrentBurstExceedsFiveWithoutMixingResults() async throws {
@@ -147,6 +154,8 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     let accepted = try await manager.execute(request("drain"))
     await manager.shutdown(timeoutSeconds: 2)
     #expect(await events(accepted).last?.name == "completed")
+    #expect(await manager.snapshot().records.isEmpty)
+    #expect(await manager.snapshot().queuedCount == 0)
     await #expect(throws: AgentError.self) { try await manager.execute(request("new")) }
 }
 
@@ -162,7 +171,63 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
         })
     let accepted = try await manager.execute(request("deferred"))
     #expect(await manager.snapshot().queuedCount == 1)
+    let queued = try #require(await manager.snapshot().records.first)
+    #expect(queued.running_at == nil && queued.elapsed_seconds == 0)
     #expect(try await manager.cancel(accepted.id).status == "cancelled")
     #expect(await events(accepted).last?.name == "cancelled")
     #expect(await manager.snapshot().queuedCount == 0)
+    let cancelled = try #require(await manager.snapshot().records.first)
+    #expect(cancelled.running_at == nil && cancelled.elapsed_seconds == 0 && cancelled.ended_at != nil)
+}
+
+@Test func timingExcludesQueueTimeAndFreezesAtTermination() {
+    let accepted = Date(timeIntervalSince1970: 1_000)
+    var record = ExecutionRecord(
+        execution_id: "exec_timing", agent_id: "Echo", version: "1.0.0", provider: "mock",
+        status: "queued", streaming: true, started_at: accepted, resident_memory_bytes: 0)
+    record.updateElapsed(at: accepted.addingTimeInterval(50))
+    #expect(record.elapsed_seconds == 0)
+    record.running_at = accepted.addingTimeInterval(60)
+    record.status = "running"
+    record.updateElapsed(at: accepted.addingTimeInterval(75))
+    #expect(record.elapsed_seconds == 15)
+    record.updateElapsed(at: accepted.addingTimeInterval(80))
+    #expect(record.elapsed_seconds == 20)
+    record.ended_at = accepted.addingTimeInterval(90)
+    record.status = "completed"
+    record.updateElapsed(at: accepted.addingTimeInterval(200))
+    #expect(record.elapsed_seconds == 30)
+}
+
+@Test func completedRecordsRetainOnlyIDStateAndTiming() async throws {
+    let fixture = try AgentFixture()
+    let manager = makeManager(fixture)
+    let execution = try await manager.execute(request("private input"))
+    _ = await events(execution)
+    // HTTP stream detachment after completion must not restore extra fields.
+    await manager.detach(execution.id)
+    let record = try await waitForTerminal(manager, id: execution.id)
+    let json = try JSONValue.parse(String(decoding: JSONEncoder().encode(record), as: UTF8.self))
+    #expect(Set(json.object!.keys) == Set([
+        "execution_id", "status", "started_at", "running_at", "ended_at", "elapsed_seconds",
+    ]))
+    await manager.shutdown(timeoutSeconds: 0)
+    #expect(await manager.snapshot().records.isEmpty)
+    let restarted = makeManager(fixture)
+    #expect(await restarted.snapshot().records.isEmpty)
+}
+
+@Test func shutdownCancelsActiveAndQueuedWorkBeforePurging() async throws {
+    let fixture = try AgentFixture()
+    let tracker = MockTracker()
+    let manager = makeManager(
+        fixture, provider: MockProvider(delayMilliseconds: 10_000, tracker: tracker), capacity: 1)
+    let running = try await manager.execute(request("running"))
+    let queued = try await manager.execute(request("queued"))
+    await manager.shutdown(timeoutSeconds: 0)
+    #expect(await events(running).last?.name == "cancelled")
+    #expect(await events(queued).last?.name == "cancelled")
+    let snapshot = await manager.snapshot()
+    #expect(snapshot.records.isEmpty && snapshot.activeCount == 0 && snapshot.queuedCount == 0)
+    #expect(await tracker.active == 0)
 }

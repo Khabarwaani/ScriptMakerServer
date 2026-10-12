@@ -30,7 +30,7 @@ enum APIOperation: String, CaseIterable {
         case .executeAgent:
             "Supply agent_id, provider and a JSON input object. Omit version for the highest stable version; prereleases must be explicitly selected. X-Execution-ID and the started event identify accepted work. Final output is validated against the resolved version's schema before result and completed are emitted."
         case .getStatus:
-            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. Metadata includes resolved version, provider, timestamps, streaming state and resource usage; input and credentials are excluded."
+            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time, is zero before running, and freezes at ended_at for terminal states. Timestamps are ISO 8601. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain only execution_id, status and timing fields; agent/provider, streaming, error and resource metadata appear only while active. Metadata also includes resolved version, provider, streaming state and resource usage; input and credentials are excluded."
         case .cancelExecution:
             "Requests cancellation only for this execution. Repeated requests are safe. A running execution remains cancelling until its provider process stops. Unknown IDs return a structured 404 error."
         case .getSpecification:
@@ -82,13 +82,25 @@ enum APISpecification {
                             JSONValue.string)),
                 ]),
                 "streaming": boolean,
-                "started_at": .object(["type": .string("string"), "format": .string("date-time")]),
+                "started_at": .object([
+                    "type": .string("string"), "format": .string("date-time"),
+                    "description": .string("Time the execution was accepted, including queued work."),
+                ]),
+                "running_at": .object([
+                    "type": .string("string"), "format": .string("date-time"),
+                    "description": .string("Time execution began running; absent if it never ran."),
+                ]),
                 "ended_at": .object(["type": .string("string"), "format": .string("date-time")]),
+                "elapsed_seconds": .object([
+                    "type": .string("number"), "minimum": .number(0),
+                    "description": .string("Running duration excluding queue time. Zero before running; fixed after termination."),
+                ]),
                 "schema_validated": boolean, "error": reference("Error"), "process_id": integer,
                 "resident_memory_bytes": integer,
             ],
             required: [
-                "execution_id", "agent_id", "version", "provider", "status", "streaming", "started_at",
+                "execution_id", "status", "started_at",
+                "elapsed_seconds",
             ])
         let definition = object(
             [
@@ -216,7 +228,7 @@ enum APISpecification {
                 .object([
                     "name": .string("started"),
                     "description": .string(
-                        "Execution accepted; includes ID, agent, resolved version and provider."),
+                        "Execution accepted; includes ID, agent, resolved version, provider, started_at and elapsed_seconds. Every event includes timing metadata; running_at and ended_at appear when available."),
                 ]),
                 .object([
                     "name": .string("status"),

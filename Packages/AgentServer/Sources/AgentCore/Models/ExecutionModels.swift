@@ -21,17 +21,34 @@ public struct StreamEvent: Sendable {
 
 public struct ExecutionRecord: Codable, Sendable {
     public let execution_id: String
-    public let agent_id: String
-    public let version: String
-    public let provider: String
+    public var agent_id: String?
+    public var version: String?
+    public var provider: String?
     public var status: String
-    public var streaming: Bool
+    public var streaming: Bool?
     public let started_at: Date
+    public var running_at: Date?
     public var ended_at: Date?
+    public var elapsed_seconds: Double = 0
     public var error: AgentError?
     public var schema_validated: Bool?
     public var process_id: Int32?
-    public var resident_memory_bytes: UInt64
+    public var resident_memory_bytes: UInt64?
+
+    mutating func updateElapsed(at now: Date = Date()) {
+        elapsed_seconds = running_at.map { max(0, (ended_at ?? now).timeIntervalSince($0)) } ?? 0
+    }
+
+    mutating func retainOnlyStateAndTiming() {
+        agent_id = nil
+        version = nil
+        provider = nil
+        streaming = nil
+        error = nil
+        schema_validated = nil
+        process_id = nil
+        resident_memory_bytes = nil
+    }
 }
 
 public struct AcceptedExecution: Sendable {
