@@ -6,9 +6,15 @@ import Testing
 
 @testable import AgentServer
 
+private actor ReadinessTracker {
+    var count = 0
+    func recordCheck() { count += 1 }
+}
+
 private struct RouteProvider: AIProvider {
     let id = "mock"
-    func checkReadiness() async throws {}
+    let readiness = ReadinessTracker()
+    func checkReadiness() async throws { await readiness.recordCheck() }
     func execute(
         definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
         timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
@@ -21,6 +27,7 @@ private struct RouteProvider: AIProvider {
 
 private enum RouteEchoPackage: AgentPackageContract {
     static let id = "Echo"
+    static let name = "Echo Agent"
     static let versions = ["1.0.0"]
     nonisolated(unsafe) static var rootURL: URL?
     static func directory(version: String) throws -> URL {
@@ -51,7 +58,8 @@ private enum RouteEchoPackage: AgentPackageContract {
     try AgentPackageTools.create(id: "UnregisteredOnDisk", root: root.appendingPathComponent("Agents", isDirectory: true))
     RouteEchoPackage.rootURL = root.appendingPathComponent("Agents")
     let registry = AgentRegistry(packages: [RouteEchoPackage.self], root: root.appendingPathComponent("Agents"))
-    let providers = ProviderCatalog(providers: [RouteProvider()])
+    let provider = RouteProvider()
+    let providers = ProviderCatalog(providers: [provider])
     let manager = ExecutionManager(
         registry: registry, providers: providers, runtimeRoot: root.appendingPathComponent("Runtime"),
         resourceSample: {
@@ -65,8 +73,13 @@ private enum RouteEchoPackage: AgentPackageContract {
         try await client.execute(uri: "/agents", method: .get) { response in
             #expect(response.status == .ok)
             let value = try JSONValue.parse(String(buffer: response.body))
-            #expect(value["agents"]?.array?.first?["id"] == .string("Echo"))
-            #expect(value["agents"]?.array?.first?["definitions"]?.array?.first?["output_schema"] != nil)
+            #expect(value == .object([
+                "agents": .array([.object([
+                    "id": .string("Echo"), "name": .string("Echo Agent"),
+                    "versions": .array([.string("1.0.0")]),
+                ])]),
+            ]))
+            #expect(await provider.readiness.count == 0)
         }
         try await client.execute(
             uri: "/execute", method: .post, headers: [.contentType: "application/json"],
@@ -144,6 +157,14 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(document["paths"]?["/execute"]?["post"]?["operationId"] == .string("executeAgent"))
             #expect(document["paths"]?["/executions/{execution_id}/cancel"] != nil)
             #expect(document["x-agents"]?.array?.first?["id"] == .string("Echo"))
+            #expect(document["x-agents"]?.array?.first?["definitions"]?.array?.first?["output_schema"] != nil)
+            #expect(document["x-providers"]?.array?.first?["id"] == .string("mock"))
+            let listing = try #require(document["components"]?["schemas"]?["AgentsResponse"])
+            #expect(Set(listing["properties"]!.object!.keys) == Set(["agents"]))
+            #expect(listing["additionalProperties"] == .bool(false))
+            let item = try #require(listing["properties"]?["agents"]?["items"])
+            #expect(Set(item["properties"]!.object!.keys) == Set(["id", "name", "versions"]))
+            #expect(item["additionalProperties"] == .bool(false))
             #expect(document["components"]?["schemas"]?["ExecutionRecord"]?["properties"]?["elapsed_seconds"]?["minimum"] == .number(0))
         }
         try await client.execute(uri: "/try?operation=getStatus", method: .get) { response in
@@ -154,6 +175,22 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(response.status == .notFound)
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["error"]?["code"] == .string("unknown_endpoint"))
+        }
+    }
+}
+
+@Test func agentsListingIsEmptyWhenNoPackagesAreRegistered() async throws {
+    let registry = AgentRegistry(packages: [])
+    let providers = ProviderCatalog(providers: [])
+    let manager = ExecutionManager(
+        registry: registry, providers: providers, runtimeRoot: FileManager.default.temporaryDirectory)
+    let app = Application(
+        router: ServerRoutes.makeRouter(registry: registry, providers: providers, manager: manager))
+    try await app.test(.router) { client in
+        try await client.execute(uri: "/agents", method: .get) { response in
+            #expect(response.status == .ok)
+            let value = try JSONValue.parse(String(buffer: response.body))
+            #expect(value == .object(["agents": .array([])]))
         }
     }
 }

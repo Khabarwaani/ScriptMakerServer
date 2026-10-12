@@ -94,6 +94,16 @@ final class AgentFixture: Sendable {
     await #expect(throws: AgentError.self) { try await registry.resolve(id: "Writer", version: nil) }
 }
 
+@Test func lightweightDiscoveryIncludesAllValidVersionsAndDefaultName() async throws {
+    let registry = AgentRegistry(packages: [EchoPackage.self])
+    let listing = await registry.availableAgents()
+    #expect(listing.count == 1)
+    #expect(listing.first?.id == "Echo" && listing.first?.name == "Echo")
+    #expect(listing.first?.versions == ["1.0.0", "1.1.0", "2.0.0-beta.1"])
+    let invalid = AgentRegistry(packages: [InvalidEchoPackage.self])
+    #expect(await invalid.availableAgents().isEmpty)
+}
+
 @Test func registeredLinkedPackagesAreAvailableByDefault() async throws {
     let registry = AgentRegistry()
     let agents = await registry.list()

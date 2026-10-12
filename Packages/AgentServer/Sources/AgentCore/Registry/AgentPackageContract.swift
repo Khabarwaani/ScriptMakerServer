@@ -4,6 +4,7 @@ import ScriptWriter
 
 public protocol AgentPackageContract: Sendable {
     static var id: String { get }
+    static var name: String { get }
     static var versions: [String] { get }
     static func directory(version: String) throws -> URL
     static func role(version: String) throws -> String
@@ -15,6 +16,8 @@ public protocol AgentPackageContract: Sendable {
 }
 
 extension AgentPackageContract {
+    public static var name: String { id }
+
     public static func readme() -> String {
         GeneratedAgentDocumentationCatalog.doc(for: id)?.readme ?? ""
     }
@@ -24,5 +27,9 @@ extension AgentPackageContract {
     }
 }
 
-extension NewsResearcherDefinition: AgentPackageContract {}
-extension ScriptWriterDefinition: AgentPackageContract {}
+extension NewsResearcherDefinition: AgentPackageContract {
+    public static var name: String { "News Researcher" }
+}
+extension ScriptWriterDefinition: AgentPackageContract {
+    public static var name: String { "Script Writer" }
+}
