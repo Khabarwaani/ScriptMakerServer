@@ -7,7 +7,10 @@ independent.
 
 Open **AgentServer.xcworkspace**, select **AgentServer → My Mac**, and press **⌘R**.
 Then open **http://127.0.0.1:8080/**. The input page discovers agent IDs and versions
-from the registry. **/help** documents the API and dynamically displays each agent's
+from the registry. **GET /agents** returns only `id`, `name` and `versions` for each
+agent; full contracts and provider metadata come from **/openapi.json**.
+Display names come from `AgentPackageContract.name`, which defaults to the agent ID.
+**/help** documents the API and dynamically displays each agent's
 role and input/output contracts. Execution pages show start time and live running
 duration. Tracking is limited to the current server session, purged on shutdown,
 and retains only ID, state and timing after an execution finishes.

@@ -115,14 +115,15 @@ the application.
 
 ### 6.1 List agents — `GET /agents`
 
-Return valid registered agents, all available versions and latest stable version.
+Return only valid registered agent IDs, display names and all available versions.
+Full contracts, documentation and provider metadata are available from `/openapi.json`.
 Do not expose private configuration, credentials or environment variables.
 
 ```json
 {
   "agents": [
-    {"id": "NewsResearcher", "versions": ["1.0.0", "1.1.0"], "latest": "1.1.0"},
-    {"id": "ScriptWriter", "versions": ["1.0.0"], "latest": "1.0.0"}
+    {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.0.0", "1.1.0"]},
+    {"id": "ScriptWriter", "name": "Script Writer", "versions": ["1.0.0"]}
   ]
 }
 ```

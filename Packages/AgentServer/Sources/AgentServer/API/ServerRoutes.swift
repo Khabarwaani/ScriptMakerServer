@@ -24,7 +24,7 @@ struct ServerRoutes {
             } catch { return errorResponse(error) }
         }
         router.get(RouterPath(APIOperation.listAgents.path)) { _, _ -> AgentsResponse in
-            await AgentsResponse(agents: registry.list(), providers: providers.statuses())
+            await AgentsResponse(agents: registry.availableAgents())
         }
         router.get(RouterPath(APIOperation.getStatus.path)) { _, _ in
             let snapshot = await manager.snapshot()
@@ -83,8 +83,7 @@ struct ServerRoutes {
     }
 
     private struct AgentsResponse: ResponseEncodable {
-        let agents: [AgentSummary]
-        let providers: [ProviderStatus]
+        let agents: [AgentListItem]
     }
     private struct CancelResponse: Encodable {
         let execution_id: String

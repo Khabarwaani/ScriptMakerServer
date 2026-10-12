@@ -13,18 +13,26 @@ public struct AgentDefinition: Sendable {
 
 public struct AgentSummary: Codable, Sendable {
     public let id: String
+    public let name: String
     public let versions: [String]
     public let latest: String?
     public let definitions: [AgentVersionDetails]
     public let readme: String?
 
-    public init(id: String, versions: [String], latest: String?, definitions: [AgentVersionDetails], readme: String? = nil) {
+    public init(id: String, versions: [String], latest: String?, definitions: [AgentVersionDetails], readme: String? = nil, name: String? = nil) {
         self.id = id
+        self.name = name ?? id
         self.versions = versions
         self.latest = latest
         self.definitions = definitions
         self.readme = readme
     }
+}
+
+public struct AgentListItem: Codable, Sendable {
+    public let id: String
+    public let name: String
+    public let versions: [String]
 }
 
 public struct AgentVersionDetails: Codable, Sendable {
@@ -88,7 +96,19 @@ public actor AgentRegistry {
             let readme = matchingPackage?.readme()
             return AgentSummary(
                 id: id, versions: versions.map(\.raw), latest: versions.last(where: \.stable)?.raw,
-                definitions: details, readme: readme)
+                definitions: details, readme: readme, name: matchingPackage?.name)
+        }.sorted { $0.id < $1.id }
+    }
+
+    /// Lightweight discovery without loading package documentation or probing providers.
+    public func availableAgents() -> [AgentListItem] {
+        Dictionary(grouping: discover(), by: \.id).map { id, definitions in
+            let versions = definitions.compactMap { SemanticVersion($0.version) }.sorted {
+                $0 == $1 ? $0.raw < $1.raw : $0 < $1
+            }
+            return AgentListItem(
+                id: id, name: packages.first(where: { $0.id == id })?.name ?? id,
+                versions: versions.map(\.raw))
         }.sorted { $0.id < $1.id }
     }
 

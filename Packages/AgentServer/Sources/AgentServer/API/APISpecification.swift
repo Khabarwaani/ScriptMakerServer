@@ -16,7 +16,7 @@ enum APIOperation: String, CaseIterable {
     var method: String { self == .executeAgent || self == .cancelExecution ? "post" : "get" }
     var summary: String {
         switch self {
-        case .listAgents: "Discover agents, versions and contracts"
+        case .listAgents: "List agent IDs, names and available versions"
         case .executeAgent: "Execute an agent and stream events"
         case .getStatus: "Read health and tracked execution states"
         case .cancelExecution: "Cancel a specific execution"
@@ -26,7 +26,7 @@ enum APIOperation: String, CaseIterable {
     var explanation: String {
         switch self {
         case .listAgents:
-            "Returns valid agents, all available semantic versions, latest stable versions, version-specific roles, instructions and input/output schemas, and provider availability. Refresh discovery after adding an agent definition."
+            "Returns only the agents list, with id, name and available versions for each valid registered agent. Agent contracts, documentation and provider metadata are available from /openapi.json."
         case .executeAgent:
             "Supply agent_id, provider and a JSON input object. Omit version for the highest stable version; prereleases must be explicitly selected. X-Execution-ID and the started event identify accepted work. Final output is validated against the resolved version's schema before result and completed are emitted."
         case .getStatus:
@@ -102,14 +102,12 @@ enum APISpecification {
                 "execution_id", "status", "started_at",
                 "elapsed_seconds",
             ])
-        let definition = object(
-            [
-                "version": string, "role": string, "instructions": string, "input_schema": .bool(true),
-                "output_schema": .bool(true), "notes": string,
-            ], required: ["version", "role", "instructions", "output_schema"])
-        let agent = object(
-            ["id": string, "versions": array(string), "latest": string, "definitions": array(definition), "readme": string],
-            required: ["id", "versions", "definitions"])
+        let agent = JSONValue.object([
+            "type": .string("object"),
+            "properties": .object(["id": string, "name": string, "versions": array(string)]),
+            "required": .array(["id", "name", "versions"].map(JSONValue.string)),
+            "additionalProperties": .bool(false),
+        ])
         let provider = object(
             ["id": string, "available": boolean, "readiness": string],
             required: ["id", "available", "readiness"])
@@ -143,8 +141,10 @@ enum APISpecification {
         var schemas: [String: JSONValue] = [
             "Error": error, "ErrorResponse": object(["error": reference("Error")], required: ["error"]),
             "ExecuteRequest": request, "ExecutionRecord": execution, "StatusResponse": status,
-            "AgentsResponse": object(
-                ["agents": array(agent), "providers": array(provider)], required: ["agents", "providers"]),
+            "AgentsResponse": .object([
+                "type": .string("object"), "properties": .object(["agents": array(agent)]),
+                "required": .array([.string("agents")]), "additionalProperties": .bool(false),
+            ]),
             "CancelResponse": cancel,
         ]
         for agent in agents {
