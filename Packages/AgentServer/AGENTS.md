@@ -12,6 +12,9 @@ when no ID exists), and pull the latest `develop` before submitting a PR targeti
 Squash merge all issue PRs except PRs solely for a version increase, which use a
 regular merge preserving commits. Remove the worktree only after the PR merge is
 verified on remote `develop` and local `develop` is synced.
+Then delete the completed local task branch as described in the linked workflow;
+worktree removal alone does not remove the branch. Preserve active branches and
+unmerged work, and verify the merged PR head before deleting a squash-merged branch.
 
 - Use Swift 6, Swift Concurrency, Hummingbird 2 and SSE.
 - Keep reusable domain code in `AgentCore`; HTTP mapping belongs in `AgentServer`.
