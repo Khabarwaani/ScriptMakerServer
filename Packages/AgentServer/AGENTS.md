@@ -4,6 +4,12 @@ This repository is the standalone Swift AgentServer package. Read
 `../../Documentation/docs/SPECIFICATION.md` and
 `../../Documentation/docs/ARCHITECTURE.md` before implementing server behavior.
 
+Follow the agent Git workflow in
+[../../Documentation/AGENTS.md](../../Documentation/AGENTS.md): use a worktree
+named after the coding agent, a branch based on the bug ID (or a descriptive name
+when no ID exists), pull the latest `develop` before merging and pushing to remote
+`develop`, and remove the worktree only after the changes are successfully pushed.
+
 - Use Swift 6, Swift Concurrency, Hummingbird 2 and SSE.
 - Keep reusable domain code in `AgentCore`; HTTP mapping belongs in `AgentServer`.
 - Keep CLI-specific behavior in provider adapters. Never concatenate client data into shell commands.

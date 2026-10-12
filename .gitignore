@@ -15,6 +15,7 @@ xcuserdata/
 .env.*
 !.env.example
 .runtime/
+.worktrees/
 ignoreGit/
 __pycache__/
 logs/
