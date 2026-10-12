@@ -25,9 +25,18 @@ Keep the repository root limited to Xcode entry points, `.gitignore`, and groupe
   the agent's worktree.
 - Before merging, pull the latest remote `develop` into the task branch
   (`git pull --no-rebase origin develop`). Resolve conflicts in the agent's worktree
-  and rerun affected checks. Push the merged result to remote `develop`
-  (`git push origin HEAD:develop`). If the remote advances before the push succeeds,
-  pull, resolve, verify, and retry; never force-push `develop`.
-- After verifying that remote `develop` contains the completed changes and the
-  push succeeded, remove the agent's clean worktree. Keep the worktree if merging,
-  verification, or pushing fails; never force-remove unfinished work.
+  and rerun affected checks. Push only the task branch (`git push -u origin HEAD`)
+  and create a pull request targeting `develop` with `gh pr create --base develop`.
+  Link its GitHub issue in the PR description. Direct pushes to `develop` are
+  forbidden; all changes must go through a pull request.
+- Merge every issue PR with squash merge (`gh pr merge <number> --squash`). The only
+  exception is a PR solely for a version increase: use a regular merge preserving
+  commits (`gh pr merge <number> --merge`). A PR that also fixes bugs or changes
+  behavior must use squash merge. Satisfy required checks and reviews before merging;
+  do not bypass protections. If `develop` advances, update the task branch, resolve
+  conflicts, rerun affected checks and push the task branch again before merging.
+- Verify that the PR is merged and its resulting commit is on remote `develop`.
+  Sync the primary `develop` checkout with `git pull --ff-only origin develop` for
+  integration cleanup, close the linked issue if needed, and remove the agent's
+  clean worktree. Keep the worktree if PR creation, checks, merge, or verification
+  fails; never force-remove unfinished work.

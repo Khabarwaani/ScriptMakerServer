@@ -7,8 +7,11 @@ This repository is the standalone Swift AgentServer package. Read
 Follow the agent Git workflow in
 [../../Documentation/AGENTS.md](../../Documentation/AGENTS.md): use a worktree
 named after the coding agent, a branch based on the bug ID (or a descriptive name
-when no ID exists), pull the latest `develop` before merging and pushing to remote
-`develop`, and remove the worktree only after the changes are successfully pushed.
+when no ID exists), and pull the latest `develop` before submitting a PR targeting
+`develop`. Push only the task branch; direct pushes to `develop` are forbidden.
+Squash merge all issue PRs except PRs solely for a version increase, which use a
+regular merge preserving commits. Remove the worktree only after the PR merge is
+verified on remote `develop` and local `develop` is synced.
 
 - Use Swift 6, Swift Concurrency, Hummingbird 2 and SSE.
 - Keep reusable domain code in `AgentCore`; HTTP mapping belongs in `AgentServer`.
