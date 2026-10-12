@@ -1,6 +1,6 @@
 import Foundation
 import NewsResearcher
-import ScriptWriter
+import ScriptRefiner
 
 public struct AgentDefinition: Sendable {
     public let id: String
@@ -56,7 +56,7 @@ public struct AgentVersionDetails: Codable, Sendable {
 public actor AgentRegistry {
     public static let registeredPackages: [any AgentPackageContract.Type] = [
         NewsResearcherDefinition.self,
-        ScriptWriterDefinition.self,
+        ScriptRefinerDefinition.self,
     ]
 
     private let packages: [any AgentPackageContract.Type]

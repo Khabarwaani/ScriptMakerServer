@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0DA92049E9E5EA456F9D799F /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = E056B50D34FE01411BD66EB5 /* Hummingbird */; };
-		23394ED16161D7DA0D4AB3CA /* ScriptWriter in Frameworks */ = {isa = PBXBuildFile; productRef = 45B7851DE387075ED96528AA /* ScriptWriter */; };
+		23394ED16161D7DA0D4AB3CA /* ScriptRefiner in Frameworks */ = {isa = PBXBuildFile; productRef = E60B6569898CF4370FD39656 /* ScriptRefiner */; };
 		2F94A8A12227A5343322525C /* GeneratedAgentValidationCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */; };
 		3A9A453B7059A9A01840350E /* ServiceLifecycle in Frameworks */ = {isa = PBXBuildFile; productRef = D687F37FCE222023065F5EA3 /* ServiceLifecycle */; };
 		59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = BDFC10F05D63D067159429A3 /* AgentCore */; };
@@ -51,10 +51,11 @@
 		9BC0CCAED615779A99E35DE2 /* agent.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = agent.md; sourceTree = "<group>"; };
 		9F8B735D26C1DE9B4622A734 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		A8876D6109040FE6707D2AD4 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+		B09E0ABFC324D3A0E0C60475 /* ScriptRefiner */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScriptRefiner; path = Packages/AgentServer/Agents/ScriptRefiner; sourceTree = SOURCE_ROOT; };
 		B3C752F71CE4D2F52776F799 /* APISpecification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APISpecification.swift; sourceTree = "<group>"; };
 		B807E800062C69C30A7BBB49 /* try.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = try.html; sourceTree = "<group>"; };
-		C262A9626AFE176D71AC1C4F /* ScriptWriter */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScriptWriter; path = Packages/AgentServer/Agents/ScriptWriter; sourceTree = SOURCE_ROOT; };
 		CAC2284A802966000CFA7DAD /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		EB3450099057B03B184A8395 /* copy.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = copy.js; sourceTree = "<group>"; };
 		F40F7ACC17AB2A3BC237F8AC /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		F511879688ABBD5D21A66045 /* NewsResearcher */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NewsResearcher; path = Packages/AgentServer/Agents/NewsResearcher; sourceTree = SOURCE_ROOT; };
 		FCC4988752400E173C557C00 /* AgentServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentServer.swift; sourceTree = "<group>"; };
@@ -83,7 +84,7 @@
 			files = (
 				59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */,
 				A28CA94D429588ECB1C9DBE9 /* NewsResearcher in Frameworks */,
-				23394ED16161D7DA0D4AB3CA /* ScriptWriter in Frameworks */,
+				23394ED16161D7DA0D4AB3CA /* ScriptRefiner in Frameworks */,
 				0DA92049E9E5EA456F9D799F /* Hummingbird in Frameworks */,
 				3A9A453B7059A9A01840350E /* ServiceLifecycle in Frameworks */,
 			);
@@ -179,6 +180,7 @@
 		A9C22CB8C59BB3A9FAED1EDD /* Web */ = {
 			isa = PBXGroup;
 			children = (
+				EB3450099057B03B184A8395 /* copy.js */,
 				4F290A5E708BC254FA4F46D0 /* help.html */,
 				777AF91316B2A55503915BA9 /* index.html */,
 				B807E800062C69C30A7BBB49 /* try.html */,
@@ -220,7 +222,7 @@
 			children = (
 				325E825ADCE942D27038E5DF /* AgentServer */,
 				F511879688ABBD5D21A66045 /* NewsResearcher */,
-				C262A9626AFE176D71AC1C4F /* ScriptWriter */,
+				B09E0ABFC324D3A0E0C60475 /* ScriptRefiner */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -265,7 +267,7 @@
 			packageProductDependencies = (
 				BDFC10F05D63D067159429A3 /* AgentCore */,
 				9CCE326B872FCE3A3221596B /* NewsResearcher */,
-				45B7851DE387075ED96528AA /* ScriptWriter */,
+				E60B6569898CF4370FD39656 /* ScriptRefiner */,
 				E056B50D34FE01411BD66EB5 /* Hummingbird */,
 				D687F37FCE222023065F5EA3 /* ServiceLifecycle */,
 			);
@@ -316,7 +318,7 @@
 				FE7411DA6D9F2A3A0E91BB1F /* XCRemoteSwiftPackageReference "swift-service-lifecycle" */,
 				C5CC78C46121982A6EDF3329 /* XCLocalSwiftPackageReference "Packages/AgentServer" */,
 				244AE428F1571CA4ADC112FB /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/NewsResearcher" */,
-				9F05D2196F7B750BB6755278 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptWriter" */,
+				54D460CD15DD816ACF3ED8A5 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptRefiner" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -651,9 +653,9 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/AgentServer/Agents/NewsResearcher;
 		};
-		9F05D2196F7B750BB6755278 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptWriter" */ = {
+		54D460CD15DD816ACF3ED8A5 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptRefiner" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/AgentServer/Agents/ScriptWriter;
+			relativePath = Packages/AgentServer/Agents/ScriptRefiner;
 		};
 		C5CC78C46121982A6EDF3329 /* XCLocalSwiftPackageReference "Packages/AgentServer" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -681,10 +683,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		45B7851DE387075ED96528AA /* ScriptWriter */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = ScriptWriter;
-		};
 		9CCE326B872FCE3A3221596B /* NewsResearcher */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = NewsResearcher;
@@ -706,6 +704,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 332B1D9B820531A38319DF2C /* XCRemoteSwiftPackageReference "hummingbird" */;
 			productName = Hummingbird;
+		};
+		E60B6569898CF4370FD39656 /* ScriptRefiner */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ScriptRefiner;
 		};
 		EDCCD3D24AB9F8A8B433C1C5 /* AgentCore */ = {
 			isa = XCSwiftPackageProductDependency;

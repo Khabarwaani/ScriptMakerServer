@@ -12,8 +12,8 @@ packages:
     path: Packages/AgentServer
   NewsResearcher:
     path: Packages/AgentServer/Agents/NewsResearcher
-  ScriptWriter:
-    path: Packages/AgentServer/Agents/ScriptWriter
+  ScriptRefiner:
+    path: Packages/AgentServer/Agents/ScriptRefiner
   Hummingbird:
     url: https://github.com/hummingbird-project/hummingbird.git
     from: 2.27.1
@@ -56,8 +56,8 @@ targets:
         product: AgentCore
       - package: NewsResearcher
         product: NewsResearcher
-      - package: ScriptWriter
-        product: ScriptWriter
+      - package: ScriptRefiner
+        product: ScriptRefiner
       - package: Hummingbird
         product: Hummingbird
       - package: ServiceLifecycle
