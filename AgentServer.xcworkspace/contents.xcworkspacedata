@@ -3,6 +3,6 @@
    <FileRef location="group:AgentServer.xcodeproj"></FileRef>
    <Group location="container:" name="Agents">
       <FileRef location="group:Packages/AgentServer/Agents/NewsResearcher"></FileRef>
-      <FileRef location="group:Packages/AgentServer/Agents/ScriptWriter"></FileRef>
+      <FileRef location="group:Packages/AgentServer/Agents/ScriptRefiner"></FileRef>
    </Group>
 </Workspace>
