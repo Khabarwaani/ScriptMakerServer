@@ -19,12 +19,38 @@ private struct RouteProvider: AIProvider {
     }
 }
 
+private enum RouteEchoPackage: AgentPackageContract {
+    static let id = "Echo"
+    static let versions = ["1.0.0"]
+    nonisolated(unsafe) static var rootURL: URL?
+    static func directory(version: String) throws -> URL {
+        guard let rootURL, versions.contains(version) else { throw AgentError("unknown_version", "Version unavailable.") }
+        return rootURL.appendingPathComponent("Echo/\(version)")
+    }
+    static func role(version: String) throws -> String {
+        try String(contentsOf: directory(version: version).appendingPathComponent("role.md"), encoding: .utf8)
+    }
+    static func instructions(version: String) throws -> String {
+        try String(contentsOf: directory(version: version).appendingPathComponent("instructions.md"), encoding: .utf8)
+    }
+    static func outputSchema(version: String) throws -> String {
+        try String(contentsOf: directory(version: version).appendingPathComponent("output.schema.json"), encoding: .utf8)
+    }
+    static func inputSchema(version: String) throws -> String? {
+        let file = try directory(version: version).appendingPathComponent("input.schema.json")
+        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+        return try String(contentsOf: file, encoding: .utf8)
+    }
+}
+
 @Test func httpContractsAndStructuredErrors() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(
         UUID().uuidString, isDirectory: true)
     defer { try? FileManager.default.removeItem(at: root) }
     try AgentPackageTools.create(id: "Echo", root: root.appendingPathComponent("Agents", isDirectory: true))
-    let registry = AgentRegistry(root: root.appendingPathComponent("Agents"))
+    try AgentPackageTools.create(id: "UnregisteredOnDisk", root: root.appendingPathComponent("Agents", isDirectory: true))
+    RouteEchoPackage.rootURL = root.appendingPathComponent("Agents")
+    let registry = AgentRegistry(packages: [RouteEchoPackage.self], root: root.appendingPathComponent("Agents"))
     let providers = ProviderCatalog(providers: [RouteProvider()])
     let manager = ExecutionManager(
         registry: registry, providers: providers, runtimeRoot: root.appendingPathComponent("Runtime"),
@@ -55,6 +81,22 @@ private struct RouteProvider: AIProvider {
             body: .init(string: "{")
         ) { response in
             #expect(response.status == .badRequest)
+        }
+        try await client.execute(
+            uri: "/execute", method: .post, headers: [.contentType: "application/json"],
+            body: .init(string: #"{"agent_id":"UnregisteredOnDisk","provider":"mock","input":{"text":"hello"}}"#)
+        ) { response in
+            #expect(response.status == .badRequest)
+            let value = try JSONValue.parse(String(buffer: response.body))
+            #expect(value["error"]?["code"] == .string("invalid_agent_definition"))
+        }
+        try await client.execute(
+            uri: "/execute", method: .post, headers: [.contentType: "application/json"],
+            body: .init(string: #"{"agent_id":"Nonexistent","provider":"mock","input":{"text":"hello"}}"#)
+        ) { response in
+            #expect(response.status == .notFound)
+            let value = try JSONValue.parse(String(buffer: response.body))
+            #expect(value["error"]?["code"] == .string("unknown_agent"))
         }
         try await client.execute(
             uri: "/execute", method: .post, headers: [.contentType: "application/json"],

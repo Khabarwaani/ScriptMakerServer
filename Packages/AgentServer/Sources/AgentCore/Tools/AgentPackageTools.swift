@@ -55,6 +55,7 @@ public enum AgentPackageTools {
         }
         try FileManager.default.copyItem(at: source, to: destination)
         try writeManifest(id: id, package: package)
+        try updateSourceVersions(id: id, package: package)
     }
 
     public static func check(root: URL) throws -> [String] {
@@ -136,6 +137,24 @@ public enum AgentPackageTools {
             """, to: package.appendingPathComponent("Package.swift"))
     }
 
+    private static func updateSourceVersions(id: String, package: URL) throws {
+        let versions = try FileManager.default.contentsOfDirectory(
+            at: package, includingPropertiesForKeys: nil
+        )
+        .map(\.lastPathComponent).filter { SemanticVersion($0) != nil }.sorted()
+        let sourceFile = package.appendingPathComponent("Sources/\(id)/\(id).swift")
+        guard FileManager.default.fileExists(atPath: sourceFile.path) else { return }
+        let currentSource = try String(contentsOf: sourceFile, encoding: .utf8)
+        let formattedVersions = versions.map { "\"\($0)\"" }.joined(separator: ", ")
+        let pattern = #"public static let versions: \[String\] = \[.*?\]"#
+        let updatedSource = currentSource.replacingOccurrences(
+            of: pattern,
+            with: "public static let versions: [String] = [\(formattedVersions)]",
+            options: .regularExpression
+        )
+        try write(updatedSource, to: sourceFile)
+    }
+
     private static func packageFiles(id: String, version: String, package: URL) throws {
         try writeManifest(id: id, package: package)
         let source = package.appendingPathComponent("Sources/\(id)", isDirectory: true)
@@ -145,17 +164,53 @@ public enum AgentPackageTools {
         try write(
             """
             import Foundation
-            public enum \(id)Definition {
+
+            public enum \(id)Definition: Sendable {
                 public static let id = "\(id)"
+                public static let versions: [String] = ["\(version)"]
+
                 public static func directory(version: String) throws -> URL {
-                    guard version.range(of: #"^[0-9A-Za-z.+-]+$"#, options: .regularExpression) != nil,
+                    guard versions.contains(version),
                           let url = Bundle.module.url(forResource: version, withExtension: nil),
                           FileManager.default.fileExists(atPath: url.appendingPathComponent("role.md").path) else {
                         throw DefinitionError.unknownVersion
                     }
                     return url
                 }
-                public enum DefinitionError: Error { case unknownVersion }
+
+                public static func role(version: String) throws -> String {
+                    let dir = try directory(version: version)
+                    return try String(contentsOf: dir.appendingPathComponent("role.md"), encoding: .utf8)
+                }
+
+                public static func instructions(version: String) throws -> String {
+                    let dir = try directory(version: version)
+                    let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+                        .filter {
+                            $0.lastPathComponent == "instructions.md"
+                                || ($0.lastPathComponent.hasPrefix("instructions.") && $0.pathExtension == "md")
+                        }
+                        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                    guard !files.isEmpty else { throw DefinitionError.missingInstructions }
+                    return try files.map { try String(contentsOf: $0, encoding: .utf8) }.joined(separator: "\\n\\n")
+                }
+
+                public static func outputSchema(version: String) throws -> String {
+                    let dir = try directory(version: version)
+                    return try String(contentsOf: dir.appendingPathComponent("output.schema.json"), encoding: .utf8)
+                }
+
+                public static func inputSchema(version: String) throws -> String? {
+                    let dir = try directory(version: version)
+                    let file = dir.appendingPathComponent("input.schema.json")
+                    guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+                    return try String(contentsOf: file, encoding: .utf8)
+                }
+
+                public enum DefinitionError: Error {
+                    case unknownVersion
+                    case missingInstructions
+                }
             }
             """, to: source.appendingPathComponent("\(id).swift"))
         try write(

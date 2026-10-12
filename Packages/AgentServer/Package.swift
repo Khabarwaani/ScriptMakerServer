@@ -10,20 +10,30 @@ let package = Package(
         .library(name: "AgentCore", targets: ["AgentCore"])
     ],
     dependencies: [
+        .package(path: "Agents/NewsResearcher"),
+        .package(path: "Agents/ScriptWriter"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
     ],
     targets: [
-        .target(name: "AgentCore"),
+        .target(
+            name: "AgentCore",
+            dependencies: [
+                .product(name: "NewsResearcher", package: "NewsResearcher"),
+                .product(name: "ScriptWriter", package: "ScriptWriter"),
+            ]
+        ),
         .target(name: "AgentResources", path: ".", exclude: [
-            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Tests", "AGENTS.md"
+            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Tests", "AGENTS.md", "Agents"
         ], sources: ["Sources/AgentResources/AgentResources.swift"], resources: [
-            .copy("Sources/AgentResources/Web"), .copy("Agents"), .copy("config")
+            .copy("Sources/AgentResources/Web"), .copy("config")
         ]),
         .executableTarget(name: "AgentTools", dependencies: ["AgentCore"]),
         .executableTarget(name: "AgentServer", dependencies: [
             "AgentCore",
             "AgentResources",
+            .product(name: "NewsResearcher", package: "NewsResearcher"),
+            .product(name: "ScriptWriter", package: "ScriptWriter"),
             .product(name: "Hummingbird", package: "hummingbird"),
             .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
         ]),

@@ -80,7 +80,7 @@ public struct AgentError: Error, Codable, Sendable, Equatable {
     public var httpStatus: Int {
         switch code {
         case "unknown_agent", "unknown_version", "unknown_execution": 404
-        case "invalid_request", "invalid_json", "input_schema_validation_failed": 400
+        case "invalid_request", "invalid_json", "input_schema_validation_failed", "invalid_agent_definition": 400
         case "provider_unavailable", "provider_initialization_failed", "server_shutting_down",
             "resource_pressure":
             503

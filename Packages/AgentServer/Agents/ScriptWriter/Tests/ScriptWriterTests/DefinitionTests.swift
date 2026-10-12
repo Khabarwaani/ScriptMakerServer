@@ -10,5 +10,8 @@ import ScriptWriter
         }
         let schema = try Data(contentsOf: root.appendingPathComponent("output.schema.json"))
         #expect(try JSONSerialization.jsonObject(with: schema) is [String: Any])
+        #expect(try !ScriptWriterDefinition.role(version: version).isEmpty)
+        #expect(try !ScriptWriterDefinition.instructions(version: version).isEmpty)
+        #expect(try !ScriptWriterDefinition.outputSchema(version: version).isEmpty)
     }
 }

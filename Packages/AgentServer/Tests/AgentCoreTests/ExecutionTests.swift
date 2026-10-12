@@ -45,7 +45,7 @@ func makeManager(
     retention: Int = 3600
 ) -> ExecutionManager {
     ExecutionManager(
-        registry: AgentRegistry(root: fixture.agents), providers: ProviderCatalog(providers: [provider]),
+        registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents), providers: ProviderCatalog(providers: [provider]),
         runtimeRoot: fixture.runtime,
         maxProcesses: capacity, timeoutSeconds: timeout, retentionSeconds: retention,
         resourceSample: {
@@ -153,7 +153,7 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
 @Test func resourcePressureDefersWorkAndQueuedCancellationCleansUp() async throws {
     let fixture = try AgentFixture()
     let manager = ExecutionManager(
-        registry: AgentRegistry(root: fixture.agents),
+        registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents),
         providers: ProviderCatalog(providers: [MockProvider()]), runtimeRoot: fixture.runtime,
         resourceSample: {
             SystemResources(

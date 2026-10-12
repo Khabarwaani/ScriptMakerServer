@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		23394ED16161D7DA0D4AB3CA /* ServiceLifecycle in Frameworks */ = {isa = PBXBuildFile; productRef = D687F37FCE222023065F5EA3 /* ServiceLifecycle */; };
+		0DA92049E9E5EA456F9D799F /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = E056B50D34FE01411BD66EB5 /* Hummingbird */; };
+		23394ED16161D7DA0D4AB3CA /* ScriptWriter in Frameworks */ = {isa = PBXBuildFile; productRef = 45B7851DE387075ED96528AA /* ScriptWriter */; };
+		3A9A453B7059A9A01840350E /* ServiceLifecycle in Frameworks */ = {isa = PBXBuildFile; productRef = D687F37FCE222023065F5EA3 /* ServiceLifecycle */; };
 		59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = BDFC10F05D63D067159429A3 /* AgentCore */; };
 		9C4B27E12B636BE5B0868F01 /* ServerRoutes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB5AF3721AFBD0E25B780C4 /* ServerRoutes.swift */; };
 		9DA5325736344145862E65A1 /* AgentTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 024EDBE5C7831A946A80FA0B /* AgentTools.swift */; };
-		A28CA94D429588ECB1C9DBE9 /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = E056B50D34FE01411BD66EB5 /* Hummingbird */; };
+		A28CA94D429588ECB1C9DBE9 /* NewsResearcher in Frameworks */ = {isa = PBXBuildFile; productRef = 9CCE326B872FCE3A3221596B /* NewsResearcher */; };
 		CF6033A195CEE736EAC92168 /* APISpecification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C752F71CE4D2F52776F799 /* APISpecification.swift */; };
 		E94F19712D3F9B8C6FDF6EC0 /* AgentServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCC4988752400E173C557C00 /* AgentServer.swift */; };
 		EBEE1AE3C12E8857E35A1E95 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = EDCCD3D24AB9F8A8B433C1C5 /* AgentCore */; };
@@ -20,44 +22,25 @@
 /* Begin PBXFileReference section */
 		024EDBE5C7831A946A80FA0B /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
 		03C9CDEBA61634518767F31C /* server.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = server.json; sourceTree = "<group>"; };
-		071632D30FC4F1CCDF6A3978 /* role.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = role.md; sourceTree = "<group>"; };
-		108B3AC099D9478A7D9D511E /* instructions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = instructions.md; sourceTree = "<group>"; };
-		1577D12E50EAC0E0F9EFF32E /* input.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = input.schema.json; sourceTree = "<group>"; };
-		1B9924B9E3C08661DD626DE1 /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
+		0C456885DD4F0B737024FCBD /* IMPLEMENTATION_TASKS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = IMPLEMENTATION_TASKS.md; sourceTree = "<group>"; };
 		1BB5AF3721AFBD0E25B780C4 /* ServerRoutes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerRoutes.swift; sourceTree = "<group>"; };
 		20E5AFECAC4C49B3C01371C0 /* RUN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RUN.md; sourceTree = "<group>"; };
-		28F432638C5025AE861C4B89 /* output.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = output.schema.json; sourceTree = "<group>"; };
 		29BF4D24B4CE95A3E3D1E71A /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
 		325E825ADCE942D27038E5DF /* AgentServer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AgentServer; path = Packages/AgentServer; sourceTree = SOURCE_ROOT; };
-		38320644EFF1FE0F68AC171F /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
 		386D9F458172275D248ED075 /* AgentServer */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentServer; sourceTree = BUILT_PRODUCTS_DIR; };
-		416DF29A0E19CEAF23F4434F /* DefinitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefinitionTests.swift; sourceTree = "<group>"; };
-		4CE93ABAF9F9941101D61C5B /* instructions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = instructions.md; sourceTree = "<group>"; };
 		4F290A5E708BC254FA4F46D0 /* help.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = help.html; sourceTree = "<group>"; };
-		4FABCD09A783145DE866AD33 /* NewsResearcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewsResearcher.swift; sourceTree = "<group>"; };
-		520BFD9D4056AA67C800CB07 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		537C451B889DD88F711C56C4 /* output.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = output.schema.json; sourceTree = "<group>"; };
-		5F4E5A7099E2690B0478B14E /* role.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = role.md; sourceTree = "<group>"; };
-		677F4EDE110BA1C2D94B199B /* ScriptWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptWriter.swift; sourceTree = "<group>"; };
 		6C5ECB33A4DED16C6491AFF5 /* AgentTools */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentTools; sourceTree = BUILT_PRODUCTS_DIR; };
 		777AF91316B2A55503915BA9 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
-		815931E38F13E6C3B6E009B0 /* output.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = output.schema.json; sourceTree = "<group>"; };
 		8E4E133B515545726D8DB60F /* SPECIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SPECIFICATION.md; sourceTree = "<group>"; };
 		9BC0CCAED615779A99E35DE2 /* agent.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = agent.md; sourceTree = "<group>"; };
-		9D25436D69A5C2CE3A41F83A /* instructions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = instructions.md; sourceTree = "<group>"; };
 		9F8B735D26C1DE9B4622A734 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
-		A5DA2A8D00F3DFE64A3675E3 /* role.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = role.md; sourceTree = "<group>"; };
 		A8876D6109040FE6707D2AD4 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
-		A98FC2E7A1AB33EEBFC4EF16 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		B3C752F71CE4D2F52776F799 /* APISpecification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APISpecification.swift; sourceTree = "<group>"; };
-		B7818D05C31EED949B1063EC /* input.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = input.schema.json; sourceTree = "<group>"; };
 		B807E800062C69C30A7BBB49 /* try.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = try.html; sourceTree = "<group>"; };
+		C262A9626AFE176D71AC1C4F /* ScriptWriter */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScriptWriter; path = Packages/AgentServer/Agents/ScriptWriter; sourceTree = SOURCE_ROOT; };
 		CAC2284A802966000CFA7DAD /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		CF6B5158F8B2EA76947A1C2D /* DefinitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefinitionTests.swift; sourceTree = "<group>"; };
-		EF55062D40B81D7EB4C2B758 /* role.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = role.md; sourceTree = "<group>"; };
 		F40F7ACC17AB2A3BC237F8AC /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
-		F5FFBCC25063B785BF2DDA6A /* instructions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = instructions.md; sourceTree = "<group>"; };
-		F7F5751DBA094CC1A0A8166D /* output.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = output.schema.json; sourceTree = "<group>"; };
+		F511879688ABBD5D21A66045 /* NewsResearcher */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NewsResearcher; path = Packages/AgentServer/Agents/NewsResearcher; sourceTree = SOURCE_ROOT; };
 		FCC4988752400E173C557C00 /* AgentServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentServer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -75,8 +58,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */,
-				A28CA94D429588ECB1C9DBE9 /* Hummingbird in Frameworks */,
-				23394ED16161D7DA0D4AB3CA /* ServiceLifecycle in Frameworks */,
+				A28CA94D429588ECB1C9DBE9 /* NewsResearcher in Frameworks */,
+				23394ED16161D7DA0D4AB3CA /* ScriptWriter in Frameworks */,
+				0DA92049E9E5EA456F9D799F /* Hummingbird in Frameworks */,
+				3A9A453B7059A9A01840350E /* ServiceLifecycle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +72,7 @@
 			isa = PBXGroup;
 			children = (
 				29BF4D24B4CE95A3E3D1E71A /* ARCHITECTURE.md */,
+				0C456885DD4F0B737024FCBD /* IMPLEMENTATION_TASKS.md */,
 				20E5AFECAC4C49B3C01371C0 /* RUN.md */,
 				8E4E133B515545726D8DB60F /* SPECIFICATION.md */,
 			);
@@ -102,79 +88,9 @@
 			path = Packages/AgentServer/config;
 			sourceTree = "<group>";
 		};
-		2BE227AE45AE4AADBA1F2220 /* ScriptWriter */ = {
-			isa = PBXGroup;
-			children = (
-				677F4EDE110BA1C2D94B199B /* ScriptWriter.swift */,
-			);
-			path = ScriptWriter;
-			sourceTree = "<group>";
-		};
-		32B95E89F8AAFB3D297FF5DB /* NewsResearcher */ = {
-			isa = PBXGroup;
-			children = (
-				38320644EFF1FE0F68AC171F /* Package.swift */,
-				A98FC2E7A1AB33EEBFC4EF16 /* README.md */,
-				BBAB6714B89383BF2211F72E /* 1.0.0 */,
-				585907CFE620A2DB0946F546 /* 1.1.0 */,
-				C19F93421A7C89C189419F9C /* Sources */,
-				484442EA6228445B0C187842 /* Tests */,
-			);
-			path = NewsResearcher;
-			sourceTree = "<group>";
-		};
-		393FA150AA1C6FEF57DA789C /* Agents */ = {
-			isa = PBXGroup;
-			children = (
-				32B95E89F8AAFB3D297FF5DB /* NewsResearcher */,
-				72D06F8452729193389CA724 /* ScriptWriter */,
-			);
-			name = Agents;
-			path = Packages/AgentServer/Agents;
-			sourceTree = "<group>";
-		};
-		484442EA6228445B0C187842 /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-				564EA88B1B92F6B227FBFA20 /* NewsResearcherTests */,
-			);
-			path = Tests;
-			sourceTree = "<group>";
-		};
-		564EA88B1B92F6B227FBFA20 /* NewsResearcherTests */ = {
-			isa = PBXGroup;
-			children = (
-				416DF29A0E19CEAF23F4434F /* DefinitionTests.swift */,
-			);
-			path = NewsResearcherTests;
-			sourceTree = "<group>";
-		};
-		585907CFE620A2DB0946F546 /* 1.1.0 */ = {
-			isa = PBXGroup;
-			children = (
-				B7818D05C31EED949B1063EC /* input.schema.json */,
-				F5FFBCC25063B785BF2DDA6A /* instructions.md */,
-				537C451B889DD88F711C56C4 /* output.schema.json */,
-				5F4E5A7099E2690B0478B14E /* role.md */,
-			);
-			path = 1.1.0;
-			sourceTree = "<group>";
-		};
-		596EEF7ED983C793189F2AC8 /* 1.1.0 */ = {
-			isa = PBXGroup;
-			children = (
-				1577D12E50EAC0E0F9EFF32E /* input.schema.json */,
-				9D25436D69A5C2CE3A41F83A /* instructions.md */,
-				F7F5751DBA094CC1A0A8166D /* output.schema.json */,
-				A5DA2A8D00F3DFE64A3675E3 /* role.md */,
-			);
-			path = 1.1.0;
-			sourceTree = "<group>";
-		};
 		6E25A08092543BB4B04696F4 = {
 			isa = PBXGroup;
 			children = (
-				393FA150AA1C6FEF57DA789C /* Agents */,
 				A4C6DD20EC2DD9F19B4B0BEF /* AgentServer */,
 				9FDE7EE8DA41473017215356 /* AgentServer */,
 				B2E7783B6F4DD3CE29772286 /* AgentTools */,
@@ -184,43 +100,6 @@
 				A9C22CB8C59BB3A9FAED1EDD /* Web */,
 				C7AF683C4FC612BD0C84F3B0 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		72D06F8452729193389CA724 /* ScriptWriter */ = {
-			isa = PBXGroup;
-			children = (
-				1B9924B9E3C08661DD626DE1 /* Package.swift */,
-				520BFD9D4056AA67C800CB07 /* README.md */,
-				A271CF3BC451DBDDCCFCC4C3 /* 1.0.0 */,
-				596EEF7ED983C793189F2AC8 /* 1.1.0 */,
-				739127C3427BD0E22DE3A963 /* Sources */,
-				C73A98DC46DBD6E7CDEB42D2 /* Tests */,
-			);
-			path = ScriptWriter;
-			sourceTree = "<group>";
-		};
-		739127C3427BD0E22DE3A963 /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				2BE227AE45AE4AADBA1F2220 /* ScriptWriter */,
-			);
-			path = Sources;
-			sourceTree = "<group>";
-		};
-		92E94814AA41B7D705533D74 /* ScriptWriterTests */ = {
-			isa = PBXGroup;
-			children = (
-				CF6B5158F8B2EA76947A1C2D /* DefinitionTests.swift */,
-			);
-			path = ScriptWriterTests;
-			sourceTree = "<group>";
-		};
-		9313934CE01B982D6CB3834D /* NewsResearcher */ = {
-			isa = PBXGroup;
-			children = (
-				4FABCD09A783145DE866AD33 /* NewsResearcher.swift */,
-			);
-			path = NewsResearcher;
 			sourceTree = "<group>";
 		};
 		96E553809EA9CA91A56A38D6 /* Documentation */ = {
@@ -242,16 +121,6 @@
 			);
 			name = AgentServer;
 			path = Packages/AgentServer/Sources/AgentServer;
-			sourceTree = "<group>";
-		};
-		A271CF3BC451DBDDCCFCC4C3 /* 1.0.0 */ = {
-			isa = PBXGroup;
-			children = (
-				108B3AC099D9478A7D9D511E /* instructions.md */,
-				815931E38F13E6C3B6E009B0 /* output.schema.json */,
-				EF55062D40B81D7EB4C2B758 /* role.md */,
-			);
-			path = 1.0.0;
 			sourceTree = "<group>";
 		};
 		A4C6DD20EC2DD9F19B4B0BEF /* AgentServer */ = {
@@ -293,32 +162,6 @@
 			path = Packages/AgentServer/Sources/AgentTools;
 			sourceTree = "<group>";
 		};
-		BBAB6714B89383BF2211F72E /* 1.0.0 */ = {
-			isa = PBXGroup;
-			children = (
-				4CE93ABAF9F9941101D61C5B /* instructions.md */,
-				28F432638C5025AE861C4B89 /* output.schema.json */,
-				071632D30FC4F1CCDF6A3978 /* role.md */,
-			);
-			path = 1.0.0;
-			sourceTree = "<group>";
-		};
-		C19F93421A7C89C189419F9C /* Sources */ = {
-			isa = PBXGroup;
-			children = (
-				9313934CE01B982D6CB3834D /* NewsResearcher */,
-			);
-			path = Sources;
-			sourceTree = "<group>";
-		};
-		C73A98DC46DBD6E7CDEB42D2 /* Tests */ = {
-			isa = PBXGroup;
-			children = (
-				92E94814AA41B7D705533D74 /* ScriptWriterTests */,
-			);
-			path = Tests;
-			sourceTree = "<group>";
-		};
 		C7AF683C4FC612BD0C84F3B0 /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -332,6 +175,8 @@
 			isa = PBXGroup;
 			children = (
 				325E825ADCE942D27038E5DF /* AgentServer */,
+				F511879688ABBD5D21A66045 /* NewsResearcher */,
+				C262A9626AFE176D71AC1C4F /* ScriptWriter */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -373,6 +218,8 @@
 			name = AgentServer;
 			packageProductDependencies = (
 				BDFC10F05D63D067159429A3 /* AgentCore */,
+				9CCE326B872FCE3A3221596B /* NewsResearcher */,
+				45B7851DE387075ED96528AA /* ScriptWriter */,
 				E056B50D34FE01411BD66EB5 /* Hummingbird */,
 				D687F37FCE222023065F5EA3 /* ServiceLifecycle */,
 			);
@@ -403,6 +250,8 @@
 				332B1D9B820531A38319DF2C /* XCRemoteSwiftPackageReference "hummingbird" */,
 				FE7411DA6D9F2A3A0E91BB1F /* XCRemoteSwiftPackageReference "swift-service-lifecycle" */,
 				C5CC78C46121982A6EDF3329 /* XCLocalSwiftPackageReference "Packages/AgentServer" */,
+				244AE428F1571CA4ADC112FB /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/NewsResearcher" */,
+				9F05D2196F7B750BB6755278 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptWriter" */,
 			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
@@ -432,7 +281,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/Web\"\ncp \"${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/\"*.html \"${TARGET_BUILD_DIR}/Web/\"\nmkdir -p \"${TARGET_BUILD_DIR}/config\"\ncp \"${SRCROOT}/Packages/AgentServer/config/server.json\" \"${TARGET_BUILD_DIR}/config/server.json\"\nmkdir -p \"${TARGET_BUILD_DIR}/Agents\"\nrsync -a --delete --exclude='.build' --exclude='.swiftpm' \"${SRCROOT}/Packages/AgentServer/Agents/\" \"${TARGET_BUILD_DIR}/Agents/\"\n";
+			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/Web\"\ncp \"${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/\"*.html \"${TARGET_BUILD_DIR}/Web/\"\nmkdir -p \"${TARGET_BUILD_DIR}/config\"\ncp \"${SRCROOT}/Packages/AgentServer/config/server.json\" \"${TARGET_BUILD_DIR}/config/server.json\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -660,6 +509,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		244AE428F1571CA4ADC112FB /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/NewsResearcher" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/AgentServer/Agents/NewsResearcher;
+		};
+		9F05D2196F7B750BB6755278 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptWriter" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/AgentServer/Agents/ScriptWriter;
+		};
 		C5CC78C46121982A6EDF3329 /* XCLocalSwiftPackageReference "Packages/AgentServer" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/AgentServer;
@@ -686,6 +543,14 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		45B7851DE387075ED96528AA /* ScriptWriter */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ScriptWriter;
+		};
+		9CCE326B872FCE3A3221596B /* NewsResearcher */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NewsResearcher;
+		};
 		BDFC10F05D63D067159429A3 /* AgentCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AgentCore;

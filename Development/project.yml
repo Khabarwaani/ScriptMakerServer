@@ -10,6 +10,10 @@ settings:
 packages:
   AgentCore:
     path: Packages/AgentServer
+  NewsResearcher:
+    path: Packages/AgentServer/Agents/NewsResearcher
+  ScriptWriter:
+    path: Packages/AgentServer/Agents/ScriptWriter
   Hummingbird:
     url: https://github.com/hummingbird-project/hummingbird.git
     from: 2.27.1
@@ -19,7 +23,6 @@ packages:
 fileGroups:
   - Documentation
   - Packages/AgentServer/AGENTS.md
-  - Packages/AgentServer/Agents
   - Packages/AgentServer/Package.swift
   - Packages/AgentServer/config
   - Packages/AgentServer/Sources/AgentResources/Web
@@ -40,6 +43,10 @@ targets:
     dependencies:
       - package: AgentCore
         product: AgentCore
+      - package: NewsResearcher
+        product: NewsResearcher
+      - package: ScriptWriter
+        product: ScriptWriter
       - package: Hummingbird
         product: Hummingbird
       - package: ServiceLifecycle
@@ -51,8 +58,6 @@ targets:
           cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${TARGET_BUILD_DIR}/Web/"
           mkdir -p "${TARGET_BUILD_DIR}/config"
           cp "${SRCROOT}/Packages/AgentServer/config/server.json" "${TARGET_BUILD_DIR}/config/server.json"
-          mkdir -p "${TARGET_BUILD_DIR}/Agents"
-          rsync -a --delete --exclude='.build' --exclude='.swiftpm' "${SRCROOT}/Packages/AgentServer/Agents/" "${TARGET_BUILD_DIR}/Agents/"
         basedOnDependencyAnalysis: false
 schemes:
   AgentServer:
