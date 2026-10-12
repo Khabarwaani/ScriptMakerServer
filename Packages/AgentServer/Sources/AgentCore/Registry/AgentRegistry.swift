@@ -33,14 +33,17 @@ public actor AgentRegistry {
     ]
 
     private let packages: [any AgentPackageContract.Type]
+    private let validationMetadata: [AgentValidationMetadata]?
     private let root: URL?
     private var cache: [String: AgentDefinition] = [:]
 
     public init(
         packages: [any AgentPackageContract.Type] = AgentRegistry.registeredPackages,
+        validationMetadata: [AgentValidationMetadata]? = nil,
         root: URL? = nil
     ) {
         self.packages = packages
+        self.validationMetadata = validationMetadata
         self.root = root?.standardizedFileURL.resolvingSymlinksInPath()
     }
 
@@ -116,6 +119,29 @@ public actor AgentRegistry {
                     found.append(cached)
                     continue
                 }
+
+                // If validation metadata is provided, verify against it
+                if let validationMetadata = self.validationMetadata {
+                    guard let agentMeta = validationMetadata.first(where: { $0.agentId == package.id }),
+                          let versionMeta = agentMeta.versions.first(where: { $0.version == version }) else {
+                        // Unvalidated version or agent
+                        continue
+                    }
+
+                    // Check resource completeness and hashes
+                    guard let dir = try? package.directory(version: version) else { continue }
+                    var hashesMatch = true
+                    for (resourceName, expectedHash) in versionMeta.resourceHashes {
+                        let fileURL = dir.appendingPathComponent(resourceName)
+                        guard let computedHash = try? AgentPackageValidator.sha256Hex(for: fileURL),
+                              computedHash == expectedHash else {
+                            hashesMatch = false
+                            break
+                        }
+                    }
+                    guard hashesMatch else { continue }
+                }
+
                 do {
                     let role = try package.role(version: version)
                     guard role.contains(".") else { continue }

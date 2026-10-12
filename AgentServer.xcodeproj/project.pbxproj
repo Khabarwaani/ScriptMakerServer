@@ -9,15 +9,28 @@
 /* Begin PBXBuildFile section */
 		0DA92049E9E5EA456F9D799F /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = E056B50D34FE01411BD66EB5 /* Hummingbird */; };
 		23394ED16161D7DA0D4AB3CA /* ScriptWriter in Frameworks */ = {isa = PBXBuildFile; productRef = 45B7851DE387075ED96528AA /* ScriptWriter */; };
+		2F94A8A12227A5343322525C /* GeneratedAgentValidationCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */; };
 		3A9A453B7059A9A01840350E /* ServiceLifecycle in Frameworks */ = {isa = PBXBuildFile; productRef = D687F37FCE222023065F5EA3 /* ServiceLifecycle */; };
 		59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = BDFC10F05D63D067159429A3 /* AgentCore */; };
 		9C4B27E12B636BE5B0868F01 /* ServerRoutes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB5AF3721AFBD0E25B780C4 /* ServerRoutes.swift */; };
 		9DA5325736344145862E65A1 /* AgentTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 024EDBE5C7831A946A80FA0B /* AgentTools.swift */; };
 		A28CA94D429588ECB1C9DBE9 /* NewsResearcher in Frameworks */ = {isa = PBXBuildFile; productRef = 9CCE326B872FCE3A3221596B /* NewsResearcher */; };
+		A47285EFB16C552EDD519DBE /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = D4F2B17CD9E65933035AFC10 /* AgentCore */; };
 		CF6033A195CEE736EAC92168 /* APISpecification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C752F71CE4D2F52776F799 /* APISpecification.swift */; };
 		E94F19712D3F9B8C6FDF6EC0 /* AgentServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCC4988752400E173C557C00 /* AgentServer.swift */; };
 		EBEE1AE3C12E8857E35A1E95 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = EDCCD3D24AB9F8A8B433C1C5 /* AgentCore */; };
+		ED7AA5932932801327FDFD55 /* AgentValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E41255502D02B08A83A490E /* AgentValidator.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		94DB52441696BE0A0BAE846B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DBA73188BCDBE96C6D79B91B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D831A5102CED1594DA5D95DC;
+			remoteInfo = AgentValidator;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		024EDBE5C7831A946A80FA0B /* AgentTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTools.swift; sourceTree = "<group>"; };
@@ -26,9 +39,12 @@
 		1BB5AF3721AFBD0E25B780C4 /* ServerRoutes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerRoutes.swift; sourceTree = "<group>"; };
 		20E5AFECAC4C49B3C01371C0 /* RUN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RUN.md; sourceTree = "<group>"; };
 		29BF4D24B4CE95A3E3D1E71A /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
+		3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedAgentValidationCatalog.swift; sourceTree = "<group>"; };
 		325E825ADCE942D27038E5DF /* AgentServer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AgentServer; path = Packages/AgentServer; sourceTree = SOURCE_ROOT; };
 		386D9F458172275D248ED075 /* AgentServer */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentServer; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F290A5E708BC254FA4F46D0 /* help.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = help.html; sourceTree = "<group>"; };
+		5988CAC2401BE5D64DF0B400 /* AgentValidator */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentValidator; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E41255502D02B08A83A490E /* AgentValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentValidator.swift; sourceTree = "<group>"; };
 		6C5ECB33A4DED16C6491AFF5 /* AgentTools */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentTools; sourceTree = BUILT_PRODUCTS_DIR; };
 		777AF91316B2A55503915BA9 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		8E4E133B515545726D8DB60F /* SPECIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SPECIFICATION.md; sourceTree = "<group>"; };
@@ -45,6 +61,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		69532D99099E974B4622EF6B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A47285EFB16C552EDD519DBE /* AgentCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8B0BAA8101D09D822A24F141 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -88,12 +112,31 @@
 			path = Packages/AgentServer/config;
 			sourceTree = "<group>";
 		};
+		1F71A9CE1C464631CC599AC0 /* AgentValidator */ = {
+			isa = PBXGroup;
+			children = (
+				5E41255502D02B08A83A490E /* AgentValidator.swift */,
+			);
+			name = AgentValidator;
+			path = Packages/AgentServer/Sources/AgentValidator;
+			sourceTree = "<group>";
+		};
+		5D669F15022878EBACC01E89 /* ${DERIVED_FILE_DIR} */ = {
+			isa = PBXGroup;
+			children = (
+				3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */,
+			);
+			path = "${DERIVED_FILE_DIR}";
+			sourceTree = "<group>";
+		};
 		6E25A08092543BB4B04696F4 = {
 			isa = PBXGroup;
 			children = (
+				5D669F15022878EBACC01E89 /* ${DERIVED_FILE_DIR} */,
 				A4C6DD20EC2DD9F19B4B0BEF /* AgentServer */,
 				9FDE7EE8DA41473017215356 /* AgentServer */,
 				B2E7783B6F4DD3CE29772286 /* AgentTools */,
+				1F71A9CE1C464631CC599AC0 /* AgentValidator */,
 				1E779DB406632C4977025BCD /* config */,
 				96E553809EA9CA91A56A38D6 /* Documentation */,
 				CDBA99D8972601D447FD2331 /* Packages */,
@@ -167,6 +210,7 @@
 			children = (
 				386D9F458172275D248ED075 /* AgentServer */,
 				6C5ECB33A4DED16C6491AFF5 /* AgentTools */,
+				5988CAC2401BE5D64DF0B400 /* AgentValidator */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -207,6 +251,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 5F27CA2FBF7537F0AF836369 /* Build configuration list for PBXNativeTarget "AgentServer" */;
 			buildPhases = (
+				A7227DD6243CFECA31521617 /* Validate Agents */,
 				FCEE816A45D09F7582304603 /* Sources */,
 				D64933D504D816D7BA9CE94A /* Frameworks */,
 				B4D10CD2B5A6302BFB7062B4 /* Copy web pages */,
@@ -214,6 +259,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				8511CA91BFF302DAC4A00659 /* PBXTargetDependency */,
 			);
 			name = AgentServer;
 			packageProductDependencies = (
@@ -225,6 +271,25 @@
 			);
 			productName = AgentServer;
 			productReference = 386D9F458172275D248ED075 /* AgentServer */;
+			productType = "com.apple.product-type.tool";
+		};
+		D831A5102CED1594DA5D95DC /* AgentValidator */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6C505F68BE3D0B7FA40BA1EB /* Build configuration list for PBXNativeTarget "AgentValidator" */;
+			buildPhases = (
+				B73F92A5CEEE6F7EC49058D2 /* Sources */,
+				69532D99099E974B4622EF6B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AgentValidator;
+			packageProductDependencies = (
+				D4F2B17CD9E65933035AFC10 /* AgentCore */,
+			);
+			productName = AgentValidator;
+			productReference = 5988CAC2401BE5D64DF0B400 /* AgentValidator */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -259,11 +324,34 @@
 			targets = (
 				970F72FE0AEAC7C289BCF7E4 /* AgentServer */,
 				1A4B362345B34BF240DDC68E /* AgentTools */,
+				D831A5102CED1594DA5D95DC /* AgentValidator */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		A7227DD6243CFECA31521617 /* Validate Agents */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${SRCROOT}/Packages/AgentServer/Agents",
+			);
+			name = "Validate Agents";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift",
+				"${TARGET_BUILD_DIR}/agent-validation.json",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"${DERIVED_FILE_DIR}\"\n\"${BUILT_PRODUCTS_DIR}/AgentValidator\" \"${SRCROOT}/Packages/AgentServer/Agents\" \"${TARGET_BUILD_DIR}/agent-validation.json\" \"${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift\"\n";
+		};
 		B4D10CD2B5A6302BFB7062B4 /* Copy web pages */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -286,6 +374,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		B73F92A5CEEE6F7EC49058D2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ED7AA5932932801327FDFD55 /* AgentValidator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		CF2FD5BD6DCDCE5D28037593 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -300,11 +396,20 @@
 			files = (
 				CF6033A195CEE736EAC92168 /* APISpecification.swift in Sources */,
 				E94F19712D3F9B8C6FDF6EC0 /* AgentServer.swift in Sources */,
+				2F94A8A12227A5343322525C /* GeneratedAgentValidationCatalog.swift in Sources */,
 				9C4B27E12B636BE5B0868F01 /* ServerRoutes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8511CA91BFF302DAC4A00659 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D831A5102CED1594DA5D95DC /* AgentValidator */;
+			targetProxy = 94DB52441696BE0A0BAE846B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		24884D6D6C970EE4FCBF0899 /* Debug */ = {
@@ -320,6 +425,18 @@
 			name = Debug;
 		};
 		3B50E4101B899F36370CD2D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		3C9CEC4D5CDEEDA7DB37FEC4 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
@@ -412,6 +529,18 @@
 			};
 			name = Release;
 		};
+		A371D39A8592F80B53247C1D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 		E301A43E761E0FCA01605A78 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -488,6 +617,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		6C505F68BE3D0B7FA40BA1EB /* Build configuration list for PBXNativeTarget "AgentValidator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A371D39A8592F80B53247C1D /* Debug */,
+				3C9CEC4D5CDEEDA7DB37FEC4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		8053250A63D3ADA797E83BF9 /* Build configuration list for PBXNativeTarget "AgentTools" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -552,6 +690,10 @@
 			productName = NewsResearcher;
 		};
 		BDFC10F05D63D067159429A3 /* AgentCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AgentCore;
+		};
+		D4F2B17CD9E65933035AFC10 /* AgentCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AgentCore;
 		};
