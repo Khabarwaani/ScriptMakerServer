@@ -183,7 +183,7 @@ gh pr checks <pr-number> --repo Khabarwaani/ScriptMakerServer
 gh pr merge <pr-number> --repo Khabarwaani/ScriptMakerServer --squash
 # Only for PRs solely increasing a version, use --merge instead of --squash.
 gh pr view <pr-number> --repo Khabarwaani/ScriptMakerServer \
-  --json state,mergedAt,mergeCommit
+  --json state,mergedAt,mergeCommit,baseRefName,headRefName,headRefOid
 git fetch origin develop
 git merge-base --is-ancestor <merge-commit-sha> origin/develop
 ```
@@ -197,11 +197,31 @@ cd ../..
 git pull --ff-only origin develop
 gh issue close 123 --repo Khabarwaani/ScriptMakerServer --reason completed
 git worktree remove .worktrees/codex
+git branch -d bug/123-short-description
 ```
 
-Remove the clean worktree only after a successful PR merge and verification. Keep
-it when PR creation, checks, merge or verification fails. See [AGENTS.md](AGENTS.md)
-for the required workflow.
+Removing a worktree does not delete its local branch. Delete both after the PR
+merge is verified and local `develop` is synced. Squash merging creates a new
+commit, so `git branch -d` may refuse deletion even though the PR is merged. Before
+using `-D` after such a refusal, verify all of the following: the PR state is `MERGED`, its base is
+`develop`, its merge commit is an ancestor of `origin/develop`, and the local task
+branch tip equals the PR's `headRefOid`. Use `git rev-parse` to compare the local
+tip with the head returned by `gh pr view`:
+
+```sh
+git rev-parse bug/123-short-description
+# Only after the checks above confirm there are no extra local commits:
+git branch -D bug/123-short-description
+git worktree list
+git branch -vv
+```
+
+If the branch tip differs from the merged PR head, preserve it and investigate its
+additional work. For legacy branches without a PR, delete only if their tip is
+already an ancestor of `develop`. Never delete `develop`, `main`, or a branch
+checked out in an active worktree; never force-remove a dirty worktree. Keep the
+worktree and branch when PR creation, checks, merge or verification fails. See
+[AGENTS.md](AGENTS.md) for the required workflow.
 
 ## Engineering practices
 
