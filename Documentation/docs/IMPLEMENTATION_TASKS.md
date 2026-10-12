@@ -2,7 +2,7 @@
 
 ## Compile-time agent package registration and package-backed discovery
 
-Status: pending implementation.
+Status: completed.
 
 Every executable agent and version must be declared by an explicitly registered,
 linked Swift subpackage. Having a directory and its own `Package.swift` is
@@ -110,4 +110,4 @@ Acceptance checks:
 - Deterministic Swift tests cover registration, rejection, version discovery and
   package build integration.
 
-This task records a required change; the current registry does not yet enforce it.
+This task is implemented and verified: package-backed discovery, build-time validation, build-generated documentation, and metadata verification are enforced.
