@@ -1,0 +1,15 @@
+{
+  "host": "127.0.0.1",
+  "port": 8080,
+  "agents_directory": "Agents",
+  "shutdown_timeout_seconds": 900,
+  "execution_timeout_seconds": 1800,
+  "max_processes": 8,
+  "max_queued_executions": 64,
+  "retention_seconds": 3600,
+  "providers": {
+    "codex": { "executable": "codex", "enabled": true },
+    "antigravity": { "executable": "agy", "enabled": true },
+    "grok": { "executable": "grok", "enabled": true }
+  }
+}

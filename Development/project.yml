@@ -1,0 +1,76 @@
+name: AgentServer
+options:
+  minimumXcodeGenVersion: 2.40.0
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGNING_ALLOWED: NO
+packages:
+  AgentCore:
+    path: Packages/AgentServer
+  Hummingbird:
+    url: https://github.com/hummingbird-project/hummingbird.git
+    from: 2.27.1
+  ServiceLifecycle:
+    url: https://github.com/swift-server/swift-service-lifecycle.git
+    from: 2.12.1
+fileGroups:
+  - Documentation
+  - Packages/AgentServer/AGENTS.md
+  - Packages/AgentServer/Agents
+  - Packages/AgentServer/Package.swift
+  - Packages/AgentServer/config
+  - Packages/AgentServer/Sources/AgentResources/Web
+targets:
+  AgentTools:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Packages/AgentServer/Sources/AgentTools
+    dependencies:
+      - package: AgentCore
+        product: AgentCore
+  AgentServer:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Packages/AgentServer/Sources/AgentServer
+    dependencies:
+      - package: AgentCore
+        product: AgentCore
+      - package: Hummingbird
+        product: Hummingbird
+      - package: ServiceLifecycle
+        product: ServiceLifecycle
+    postBuildScripts:
+      - name: Copy web pages
+        script: |
+          mkdir -p "${TARGET_BUILD_DIR}/Web"
+          cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${TARGET_BUILD_DIR}/Web/"
+          mkdir -p "${TARGET_BUILD_DIR}/config"
+          cp "${SRCROOT}/Packages/AgentServer/config/server.json" "${TARGET_BUILD_DIR}/config/server.json"
+          ditto "${SRCROOT}/Packages/AgentServer/Agents" "${TARGET_BUILD_DIR}/Agents"
+        basedOnDependencyAnalysis: false
+schemes:
+  AgentServer:
+    build:
+      targets:
+        AgentServer: all
+    run:
+      config: Debug
+      customWorkingDirectory: "$(BUILT_PRODUCTS_DIR)"
+      environmentVariables:
+        AGENT_SERVER_CONFIG: "$(BUILT_PRODUCTS_DIR)/config/server.json"
+  AgentServer-Stop:
+    build:
+      targets:
+        AgentServer: all
+    run:
+      config: Debug
+      customWorkingDirectory: "$(BUILT_PRODUCTS_DIR)"
+      commandLineArguments:
+        stop: true
+      environmentVariables:
+        AGENT_SERVER_CONFIG: "$(BUILT_PRODUCTS_DIR)/config/server.json"

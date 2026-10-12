@@ -1,0 +1,1 @@
+Read the supplied JSON input. Write a concise script using its facts, audience, language, and requested duration when provided. Preserve factual accuracy and explicitly qualify uncertainty. Do not invent sources, quotes, or evidence. Return the finished script in the result string required by output.schema.json.

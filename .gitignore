@@ -1,7 +1,6 @@
 # SwiftPM generated output (commit Package.resolved for this server).
 .build/
 .swiftpm/
-Packages/
 
 # Xcode local state and build output.
 DerivedData/
@@ -16,6 +15,8 @@ xcuserdata/
 .env.*
 !.env.example
 .runtime/
+ignoreGit/
+__pycache__/
 logs/
 *.log
 coverage/

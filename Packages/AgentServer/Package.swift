@@ -1,0 +1,33 @@
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "AgentServer",
+    platforms: [.macOS(.v14)],
+    products: [
+        .executable(name: "AgentServer", targets: ["AgentServer"]),
+        .executable(name: "AgentTools", targets: ["AgentTools"]),
+        .library(name: "AgentCore", targets: ["AgentCore"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
+        .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
+    ],
+    targets: [
+        .target(name: "AgentCore"),
+        .target(name: "AgentResources", path: ".", exclude: [
+            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Tests", "AGENTS.md"
+        ], sources: ["Sources/AgentResources/AgentResources.swift"], resources: [
+            .copy("Sources/AgentResources/Web"), .copy("Agents"), .copy("config")
+        ]),
+        .executableTarget(name: "AgentTools", dependencies: ["AgentCore"]),
+        .executableTarget(name: "AgentServer", dependencies: [
+            "AgentCore",
+            "AgentResources",
+            .product(name: "Hummingbird", package: "hummingbird"),
+            .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
+        ]),
+        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"]),
+        .testTarget(name: "AgentServerTests", dependencies: ["AgentServer", "AgentCore", .product(name: "HummingbirdTesting", package: "hummingbird")])
+    ]
+)
