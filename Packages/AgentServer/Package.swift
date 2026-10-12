@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "Agents/NewsResearcher"),
-        .package(path: "Agents/ScriptWriter"),
+        .package(path: "Agents/ScriptRefiner"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
     ],
@@ -22,7 +22,7 @@ let package = Package(
             name: "AgentCore",
             dependencies: [
                 .product(name: "NewsResearcher", package: "NewsResearcher"),
-                .product(name: "ScriptWriter", package: "ScriptWriter"),
+                .product(name: "ScriptRefiner", package: "ScriptRefiner"),
             ]
         ),
         .target(name: "AgentResources", path: ".", exclude: [
@@ -43,7 +43,7 @@ let package = Package(
                 "AgentCore",
                 "AgentResources",
                 .product(name: "NewsResearcher", package: "NewsResearcher"),
-                .product(name: "ScriptWriter", package: "ScriptWriter"),
+                .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
             ],

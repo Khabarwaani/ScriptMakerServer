@@ -88,10 +88,11 @@ AgentServer/
     │       ├── role.md
     │       ├── instructions.md
     │       └── output.schema.json
-    └── ScriptWriter/
+    ScriptRefiner/
         └── 1.0.0/
             ├── role.md
             ├── instructions.md
+            ├── input.schema.json
             └── output.schema.json
 ```
 
@@ -123,8 +124,8 @@ Do not expose private configuration, credentials or environment variables.
 ```json
 {
   "agents": [
-    {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.0.0", "1.1.0"]},
-    {"id": "ScriptWriter", "name": "Script Writer", "versions": ["1.0.0"]}
+    {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.1.0"]},
+    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.0.0"]}
   ]
 }
 ```

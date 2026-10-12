@@ -11,7 +11,7 @@ the source of truth for execution, discovery, help and API documentation.
 
 Required changes:
 
-- Add local package dependencies for `NewsResearcher` and `ScriptWriter` to
+- Add local package dependencies for `NewsResearcher` and `ScriptRefiner` to
   `Packages/AgentServer/Package.swift`, and link their library products to the
   appropriate server target.
 - Ensure the Xcode workspace resolves and builds the registered agent packages

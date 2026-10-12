@@ -81,7 +81,7 @@ Packages/AgentServer/
     AgentServerTests/                 HTTP contract tests
   Agents/
     NewsResearcher/                   Research agent package
-    ScriptWriter/                     Script-writing agent package
+    ScriptRefiner/                    Script-refining agent package
   config/                             Central server configuration
 ignoreGit/                            Ignored local helpers; never committed
 ```

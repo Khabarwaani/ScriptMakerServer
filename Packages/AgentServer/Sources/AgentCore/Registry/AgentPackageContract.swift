@@ -1,6 +1,6 @@
 import Foundation
 import NewsResearcher
-import ScriptWriter
+import ScriptRefiner
 
 public protocol AgentPackageContract: Sendable {
     static var id: String { get }
@@ -30,6 +30,6 @@ extension AgentPackageContract {
 extension NewsResearcherDefinition: AgentPackageContract {
     public static var name: String { "News Researcher" }
 }
-extension ScriptWriterDefinition: AgentPackageContract {
-    public static var name: String { "Script Writer" }
+extension ScriptRefinerDefinition: AgentPackageContract {
+    public static var name: String { "Script Refiner" }
 }
