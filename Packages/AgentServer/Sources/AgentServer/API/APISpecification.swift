@@ -238,7 +238,7 @@ enum APISpecification {
         }
         return .object([
             "openapi": .string("3.1.0"),
-            "info": .object(["title": .string("AgentServer HTTP API"), "version": .string("1.0.0")]),
+            "info": .object(["title": .string("AgentServer HTTP API"), "version": .string("1.1.0")]),
             "servers": .array([.object(["url": .string("/")])]), "paths": .object(paths),
             "components": .object(["schemas": .object(schemas)]), "x-agents": catalog,
             "x-providers": providerCatalog,
