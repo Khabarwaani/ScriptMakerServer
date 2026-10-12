@@ -1,0 +1,420 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */ = {isa = PBXBuildFile; productRef = BDFC10F05D63D067159429A3 /* AgentCore */; };
+		A28CA94D429588ECB1C9DBE9 /* Hummingbird in Frameworks */ = {isa = PBXBuildFile; productRef = E056B50D34FE01411BD66EB5 /* Hummingbird */; };
+		E94F19712D3F9B8C6FDF6EC0 /* AgentServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCC4988752400E173C557C00 /* AgentServer.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		071632D30FC4F1CCDF6A3978 /* role.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = role.md; sourceTree = "<group>"; };
+		28F432638C5025AE861C4B89 /* output.schema.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = output.schema.json; sourceTree = "<group>"; };
+		386D9F458172275D248ED075 /* AgentServer */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentServer; sourceTree = BUILT_PRODUCTS_DIR; };
+		4CE93ABAF9F9941101D61C5B /* instructions.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = instructions.md; sourceTree = "<group>"; };
+		4F290A5E708BC254FA4F46D0 /* help.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = help.html; sourceTree = "<group>"; };
+		6568EA420469601C2BCF6FEB /* RUN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RUN.md; sourceTree = "<group>"; };
+		777AF91316B2A55503915BA9 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
+		7E3F21F8572EA23DC7762077 /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
+		CCEC341DC8DBB56FC831AFBA /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+		D83C386B3865A1FAAFBC1A8E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		D98B450853B0072A4E724C70 /* ScriptMakerServer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScriptMakerServer; path = .; sourceTree = SOURCE_ROOT; };
+		DEB5145127C1E0D08FAD4B69 /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
+		EFC58B29ED338E20DDCBF2D1 /* SPECIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SPECIFICATION.md; sourceTree = "<group>"; };
+		FCC4988752400E173C557C00 /* AgentServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentServer.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D64933D504D816D7BA9CE94A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59592B3D24D39DD5E4D21714 /* AgentCore in Frameworks */,
+				A28CA94D429588ECB1C9DBE9 /* Hummingbird in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		32B95E89F8AAFB3D297FF5DB /* NewsResearcher */ = {
+			isa = PBXGroup;
+			children = (
+				BBAB6714B89383BF2211F72E /* 1.0.0 */,
+			);
+			path = NewsResearcher;
+			sourceTree = "<group>";
+		};
+		393FA150AA1C6FEF57DA789C /* Agents */ = {
+			isa = PBXGroup;
+			children = (
+				32B95E89F8AAFB3D297FF5DB /* NewsResearcher */,
+			);
+			path = Agents;
+			sourceTree = "<group>";
+		};
+		6E25A08092543BB4B04696F4 = {
+			isa = PBXGroup;
+			children = (
+				CCEC341DC8DBB56FC831AFBA /* AGENTS.md */,
+				DEB5145127C1E0D08FAD4B69 /* Package.swift */,
+				D83C386B3865A1FAAFBC1A8E /* README.md */,
+				393FA150AA1C6FEF57DA789C /* Agents */,
+				A4C6DD20EC2DD9F19B4B0BEF /* AgentServer */,
+				85354F5078A030E0E7693476 /* docs */,
+				CDBA99D8972601D447FD2331 /* Packages */,
+				A9C22CB8C59BB3A9FAED1EDD /* Web */,
+				C7AF683C4FC612BD0C84F3B0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		85354F5078A030E0E7693476 /* docs */ = {
+			isa = PBXGroup;
+			children = (
+				7E3F21F8572EA23DC7762077 /* ARCHITECTURE.md */,
+				6568EA420469601C2BCF6FEB /* RUN.md */,
+				EFC58B29ED338E20DDCBF2D1 /* SPECIFICATION.md */,
+			);
+			path = docs;
+			sourceTree = "<group>";
+		};
+		A4C6DD20EC2DD9F19B4B0BEF /* AgentServer */ = {
+			isa = PBXGroup;
+			children = (
+				FCC4988752400E173C557C00 /* AgentServer.swift */,
+			);
+			name = AgentServer;
+			path = Sources/AgentServer;
+			sourceTree = "<group>";
+		};
+		A9C22CB8C59BB3A9FAED1EDD /* Web */ = {
+			isa = PBXGroup;
+			children = (
+				4F290A5E708BC254FA4F46D0 /* help.html */,
+				777AF91316B2A55503915BA9 /* index.html */,
+			);
+			name = Web;
+			path = Sources/AgentServer/Web;
+			sourceTree = "<group>";
+		};
+		BBAB6714B89383BF2211F72E /* 1.0.0 */ = {
+			isa = PBXGroup;
+			children = (
+				4CE93ABAF9F9941101D61C5B /* instructions.md */,
+				28F432638C5025AE861C4B89 /* output.schema.json */,
+				071632D30FC4F1CCDF6A3978 /* role.md */,
+			);
+			path = 1.0.0;
+			sourceTree = "<group>";
+		};
+		C7AF683C4FC612BD0C84F3B0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				386D9F458172275D248ED075 /* AgentServer */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		CDBA99D8972601D447FD2331 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				D98B450853B0072A4E724C70 /* ScriptMakerServer */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		970F72FE0AEAC7C289BCF7E4 /* AgentServer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5F27CA2FBF7537F0AF836369 /* Build configuration list for PBXNativeTarget "AgentServer" */;
+			buildPhases = (
+				FCEE816A45D09F7582304603 /* Sources */,
+				D64933D504D816D7BA9CE94A /* Frameworks */,
+				B4D10CD2B5A6302BFB7062B4 /* Copy web pages */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AgentServer;
+			packageProductDependencies = (
+				BDFC10F05D63D067159429A3 /* AgentCore */,
+				E056B50D34FE01411BD66EB5 /* Hummingbird */,
+			);
+			productName = AgentServer;
+			productReference = 386D9F458172275D248ED075 /* AgentServer */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DBA73188BCDBE96C6D79B91B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = AB20FD70A4448A931595FC2E /* Build configuration list for PBXProject "AgentServer" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6E25A08092543BB4B04696F4;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				332B1D9B820531A38319DF2C /* XCRemoteSwiftPackageReference "hummingbird" */,
+				4A4CD4748445D9E49BE5F50C /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				970F72FE0AEAC7C289BCF7E4 /* AgentServer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B4D10CD2B5A6302BFB7062B4 /* Copy web pages */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy web pages";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/Web\"\ncp \"${SRCROOT}/Sources/AgentServer/Web/\"*.html \"${TARGET_BUILD_DIR}/Web/\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FCEE816A45D09F7582304603 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E94F19712D3F9B8C6FDF6EC0 /* AgentServer.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3B50E4101B899F36370CD2D8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		9950212ECD41BA6A5F357181 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		9F2455987339253AEDE3A860 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		E301A43E761E0FCA01605A78 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5F27CA2FBF7537F0AF836369 /* Build configuration list for PBXNativeTarget "AgentServer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9950212ECD41BA6A5F357181 /* Debug */,
+				3B50E4101B899F36370CD2D8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AB20FD70A4448A931595FC2E /* Build configuration list for PBXProject "AgentServer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E301A43E761E0FCA01605A78 /* Debug */,
+				9F2455987339253AEDE3A860 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		4A4CD4748445D9E49BE5F50C /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		332B1D9B820531A38319DF2C /* XCRemoteSwiftPackageReference "hummingbird" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/hummingbird-project/hummingbird.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BDFC10F05D63D067159429A3 /* AgentCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AgentCore;
+		};
+		E056B50D34FE01411BD66EB5 /* Hummingbird */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 332B1D9B820531A38319DF2C /* XCRemoteSwiftPackageReference "hummingbird" */;
+			productName = Hummingbird;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = DBA73188BCDBE96C6D79B91B /* Project object */;
+}

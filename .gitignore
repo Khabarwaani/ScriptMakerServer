@@ -1,0 +1,30 @@
+# SwiftPM generated output (commit Package.resolved for this server).
+.build/
+.swiftpm/
+Packages/
+
+# Xcode local state and build output.
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# Local runtime configuration, credentials, logs and execution scratch files.
+.env
+.env.*
+!.env.example
+.runtime/
+logs/
+*.log
+coverage/
+*.profraw
+*.profdata
+
+# macOS and editor local state.
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
