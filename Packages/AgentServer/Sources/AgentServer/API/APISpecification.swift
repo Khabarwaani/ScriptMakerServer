@@ -200,6 +200,7 @@ enum APISpecification {
                     ]),
                     "400": errorResponse("Invalid request"),
                     "404": errorResponse("Unknown agent, version, execution or endpoint"),
+                    "422": errorResponse("Input not feasible or unprocessable by agent"),
                     "503": errorResponse("Unavailable provider, resource pressure or server shutdown"),
                     "500": errorResponse("Execution or internal failure"),
                 ]),

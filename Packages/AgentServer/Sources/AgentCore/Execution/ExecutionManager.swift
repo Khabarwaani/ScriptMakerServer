@@ -235,6 +235,12 @@ public actor ExecutionManager {
                 onOutput: { text in await self.providerOutput(id, text: text) },
                 onProgress: { progress in await self.providerProgress(id, progress: progress) })
             guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
+            if result["error"] != nil {
+                entries[id]?.record.schema_validated = false
+                emit(id, "result", ["result": result])
+                finish(id, state: "completed", event: "completed")
+                return
+            }
             try OutputValidator.validate(result, schema: work.definition.outputSchema)
             entries[id]?.record.schema_validated = true
             emit(id, "result", ["result": result])
