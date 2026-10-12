@@ -26,7 +26,7 @@ let package = Package(
             ]
         ),
         .target(name: "AgentResources", path: ".", exclude: [
-            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Sources/AgentValidator", "Plugins", "Tests", "AGENTS.md", "Agents"
+            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Sources/AgentValidator", "Plugins", "Tests", "AGENTS.md", "README.md", "Agents"
         ], sources: ["Sources/AgentResources/AgentResources.swift"], resources: [
             .copy("Sources/AgentResources/Web"), .copy("config")
         ]),

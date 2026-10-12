@@ -142,13 +142,18 @@ swift run --package-path Packages/AgentServer AgentTools add MyAgent 1.0.0
 swift run --package-path Packages/AgentServer AgentTools check
 swift run --package-path Packages/AgentServer AgentTools check --build
 swift run --package-path Packages/AgentServer AgentTools version MyAgent 1.1.0 1.0.0
+swift run --package-path Packages/AgentServer AgentTools docs
+swift run --package-path Packages/AgentServer AgentTools docs --check
 ```
 
 Generated packages include a manifest, README, Swift definition accessor, resource
-tests, role, instructions and output schema. Input schema is optional. Published
+tests, generated README, role, instructions and output schema. Input schema is optional. Published
 versions cannot be overwritten. Set an absolute `AGENT_SERVER_AGENTS_DIR` to create
-or inspect packages in another root. Runtime additions need no rebuild; Swift resource
-bundles contain the versions included at build time.
+or inspect packages in another root. Only explicitly linked and registered packages
+are available. Rebuild after declaring new versions; adding Markdown directories
+alone does not update a running server. `docs` refreshes checked-in package READMEs
+from the same resources used by generated help metadata; `docs --check` reports drift
+without writing. Include that check before PRs and releases.
 
 ## Verification and troubleshooting
 
