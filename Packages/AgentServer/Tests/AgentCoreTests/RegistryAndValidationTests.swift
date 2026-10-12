@@ -169,3 +169,107 @@ func invalidSemanticVersions(value: String) { #expect(SemanticVersion(value) == 
     try OutputValidator.validate(.string("ok"), schema: choice)
     #expect(throws: AgentError.self) { try OutputValidator.validate(.string("bad"), schema: choice) }
 }
+
+@Test func buildTimeValidationAndMetadataVerification() async throws {
+    let fixture = try AgentFixture()
+    let echoDir = fixture.agents.appendingPathComponent("Echo")
+
+    // 1. Successful validation produces metadata with SHA256 hashes
+    let metadata = try AgentPackageValidator.validate(packageDirectory: echoDir)
+    #expect(metadata.agentId == "Echo")
+    #expect(metadata.versions.count == 1)
+    #expect(metadata.versions[0].version == "1.0.0")
+    #expect(metadata.versions[0].resourceHashes["role.md"] != nil)
+    #expect(metadata.versions[0].resourceHashes["output.schema.json"] != nil)
+
+    // 2. Modifying a resource invalidates metadata verification in registry
+    let versionMeta = metadata.versions[0]
+    let alteredMeta = AgentValidationMetadata(agentId: "Echo", versions: [
+        AgentValidationMetadata.VersionMetadata(
+            version: "1.0.0",
+            resourceHashes: ["role.md": "tampered_hash_value_12345"]
+        )
+    ])
+
+    struct MockPackageWithDir: AgentPackageContract {
+        static let id = "Echo"
+        static let versions = ["1.0.0"]
+        nonisolated(unsafe) static var dirURL: URL = URL(fileURLWithPath: "/tmp")
+        static func directory(version: String) throws -> URL { dirURL }
+        static func role(version: String) throws -> String {
+            try String(contentsOf: dirURL.appendingPathComponent("role.md"), encoding: .utf8)
+        }
+        static func instructions(version: String) throws -> String {
+            try String(contentsOf: dirURL.appendingPathComponent("instructions.md"), encoding: .utf8)
+        }
+        static func outputSchema(version: String) throws -> String {
+            try String(contentsOf: dirURL.appendingPathComponent("output.schema.json"), encoding: .utf8)
+        }
+        static func inputSchema(version: String) throws -> String? { nil }
+    }
+    MockPackageWithDir.dirURL = echoDir.appendingPathComponent("1.0.0")
+
+    // Passing altered metadata should cause AgentRegistry to reject the unverified version
+    let registryWithBadMeta = AgentRegistry(
+        packages: [MockPackageWithDir.self],
+        validationMetadata: [alteredMeta],
+        root: fixture.agents
+    )
+    #expect(await registryWithBadMeta.list().isEmpty)
+
+    // Passing matching metadata allows registration
+    let registryWithGoodMeta = AgentRegistry(
+        packages: [MockPackageWithDir.self],
+        validationMetadata: [metadata],
+        root: fixture.agents
+    )
+    #expect(await registryWithGoodMeta.list().count == 1)
+
+    // 3. Validation fails for malformed schema JSON
+    let badSchemaFile = echoDir.appendingPathComponent("1.0.0/output.schema.json")
+    try "{ bad json".write(to: badSchemaFile, atomically: true, encoding: .utf8)
+    #expect(throws: AgentPackageValidator.ValidationError.self) {
+        try AgentPackageValidator.validate(packageDirectory: echoDir)
+    }
+
+    // 4. Validation fails for unsupported schema constraint
+    try #"{"type":"object","unsupportedKeyword":true}"#.write(to: badSchemaFile, atomically: true, encoding: .utf8)
+    #expect(throws: AgentPackageValidator.ValidationError.self) {
+        try AgentPackageValidator.validate(packageDirectory: echoDir)
+    }
+
+    // 5. Validation fails for invalid schema example
+    let invalidExampleSchema = #"""
+    {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "required": ["result"],
+      "properties": {
+        "result": { "type": "string" }
+      },
+      "examples": [{ "result": 12345 }]
+    }
+    """#
+    try invalidExampleSchema.write(to: badSchemaFile, atomically: true, encoding: .utf8)
+    #expect(throws: AgentPackageValidator.ValidationError.self) {
+        try AgentPackageValidator.validate(packageDirectory: echoDir)
+    }
+}
+
+@Test func buildTimeDocumentationGeneration() throws {
+    let fixture = try AgentFixture()
+    let echoDir = fixture.agents.appendingPathComponent("Echo")
+
+    // Add optional notes.md
+    let notesFile = echoDir.appendingPathComponent("1.0.0/notes.md")
+    try "Custom authored version notes for Echo 1.0.0.".write(to: notesFile, atomically: true, encoding: .utf8)
+
+    let docMeta = try AgentDocumentationGenerator.generate(packageDirectory: echoDir)
+    #expect(docMeta.agentId == "Echo")
+    #expect(docMeta.versions.count == 1)
+    #expect(docMeta.versions[0].version == "1.0.0")
+    #expect(docMeta.versions[0].notes == "Custom authored version notes for Echo 1.0.0.")
+    #expect(docMeta.readme.contains("# Echo"))
+    #expect(docMeta.readme.contains("## Available Versions"))
+    #expect(docMeta.readme.contains("Custom authored version notes for Echo 1.0.0."))
+}
