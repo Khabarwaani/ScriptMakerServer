@@ -43,7 +43,7 @@ public actor ExecutionManager {
         self.resourceSample = resourceSample
     }
 
-    public func execute(_ request: ExecuteRequest) async throws -> AcceptedExecution {
+    public func execute(_ request: ExecuteRequest, streaming: Bool = true) async throws -> AcceptedExecution {
         guard accepting else {
             throw AgentError(
                 "server_shutting_down", "The server is shutting down and cannot accept new executions.")
@@ -70,7 +70,7 @@ public actor ExecutionManager {
             bufferingPolicy: .bufferingOldest(128))
         let record = ExecutionRecord(
             execution_id: id, agent_id: definition.id, version: definition.version,
-            provider: provider.id, status: "queued", streaming: true, started_at: Date(),
+            provider: provider.id, status: "queued", streaming: streaming, started_at: Date(),
             resident_memory_bytes: 0)
         entries[id] = Entry(record: record, continuation: continuation, runner: ProcessRunner())
         pending[id] = Work(definition: definition, input: request.input, provider: provider)
