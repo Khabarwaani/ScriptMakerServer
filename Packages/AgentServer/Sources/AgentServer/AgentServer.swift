@@ -52,6 +52,7 @@ struct AgentServer {
         let instance = try await ServerInstance.start(
             port: configuration.port, timeoutSeconds: configuration.shutdownTimeoutSeconds)
         defer { withExtendedLifetime(instance) {} }
+        GeneratedAgentDocumentationCatalog.documentation = GeneratedAgentDocumentationRegistry.documentation
         let registry = AgentRegistry(
             validationMetadata: GeneratedAgentValidationCatalog.metadata,
             root: configuration.agentsDirectory

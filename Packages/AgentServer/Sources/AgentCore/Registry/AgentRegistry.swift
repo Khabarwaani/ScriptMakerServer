@@ -16,6 +16,15 @@ public struct AgentSummary: Codable, Sendable {
     public let versions: [String]
     public let latest: String?
     public let definitions: [AgentVersionDetails]
+    public let readme: String?
+
+    public init(id: String, versions: [String], latest: String?, definitions: [AgentVersionDetails], readme: String? = nil) {
+        self.id = id
+        self.versions = versions
+        self.latest = latest
+        self.definitions = definitions
+        self.readme = readme
+    }
 }
 
 public struct AgentVersionDetails: Codable, Sendable {
@@ -24,6 +33,16 @@ public struct AgentVersionDetails: Codable, Sendable {
     public let instructions: String
     public let input_schema: JSONValue?
     public let output_schema: JSONValue
+    public let notes: String?
+
+    public init(version: String, role: String, instructions: String, input_schema: JSONValue?, output_schema: JSONValue, notes: String? = nil) {
+        self.version = version
+        self.role = role
+        self.instructions = instructions
+        self.input_schema = input_schema
+        self.output_schema = output_schema
+        self.notes = notes
+    }
 }
 
 public actor AgentRegistry {
@@ -57,15 +76,19 @@ public actor AgentRegistry {
             let versions = values.compactMap { SemanticVersion($0.version) }.sorted {
                 $0 == $1 ? $0.raw < $1.raw : $0 < $1
             }
+            let matchingPackage = packages.first(where: { $0.id == id })
             let details = versions.compactMap { version -> AgentVersionDetails? in
                 guard let definition = values.first(where: { $0.version == version.raw }) else { return nil }
+                let notes = matchingPackage?.documentation(version: version.raw)?.notes
                 return AgentVersionDetails(
                     version: definition.version, role: definition.role, instructions: definition.instructions,
-                    input_schema: definition.inputSchema, output_schema: definition.outputSchema)
+                    input_schema: definition.inputSchema, output_schema: definition.outputSchema,
+                    notes: notes)
             }
+            let readme = matchingPackage?.readme()
             return AgentSummary(
                 id: id, versions: versions.map(\.raw), latest: versions.last(where: \.stable)?.raw,
-                definitions: details)
+                definitions: details, readme: readme)
         }.sorted { $0.id < $1.id }
     }
 
