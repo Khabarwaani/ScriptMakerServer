@@ -110,7 +110,7 @@ public struct CLIProvider: AIProvider {
         case .grok:
             arguments = [
                 "--prompt-file", promptURL.path, "--output-format", "streaming-messages-json",
-                "--include-partial-messages", "--permission-mode", "dontAsk", "--no-subagents",
+                "--include-partial-messages", "--always-approve", "--no-subagents",
             ]
         }
         if let model = settings.model { arguments += ["--model", model] }
