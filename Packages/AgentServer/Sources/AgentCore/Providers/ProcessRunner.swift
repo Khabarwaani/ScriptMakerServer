@@ -45,6 +45,14 @@ public final class ProcessRunner: @unchecked Sendable {
         var environment = ProcessInfo.processInfo.environment
         environment["NO_COLOR"] = "1"
         environment["TERM"] = "dumb"
+        let existingPath = environment["PATH"] ?? ""
+        let standardPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+        let existingSegments = existingPath.split(separator: ":").map(String.init)
+        let missingPaths = standardPaths.filter { !existingSegments.contains($0) }
+        if !missingPaths.isEmpty {
+            let combined = (missingPaths + [existingPath]).filter { !$0.isEmpty }
+            environment["PATH"] = combined.joined(separator: ":")
+        }
         child.environment = environment
         let (chunks, continuation) = AsyncThrowingStream<Data, any Error>.makeStream(
             bufferingPolicy: .bufferingOldest(256))

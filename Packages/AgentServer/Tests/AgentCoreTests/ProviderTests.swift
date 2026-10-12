@@ -101,3 +101,12 @@ actor LineCollector {
     _ = try await parser.consume(#"{"type":"turn.failed","error":{"message":"failure"}}"#)
     await #expect(throws: AgentError.self) { try await parser.checkOutcome() }
 }
+
+@Test func processRunnerIncludesStandardSearchPathsInChildEnvironment() async throws {
+    let output = try await ProcessRunner().run(
+        executable: URL(fileURLWithPath: "/usr/bin/env"), arguments: [], timeoutSeconds: 10)
+    let pathLine = output.components(separatedBy: "\n").first(where: { $0.hasPrefix("PATH=") }) ?? ""
+    #expect(pathLine.contains("/opt/homebrew/bin") || pathLine.contains("/usr/local/bin"))
+    #expect(pathLine.contains("/usr/bin"))
+}
+
