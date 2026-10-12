@@ -17,7 +17,7 @@ enum APIOperation: String, CaseIterable {
     var summary: String {
         switch self {
         case .listAgents: "List agent IDs, names and available versions"
-        case .executeAgent: "Execute an agent and stream events"
+        case .executeAgent: "Execute an agent and return its validated result"
         case .getStatus: "Read health and tracked execution states"
         case .cancelExecution: "Cancel a specific execution"
         case .getSpecification: "Read the current OpenAPI specification"
@@ -28,7 +28,7 @@ enum APIOperation: String, CaseIterable {
         case .listAgents:
             "Returns only the agents list, with id, name and available versions for each valid registered agent. Agent contracts, documentation and provider metadata are available from /openapi.json."
         case .executeAgent:
-            "Supply agent_id, provider and a JSON input object. Omit version for the highest stable version; prereleases must be explicitly selected. X-Execution-ID and the started event identify accepted work. Final output is validated against the resolved version's schema before result and completed are emitted."
+            "Returns one final schema-validated JSON value or a structured error by default (status=false, which may be omitted). Add ?status=true for SSE status/progress updates and one validated result or terminal error. Provisional provider output is never returned. Supply agent_id, provider and a JSON input object; omit version for the highest stable version. X-Execution-ID identifies accepted work; in final-only mode the header arrives with the final response."
         case .getStatus:
             "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time, is zero before running, and freezes at ended_at for terminal states. Timestamps are ISO 8601. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain only execution_id, status and timing fields; agent/provider, streaming, error and resource metadata appear only while active. Metadata also includes resolved version, provider, streaming state and resource usage; input and credentials are excluded."
         case .cancelExecution:
@@ -158,22 +158,28 @@ enum APISpecification {
             }
         }
         var paths: [String: JSONValue] = [:]
+        let outputSchemas = agents.flatMap { agent in
+            agent.definitions.map { definition in
+                reference(agent.id + "_" + definition.version.replacingOccurrences(of: ".", with: "_")
+                    .replacingOccurrences(of: "+", with: "_") + "_Output")
+            }
+        }
         for operation in APIOperation.allCases {
             let responseSchema: JSONValue =
                 switch operation {
                 case .listAgents: reference("AgentsResponse")
                 case .executeAgent:
                     .object([
-                        "type": .string("string"),
+                        "anyOf": .array(outputSchemas.isEmpty ? [.bool(true)] : outputSchemas),
                         "description": .string(
-                            "Ordered SSE frames; each data payload is JSON. See x-stream-events and x-agents."
+                            "The validated final value matching the selected agent version's output schema."
                         ),
                     ])
                 case .getStatus: reference("StatusResponse")
                 case .cancelExecution: reference("CancelResponse")
                 case .getSpecification: .object(["type": .string("object")])
                 }
-            let responseType = operation == .executeAgent ? "text/event-stream" : "application/json"
+            let responseType = "application/json"
             var entry: [String: JSONValue] = [
                 "operationId": .string(operation.rawValue), "summary": .string(operation.summary),
                 "description": .string(operation.explanation),
@@ -189,6 +195,11 @@ enum APISpecification {
                 ]),
             ]
             if operation == .executeAgent {
+                entry["parameters"] = .array([.object([
+                    "name": .string("status"), "in": .string("query"), "required": .bool(false),
+                    "schema": .object(["type": .string("boolean"), "default": .bool(false)]),
+                    "description": .string("Omit or set false for one final JSON response. Set true for SSE status updates and the validated final result. No raw provider output is exposed."),
+                ])])
                 entry["requestBody"] = .object([
                     "required": .bool(true),
                     "content": .object([
@@ -199,6 +210,14 @@ enum APISpecification {
                 ])
                 var responses = entry["responses"]!.object!
                 var success = responses["200"]!.object!
+                var content = success["content"]!.object!
+                content["text/event-stream"] = .object([
+                    "schema": .object([
+                        "type": .string("string"),
+                        "description": .string("Only when status=true: ordered started/status/result/completed or failed/cancelled SSE events. See x-stream-events."),
+                    ])
+                ])
+                success["content"] = .object(content)
                 success["headers"] = .object([
                     "X-Execution-ID": .object([
                         "description": .string("Assigned execution ID"), "schema": string,
@@ -235,11 +254,6 @@ enum APISpecification {
                     "description": .string(
                         "State, periodic heartbeat or provider progress. A heartbeat alone does not prove model progress."
                     ),
-                ]),
-                .object([
-                    "name": .string("output"),
-                    "description": .string(
-                        "Incremental provisional provider text; formatted as JSON when complete."),
                 ]),
                 .object([
                     "name": .string("result"),

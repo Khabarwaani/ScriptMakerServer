@@ -369,7 +369,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/Web\"\ncp \"${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/\"*.html \"${TARGET_BUILD_DIR}/Web/\"\nmkdir -p \"${TARGET_BUILD_DIR}/config\"\ncp \"${SRCROOT}/Packages/AgentServer/config/server.json\" \"${TARGET_BUILD_DIR}/config/server.json\"\n";
+			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/Web\"\ncp \"${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/\"*.html \"${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/\"*.js \"${TARGET_BUILD_DIR}/Web/\"\nmkdir -p \"${TARGET_BUILD_DIR}/config\"\ncp \"${SRCROOT}/Packages/AgentServer/config/server.json\" \"${TARGET_BUILD_DIR}/config/server.json\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

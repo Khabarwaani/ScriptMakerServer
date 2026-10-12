@@ -77,7 +77,7 @@ targets:
       - name: Copy web pages
         script: |
           mkdir -p "${TARGET_BUILD_DIR}/Web"
-          cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${TARGET_BUILD_DIR}/Web/"
+          cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.js "${TARGET_BUILD_DIR}/Web/"
           mkdir -p "${TARGET_BUILD_DIR}/config"
           cp "${SRCROOT}/Packages/AgentServer/config/server.json" "${TARGET_BUILD_DIR}/config/server.json"
         basedOnDependencyAnalysis: false

@@ -22,7 +22,7 @@ Swift packages. Initially expose four HTTP endpoints.
 2. Versioned agents: multiple versions of an agent must coexist.
 3. Runtime discovery: adding Markdown agent versions must not require a rebuild.
 4. Structured input/output: requests use JSON; successful final results conform to the selected output schema.
-5. Streaming: deliver execution output incrementally.
+5. Optional status streaming: deliver lifecycle/progress events when requested; keep provider output internal.
 6. Asynchronous execution: execute multiple agents concurrently.
 7. Simplicity: avoid databases, brokers, distributed workers and unnecessary infrastructure.
 8. Reproducibility: record the exact agent version and provider for every execution.
@@ -37,7 +37,7 @@ Swift packages. Initially expose four HTTP endpoints.
 | Input/output | JSON |
 | Agent instructions | Markdown |
 | Output validation | JSON Schema |
-| Streaming | SSE (selected before development; NDJSON was an alternative) |
+| Responses | Final JSON by default; optional `status=true` SSE for lifecycle/progress and the validated result |
 | AI execution | Provider-specific CLI adapters |
 | Dependencies | Swift Package Manager (SPM) |
 
@@ -130,7 +130,13 @@ Do not expose private configuration, credentials or environment variables.
 
 ### 6.2 Execute agent — `POST /execute`
 
-Execute an agent and stream output. Version is optional; omission selects latest
+Execute an agent and return one final schema-validated JSON value, or a structured
+error, by default. The optional query parameter `status` defaults to `false`; omit
+it or pass `status=false` for final-only mode. Pass `status=true` to opt into SSE
+status/progress updates and one validated final result or terminal error. Raw
+provider output is internal and is not returned in either response mode.
+
+Version is optional; omission selects latest
 stable. Validate provider selection and readiness before execution begins.
 
 ```json
@@ -150,29 +156,34 @@ Execution sequence:
 4. Resolve and initialize the provider.
 5. Construct its provider-specific execution request.
 6. Deliver agent instructions and JSON input.
-7. Stream supported progress and output events.
+7. Process provider output internally; stream only lifecycle/progress when `status=true`.
 8. Obtain and parse final JSON.
 9. Validate the result against the output schema.
 10. Emit successful completion only after validation succeeds.
 
 Adapters handle differing input formats, structured-output features and streaming
 capabilities. Define events for started, status/progress, incremental output when
-available, final validated result, successful completion, failure and cancellation.
+available internally, final validated result, successful completion, failure and cancellation.
 Final results must be distinguishable from intermediate output. Invalid JSON or
 schema failure must never produce successful completion. After streaming begins,
 emit a structured error event when possible and close the stream appropriately.
 
-Selected SSE format (JSON `data` with ordered event names):
+Default responses use `application/json` and contain the final JSON directly,
+without a result envelope. Failures use the standard error envelope and an appropriate
+HTTP error status. `Accept: text/event-stream` alone does not enable streaming.
+
+Only `POST /execute?status=true` uses the following SSE format
+(JSON `data` with ordered event names):
 
 ```text
 event: started
 data: {"execution_id":"exec_001","agent_id":"NewsResearcher","version":"1.1.0","provider":"codex"}
 
-event: output
-data: {"execution_id":"exec_001","text":"Checking sources..."}
+event: status
+data: {"execution_id":"exec_001","status":"running"}
 
 event: result
-data: {"execution_id":"exec_001","result":{"summary":"Research complete","findings":[]}}
+data: {"execution_id":"exec_001","result":{"status":"pass","confidence":95,"key_notes":["Research complete"]}}
 
 event: completed
 data: {"execution_id":"exec_001"}
@@ -219,7 +230,9 @@ records include agent/provider and operational metadata. Tracking is in memory f
 the current server session and is purged after shutdown drains or cancels work.
 Do not expose prompts, credentials or environment variables.
 
-Assign an execution ID when accepted. The client must be able to obtain it even
+Assign an execution ID when accepted. In final-only mode, the `X-Execution-ID` header
+arrives with the final response; clients can inspect `/status` while waiting. In status
+mode it arrives with the started event. The client must be able to obtain it even
 if disconnected from the response: return it in `X-Execution-ID`, in the started
 event and in status records. Retain state long enough for monitoring and cleanup
 without requiring permanent storage.

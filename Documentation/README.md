@@ -2,7 +2,8 @@
 
 A local Swift service for discovering and executing versioned AI agents through
 Codex, Antigravity and Grok CLI adapters. HTTP uses Hummingbird; execution output
-uses Server-Sent Events (SSE). Agent definitions and provider implementations are
+returns one final validated JSON value or error by default. Add `?status=true` for
+optional status updates via Server-Sent Events (SSE). Agent definitions and provider implementations are
 independent.
 
 Open **AgentServer.xcworkspace**, select **AgentServer → My Mac**, and press **⌘R**.
@@ -10,7 +11,9 @@ Then open **http://127.0.0.1:8080/**. The input page discovers agent IDs and ver
 from the registry. **GET /agents** returns only `id`, `name` and `versions` for each
 agent; full contracts and provider metadata come from **/openapi.json**.
 Display names come from `AgentPackageContract.name`, which defaults to the agent ID.
-**/help** documents the API and dynamically displays each agent's
+**/help** documents both response modes. Its **Show status updates** checkbox
+configures Try it, and Copy buttons cover requests, responses, examples and schemas.
+The help page dynamically displays each agent's
 role and input/output contracts. Execution pages show start time and live running
 duration. Tracking is limited to the current server session, purged on shutdown,
 and retains only ID, state and timing after an execution finishes.

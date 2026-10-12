@@ -15,6 +15,9 @@ struct ServerRoutes {
         router.get("/") { _, _ in try webPage("index") }
         router.get("/help") { _, _ in try webPage("help") }
         router.get("/try") { _, _ in try webPage("try") }
+        router.get("/assets/copy.js") { _, _ in
+            try webAsset("copy.js", contentType: "text/javascript; charset=utf-8")
+        }
         router.get(RouterPath(APIOperation.getSpecification.path)) { _, _ in
             do {
                 let agents = await registry.list()
@@ -38,6 +41,13 @@ struct ServerRoutes {
         }
         router.post(RouterPath(APIOperation.executeAgent.path)) { request, context in
             do {
+                let statusValues = request.uri.queryParameters[values: "status"]
+                guard statusValues.count <= 1,
+                    statusValues.allSatisfy({ $0 == "true" || $0 == "false" })
+                else {
+                    throw AgentError("invalid_request", "The status query parameter must be true or false and appear at most once.")
+                }
+                let includeStatus = statusValues.first == "true"
                 let input: ExecuteRequest
                 do {
                     let body = try await request.body.collect(upTo: 1_048_576)
@@ -50,7 +60,21 @@ struct ServerRoutes {
                         "invalid_json",
                         "The request must be valid JSON matching the execution request schema.")
                 }
-                let execution = try await manager.execute(input)
+                let execution = try await manager.execute(input, streaming: includeStatus)
+                if !includeStatus {
+                    var response: Response
+                    do {
+                        response = try jsonResponse(await finalResult(execution))
+                    } catch {
+                        var failure = error as? AgentError
+                            ?? AgentError("internal_error", "Execution could not complete.")
+                        failure.execution_id = execution.id
+                        response = errorResponse(failure)
+                    }
+                    await manager.detach(execution.id)
+                    response.headers[.init("X-Execution-ID")!] = execution.id
+                    return response
+                }
                 return Response(
                     status: .ok,
                     headers: [
@@ -60,6 +84,9 @@ struct ServerRoutes {
                     body: .init { writer in
                         do {
                             for await event in execution.events {
+                                // Opt-in status streams expose progress and the validated result,
+                                // never provisional provider text or transport annotations.
+                                if event.name == "output" { continue }
                                 try await writer.write(.init(string: try event.sse()))
                             }
                             await manager.detach(execution.id)
@@ -80,6 +107,30 @@ struct ServerRoutes {
         }
         router.add(middleware: NotFoundMiddleware())
         return router
+    }
+
+    private static func finalResult(_ execution: AcceptedExecution) async throws -> JSONValue {
+        var result: JSONValue?
+        for await event in execution.events {
+            try Task.checkCancellation()
+            switch event.name {
+            case "result": result = event.data["result"]
+            case "completed":
+                guard let result else { break }
+                return result
+            case "failed":
+                if let error = event.data["error"] {
+                    throw try JSONDecoder().decode(AgentError.self, from: error.data())
+                }
+                throw AgentError("internal_error", "Execution could not complete.", executionID: execution.id)
+            case "cancelled":
+                throw AgentError("execution_cancelled", "The execution was cancelled.", executionID: execution.id)
+            default: break
+            }
+        }
+        throw AgentError(
+            "execution_stream_closed", "Execution ended without a validated final result.",
+            executionID: execution.id)
     }
 
     private struct AgentsResponse: ResponseEncodable {
@@ -105,15 +156,19 @@ struct ServerRoutes {
     }
 
     private static func webPage(_ name: String) throws -> Response {
+        try webAsset(name + ".html", contentType: "text/html; charset=utf-8")
+    }
+
+    private static func webAsset(_ name: String, contentType: String) throws -> Response {
         #if SWIFT_PACKAGE
-            let url = AgentResources.root.appendingPathComponent("Web/\(name).html")
+            let url = AgentResources.root.appendingPathComponent("Web/\(name)")
         #else
             let url = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-                .appendingPathComponent("Web/\(name).html")
+                .appendingPathComponent("Web/\(name)")
         #endif
         let html = try String(contentsOf: url, encoding: .utf8)
         return Response(
-            status: .ok, headers: [.contentType: "text/html; charset=utf-8"],
+            status: .ok, headers: [.contentType: contentType],
             body: .init(byteBuffer: .init(string: html)))
     }
 

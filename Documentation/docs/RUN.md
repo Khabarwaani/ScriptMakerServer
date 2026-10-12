@@ -90,7 +90,7 @@ when the actual provider attempts execution.
 Test ScriptWriter with a small set of supplied facts using each provider:
 
 ```sh
-curl -N -X POST http://127.0.0.1:8080/execute \
+curl -N -X POST 'http://127.0.0.1:8080/execute?status=true' \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
   -d '{"agent_id":"ScriptWriter","provider":"codex","input":{"facts":["The meeting starts at 10 AM."],"language":"English"}}'
@@ -110,10 +110,20 @@ its final JSON is independently schema-validated.
 
 ## Output, monitoring and cancellation
 
-The run page separates lifecycle/heartbeat information, provider text, the validated
-final result and expandable raw events. Provider output can appear before a validation
-failure; it is not proof of successful completion. Heartbeats are approximately every
-10 seconds and do not prove model progress.
+POST /execute returns only the final schema-validated JSON value or a structured
+error by default. Omit `status` or pass `status=false`. Use
+`POST /execute?status=true` to receive lifecycle/progress SSE and one validated result
+or terminal error. Raw provider output is internal in both modes.
+
+The run page and help/Try page provide an unchecked Show status updates checkbox.
+Help and Try pages include Copy buttons for requests, responses, schemas, examples,
+results and raw events. Clipboard failures are shown on the button; fallback copy
+is available when the browser Clipboard API is unavailable.
+
+Status heartbeats are approximately every 10 seconds and do not prove model progress.
+In final-only mode, the execution ID header arrives with the final response. In status
+mode it arrives immediately with the started event. Use GET /status to monitor while
+waiting for a final-only response.
 
 Read the execution ID from `X-Execution-ID`, the first event or `/status`. Cancel it:
 

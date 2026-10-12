@@ -140,7 +140,8 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
 @Test func disconnectDoesNotCancelAndTimeoutFails() async throws {
     let fixture = try AgentFixture()
     let manager = makeManager(fixture)
-    let accepted = try await manager.execute(request("detached"))
+    let accepted = try await manager.execute(request("detached"), streaming: false)
+    #expect(await manager.snapshot().records.first?.streaming == false)
     await manager.detach(accepted.id)
     #expect(try await waitForTerminal(manager, id: accepted.id).status == "completed")
     let timedManager = makeManager(fixture, provider: MockProvider(delayMilliseconds: 2000), timeout: 1)

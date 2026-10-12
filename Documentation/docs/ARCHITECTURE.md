@@ -19,7 +19,7 @@ and metadata. At startup, the server verifies packaged validation metadata and r
 
 ## Operational decisions
 
-- Hummingbird 2 and SSE; Swift 6, macOS 14+; loopback only.
+- Hummingbird 2; final JSON responses by default, optional `status=true` SSE; Swift 6, macOS 14+; loopback only.
 - Central JSON settings, default port 8080, 900-second shutdown allowance.
 - Kernel-owned per-user/per-port instance locks identify managed previous servers;
   stale PID files cannot accidentally target unrelated processes.
@@ -55,6 +55,9 @@ Unsupported assertions or malformed schemas make definitions unavailable. It is 
 a complete implementation of every Draft 2020-12 vocabulary. This explicit rejection
 avoids reporting success while silently skipping a constraint.
 
+POST /execute returns one validated final JSON value or structured error by default.
+The optional status=true query parameter enables lifecycle/progress SSE and one result
+followed by completed. Raw provider output stays internal in both modes.
 Only parsed, validated final output emits result and completed. Intermediate provider
 text is provisional. Provider failures, malformed JSON and schema mismatches emit
 structured failed events. Status records contain operational metadata, not input/prompts.
