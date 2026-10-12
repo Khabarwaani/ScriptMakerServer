@@ -203,7 +203,7 @@ Return a snapshot of health and tracked executions, not an output stream.
 ```json
 {
   "status": "healthy",
-  "server": {"version": "1.0.0", "uptime_seconds": 3600},
+  "server": {"version": "1.1.0", "uptime_seconds": 3600},
   "active_executions": 1,
   "executions": [
     {
