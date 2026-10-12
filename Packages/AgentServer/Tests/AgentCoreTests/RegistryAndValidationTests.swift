@@ -111,7 +111,8 @@ final class AgentFixture: Sendable {
     #expect(agents.map(\.id).contains("NewsResearcher"))
     #expect(agents.map(\.id).contains("ScriptRefiner"))
     #expect(try await registry.resolve(id: "NewsResearcher", version: nil).version == "1.1.0")
-    #expect(try await registry.resolve(id: "ScriptRefiner", version: nil).version == "1.0.0")
+    #expect(try await registry.resolve(id: "ScriptRefiner", version: nil).version == "1.1.0")
+    #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.0.0").version == "1.0.0")
 }
 
 @Test func invalidDefinitionsAndTraversalAreUnavailable() async throws {

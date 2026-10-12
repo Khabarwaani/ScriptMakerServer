@@ -3,7 +3,7 @@ import Foundation
 
 /// One operation catalog drives route paths, the OpenAPI document and browser docs.
 enum APIOperation: String, CaseIterable {
-    case listAgents, executeAgent, getStatus, cancelExecution, getSpecification
+    case listAgents, executeAgent, getStatus, cancelExecution, getSpecification, getExecutionLogs, downloadExecutionLog
     var path: String {
         switch self {
         case .listAgents: "/agents"
@@ -11,6 +11,8 @@ enum APIOperation: String, CaseIterable {
         case .getStatus: "/status"
         case .cancelExecution: "/executions/{execution_id}/cancel"
         case .getSpecification: "/openapi.json"
+        case .getExecutionLogs: "/execution-logs"
+        case .downloadExecutionLog: "/execution-logs/download"
         }
     }
     var method: String { self == .executeAgent || self == .cancelExecution ? "post" : "get" }
@@ -21,6 +23,8 @@ enum APIOperation: String, CaseIterable {
         case .getStatus: "Read health and tracked execution states"
         case .cancelExecution: "Cancel a specific execution"
         case .getSpecification: "Read the current OpenAPI specification"
+        case .getExecutionLogs: "Read recent session execution logs"
+        case .downloadExecutionLog: "Download the complete session execution log"
         }
     }
     var explanation: String {
@@ -30,11 +34,15 @@ enum APIOperation: String, CaseIterable {
         case .executeAgent:
             "Returns one final schema-validated JSON value or a structured error by default (status=false, which may be omitted). Add ?status=true for SSE status/progress updates and one validated result or terminal error. Provisional provider output is never returned. Supply agent_id, provider and a JSON input object; omit version for the highest stable version. X-Execution-ID identifies accepted work; in final-only mode the header arrives with the final response."
         case .getStatus:
-            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time, is zero before running, and freezes at ended_at for terminal states. Timestamps are ISO 8601. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain only execution_id, status and timing fields; agent/provider, streaming, error and resource metadata appear only while active. Metadata also includes resolved version, provider, streaming state and resource usage; input and credentials are excluded."
+            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time and freezes at ended_at for terminal states. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain execution_id, status, timing and a bounded error code/message when failed; execution resources, prompts and results are not retained."
         case .cancelExecution:
             "Requests cancellation only for this execution. Repeated requests are safe. A running execution remains cancelling until its provider process stops. Unknown IDs return a structured 404 error."
         case .getSpecification:
             "Returns this live OpenAPI 3.1 document. Agent schemas and examples reflect the current registry. Clients can use this endpoint to discover request and response contracts."
+        case .getExecutionLogs:
+            "Returns the latest 200 execution state snapshots from the temporary JSONL session log, oldest first. Includes IDs, states, timing and bounded error details, without prompts or provider output. A fresh server start clears the file. Open /logs from Help to view details."
+        case .downloadExecutionLog:
+            "Streams the complete session log as newline-delimited JSON in bounded chunks. Includes accepted executions and their state transitions and outcomes. Download is a fixed snapshot; a fresh server start clears the log."
         }
     }
 }
@@ -178,8 +186,10 @@ enum APISpecification {
                 case .getStatus: reference("StatusResponse")
                 case .cancelExecution: reference("CancelResponse")
                 case .getSpecification: .object(["type": .string("object")])
+                case .getExecutionLogs: object(["entries": array(reference("ExecutionRecord"))], required: ["entries"])
+                case .downloadExecutionLog: .object(["type": .string("string")])
                 }
-            let responseType = "application/json"
+            let responseType = operation == .downloadExecutionLog ? "application/x-ndjson" : "application/json"
             var entry: [String: JSONValue] = [
                 "operationId": .string(operation.rawValue), "summary": .string(operation.summary),
                 "description": .string(operation.explanation),

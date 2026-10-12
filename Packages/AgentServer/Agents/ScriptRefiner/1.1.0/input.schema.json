@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "script"
+  ],
+  "properties": {
+    "script": {
+      "type": "string",
+      "description": "Original script with scenes, script points and subscenes. All continuity checks run automatically, even without supplied issues or correction_focus."
+    },
+    "output_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3,
+      "description": "Number of refined script variations to generate. Defaults to 3."
+    },
+    "issues_found": {
+      "type": "array",
+      "description": "Optional list of user-specified issues already known or identified in the script.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "location_sequence",
+              "camera_movement",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing",
+              "character_continuity",
+              "prop_continuity",
+              "spatial_continuity",
+              "action_continuity"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "correction_focus": {
+      "type": "array",
+      "description": "Optional subset of issue types to prioritize during refinement.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "text_correction",
+          "emotion_detection",
+          "speech_sequence",
+          "location_continuity",
+          "camera_continuity",
+          "character_voice",
+          "timing_preservation",
+          "character_continuity",
+          "prop_continuity",
+          "spatial_continuity",
+          "action_continuity"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "script": "INT. OFFICE - DAY\nJOHN (laughing happily)\nI just lost everything.\nEXT. BEACH - NIGHT\nMARY (whispering)\nWhy did we move here so suddenly?",
+      "output_count": 3,
+      "issues_found": [
+        {
+          "category": "emotion_inconsistency",
+          "description": "John is laughing while stating he lost everything."
+        }
+      ],
+      "correction_focus": [
+        "text_correction",
+        "emotion_detection",
+        "location_continuity"
+      ]
+    },
+    {
+      "script": "INT. WORKSHOP - DAY\n1. MAYA, in a blue jacket, holds a brass key in her left hand beside the desk.\n2. Close-up: Maya now wears a red jacket and holds a silver key in her right hand by the door.\n3. The key vanishes; she opens the desk lock using it without returning to the desk.",
+      "output_count": 1,
+      "correction_focus": [
+        "prop_continuity",
+        "character_continuity",
+        "spatial_continuity",
+        "action_continuity"
+      ]
+    }
+  ]
+}

@@ -39,12 +39,17 @@ public struct ExecutionRecord: Codable, Sendable {
         elapsed_seconds = running_at.map { max(0, (ended_at ?? now).timeIntervalSince($0)) } ?? 0
     }
 
-    mutating func retainOnlyStateAndTiming() {
+    mutating func retainOnlyStateTimingAndError() {
         agent_id = nil
         version = nil
         provider = nil
         streaming = nil
-        error = nil
+        if let error {
+            // Bound retained diagnostics even if a provider supplies a large error.
+            self.error = AgentError(
+                String(error.code.prefix(128)), String(error.message.prefix(1024)),
+                executionID: execution_id)
+        }
         schema_validated = nil
         process_id = nil
         resident_memory_bytes = nil

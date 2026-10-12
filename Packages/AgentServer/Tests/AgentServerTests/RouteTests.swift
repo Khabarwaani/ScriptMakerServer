@@ -240,12 +240,54 @@ private enum ResponsePackage: AgentPackageContract {
     static func inputSchema(version: String) throws -> String? { nil }
 }
 
-private func responseManager(registry: AgentRegistry, providers: ProviderCatalog, root: URL) -> ExecutionManager {
-    ExecutionManager(registry: registry, providers: providers, runtimeRoot: root, resourceSample: {
+private func responseManager(registry: AgentRegistry, providers: ProviderCatalog, root: URL, sessionLog: ExecutionSessionLog? = nil) -> ExecutionManager {
+    ExecutionManager(registry: registry, providers: providers, runtimeRoot: root, sessionLog: sessionLog, resourceSample: {
         SystemResources(
             physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296,
             load_average: 0, cpu_count: 8)
     })
+}
+
+@Test func trackedErrorsAndSessionLogHTTPView() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let registry = AgentRegistry(packages: [ResponsePackage.self])
+    let providers = ProviderCatalog(providers: [RouteProvider(outcome: .providerFailure)])
+    let log = try ExecutionSessionLog(url: root.appendingPathComponent("logs/executions.jsonl"))
+    let manager = responseManager(registry: registry, providers: providers, root: root, sessionLog: log)
+    let app = Application(router: ServerRoutes.makeRouter(registry: registry, providers: providers, manager: manager))
+    try await app.test(.router) { client in
+        try await client.execute(uri: "/execute", method: .post, headers: [.contentType: "application/json"],
+            body: .init(string: #"{"agent_id":"ResponseAgent","provider":"mock","input":{"text":"private-input"}}"#)
+        ) { response in #expect(response.status == .internalServerError) }
+        try await client.execute(uri: "/status", method: .get) { response in
+            let value = try JSONValue.parse(String(buffer: response.body))
+            let record = try #require(value["executions"]?.array?.first)
+            #expect(record["status"] == .string("failed"))
+            #expect(record["error"]?["code"] == .string("provider_execution_failed"))
+            #expect(record["error"]?["message"] == .string("Mock execution failed."))
+        }
+        try await client.execute(uri: "/execution-logs", method: .get) { response in
+            #expect(response.status == .ok && response.headers[.cacheControl] == "no-store")
+            let value = try JSONValue.parse(String(buffer: response.body))
+            #expect(value["entries"]?.array?.count == 3)
+            #expect(value["entries"]?.array?.last?["error"]?["code"] == .string("provider_execution_failed"))
+        }
+        try await client.execute(uri: "/execution-logs/download", method: .get) { response in
+            #expect(response.status == .ok && response.headers[.contentType] == "application/x-ndjson")
+            let text = String(buffer: response.body)
+            #expect(text.split(separator: "\n").count == 3)
+            #expect(text.contains("provider_execution_failed") && !text.contains("private-input") && !text.contains("partial"))
+        }
+        try await client.execute(uri: "/logs", method: .get) { response in
+            let html = String(buffer: response.body)
+            #expect(response.status == .ok && html.contains("View details") && html.contains("Time accepted"))
+            #expect(html.contains("/execution-logs/download"))
+        }
+        try await client.execute(uri: "/help", method: .get) { response in
+            #expect(String(buffer: response.body).contains("href=\"/logs\""))
+        }
+    }
 }
 
 @Test(arguments: ["/execute", "/execute?status=false"])

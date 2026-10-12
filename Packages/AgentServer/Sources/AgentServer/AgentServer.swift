@@ -62,11 +62,15 @@ struct AgentServer {
             return CLIProvider(kind: kind, settings: settings)
         }
         let providers = ProviderCatalog(providers: adapters)
+        let logURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AgentServer", isDirectory: true)
+            .appendingPathComponent("executions-\(configuration.port).jsonl")
+        let sessionLog = try ExecutionSessionLog(url: logURL)
         let manager = ExecutionManager(
             registry: registry, providers: providers, runtimeRoot: configuration.runtimeDirectory,
             maxProcesses: configuration.maxProcesses, maxQueued: configuration.maxQueuedExecutions,
             timeoutSeconds: configuration.executionTimeoutSeconds,
-            retentionSeconds: configuration.retentionSeconds)
+            retentionSeconds: configuration.retentionSeconds, sessionLog: sessionLog)
         let router = ServerRoutes.makeRouter(registry: registry, providers: providers, manager: manager)
         let app = Application(
             router: router,
@@ -83,6 +87,7 @@ struct AgentServer {
         groupConfiguration.maximumCancellationDuration = .seconds(15)
         let group = ServiceGroup(configuration: groupConfiguration)
         print("AgentServer: http://\(configuration.host):\(configuration.port)/ — API help: /help")
+        print("AgentServer execution log: \(logURL.path)")
         try await group.run()
         print("AgentServer shutdown complete.")
     }

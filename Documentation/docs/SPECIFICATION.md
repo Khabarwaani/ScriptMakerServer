@@ -126,7 +126,7 @@ Do not expose private configuration, credentials or environment variables.
 {
   "agents": [
     {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.1.0"]},
-    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.0.0"]}
+    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.0.0", "1.1.0"]}
   ]
 }
 ```
@@ -228,7 +228,7 @@ completed, failed, cancelling and cancelled; queued work may use an additional
 Timing uses ISO 8601 timestamps: `started_at` is acceptance time, `running_at` is
 when execution begins running, and `elapsed_seconds` excludes queue time and freezes
 at `ended_at` on termination. Queued work has zero running duration. SSE events also
-include timing metadata. Terminal records retain only ID, state and timing; active
+include timing metadata. Terminal records retain ID, state, timing and bounded error code/message when failed; active
 records include agent/provider and operational metadata. Tracking is in memory for
 the current server session and is purged after shutdown drains or cancels work.
 Do not expose prompts, credentials or environment variables.

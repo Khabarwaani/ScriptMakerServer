@@ -189,3 +189,24 @@ paths in Documents can still require permission. See Apple's documentation on
 
 Local-only setup helpers are in `ignoreGit/`, which is ignored. The public repository
 already exists at https://github.com/Khabarwaani/ScriptMakerServer; recreating it is unnecessary.
+
+## Session execution logs
+
+Open **View execution logs** in `/help`, or go to `/logs`. The list shows execution
+ID, acceptance time and latest status; **View details** reveals state history,
+running duration and error code/message. It loads the latest 200 state entries;
+**Download full log** streams all entries from the session without loading the
+whole file into server memory.
+
+The server creates `AgentServer/executions-<port>.jsonl` under the current user's
+temporary directory after acquiring its instance lock and prints the path on
+startup. A fresh start replaces that port's previous session log. Graceful shutdown
+purges in-memory tracking; the file remains available on disk until the next start
+or OS temporary-file cleanup. Each accepted execution logs queued/running and
+terminal success, failure or cancellation; cancelling is also logged when used.
+Rejected requests have no execution ID and return their error directly.
+
+Only ID, state, timing and bounded error details are retained. No request bodies,
+prompts, results, raw provider output or credentials are recorded. The log file is
+private to the current user. Failed `/status` records also keep the code/message,
+so the Tracked executions list explains their failure after the response ends.

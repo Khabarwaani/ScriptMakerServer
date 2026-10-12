@@ -15,6 +15,33 @@ struct ServerRoutes {
         router.get("/") { _, _ in try webPage("index") }
         router.get("/help") { _, _ in try webPage("help") }
         router.get("/try") { _, _ in try webPage("try") }
+        router.get("/logs") { _, _ in try webPage("logs") }
+        router.get(RouterPath(APIOperation.getExecutionLogs.path)) { _, _ in
+            do { return try jsonResponse(["entries": await manager.recentExecutionLogs()]) }
+            catch { return errorResponse(error) }
+        }
+        router.get(RouterPath(APIOperation.downloadExecutionLog.path)) { _, _ in
+            do {
+                let snapshot = try await manager.executionLogFile()
+                // Stream a fixed snapshot in chunks, even when the session log is large.
+                let handle = try FileHandle(forReadingFrom: snapshot.url)
+                return Response(status: .ok, headers: [
+                    .contentType: "application/x-ndjson",
+                    .cacheControl: "no-store",
+                    .init("Content-Disposition")!: "attachment; filename=executions.jsonl",
+                ], body: .init { writer in
+                    defer { try? handle.close() }
+                    var remaining = snapshot.length
+                    while remaining > 0 {
+                        let chunk = try handle.read(upToCount: Int(min(remaining, 8192))) ?? Data()
+                        guard !chunk.isEmpty else { break }
+                        remaining -= UInt64(chunk.count)
+                        try await writer.write(.init(bytes: chunk))
+                    }
+                    try await writer.finish(nil)
+                })
+            } catch { return errorResponse(error) }
+        }
         router.get("/assets/copy.js") { _, _ in
             try webAsset("copy.js", contentType: "text/javascript; charset=utf-8")
         }
@@ -177,7 +204,7 @@ struct ServerRoutes {
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(value)
         return Response(
-            status: status, headers: [.contentType: "application/json"],
+            status: status, headers: [.contentType: "application/json", .cacheControl: "no-store"],
             body: .init(byteBuffer: .init(bytes: data)))
     }
     static func errorResponse(_ error: any Error) -> Response {
