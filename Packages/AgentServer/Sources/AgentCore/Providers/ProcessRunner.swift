@@ -36,7 +36,10 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
         let stdin = Pipe()
         child.executableURL = executable
         child.arguments = arguments
-        child.currentDirectoryURL = directory
+        // Leave Foundation's inherited working directory untouched for readiness
+        // probes. A reported macOS abort occurred in this setter with no directory;
+        // Objective-C exceptions bypass Swift's process-launch error handling.
+        if let directory { child.currentDirectoryURL = directory }
         child.standardOutput = stdout
         child.standardError = stderr
         child.standardInput = stdin

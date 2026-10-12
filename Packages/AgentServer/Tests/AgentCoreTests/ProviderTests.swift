@@ -46,6 +46,39 @@ actor LineCollector {
     func add(_ line: String) { lines.append(line) }
 }
 
+@Test func processRunnerInheritsWorkingDirectoryWhenOmitted() async throws {
+    let output = try await ProcessRunner().run(
+        executable: URL(fileURLWithPath: "/bin/pwd"), arguments: [], timeoutSeconds: 10)
+    let actual = URL(fileURLWithPath: output.trimmingCharacters(in: .whitespacesAndNewlines))
+    let expected = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    #expect(actual.resolvingSymlinksInPath().path == expected.resolvingSymlinksInPath().path)
+}
+
+@Test func processRunnerUsesExplicitWorkingDirectory() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let output = try await ProcessRunner().run(
+        executable: URL(fileURLWithPath: "/bin/pwd"), arguments: [], directory: directory,
+        timeoutSeconds: 10)
+    let actual = URL(fileURLWithPath: output.trimmingCharacters(in: .whitespacesAndNewlines))
+    #expect(actual.resolvingSymlinksInPath().path == directory.resolvingSymlinksInPath().path)
+}
+
+@Test func cliReadinessRunsWithoutExplicitWorkingDirectory() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let executable = directory.appendingPathComponent("mock-provider")
+    try Data("#!/bin/sh\n[ \"$1\" = \"--help\" ] || exit 1\nprintf 'Ready\\n'\n".utf8)
+        .write(to: executable)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+    let provider = CLIProvider(kind: .antigravity, settings: .init(executable: executable.path))
+    try await provider.checkReadiness()
+}
+
 @Test func processRunnerDeliversIncrementalOutput() async throws {
     let collector = LineCollector()
     let text = try await ProcessRunner().run(

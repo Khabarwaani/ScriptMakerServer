@@ -4,7 +4,7 @@ import Foundation
 @main
 struct ValidateAgentsPlugin: BuildToolPlugin {
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
-        guard let sourceTarget = target as? SourceModuleTarget else {
+        guard target is SourceModuleTarget else {
             return []
         }
 

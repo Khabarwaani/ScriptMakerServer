@@ -15,6 +15,21 @@ allows work to drain and waits for shutdown to finish. A fresh server launch use
 this same path to replace the previous managed instance on the configured port.
 Unrelated applications using the port are never killed.
 
+If Xcode reports `Missing package product 'Hummingbird'` or `ServiceLifecycle`,
+first use **File > Packages > Resolve Package Versions**, wait for resolution to
+finish, and rebuild. Both products are declared dependencies; the message can
+occur while Xcode's package graph is unresolved. From the repository root, verify
+resolution and the scheme with:
+
+```sh
+xcodebuild -resolvePackageDependencies -project AgentServer.xcodeproj -scheme AgentServer
+xcodebuild -project AgentServer.xcodeproj -scheme AgentServer -destination 'platform=macOS,arch=arm64' build
+```
+
+Use `arch=x86_64` on an Intel Mac. If resolution fails, inspect its first error
+for network or dependency diagnostics before changing package references or
+deleting caches.
+
 The generated project lives at the repository root. To regenerate it:
 
 ```sh

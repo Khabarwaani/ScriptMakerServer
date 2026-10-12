@@ -197,7 +197,6 @@ func invalidSemanticVersions(value: String) { #expect(SemanticVersion(value) == 
     #expect(metadata.versions[0].resourceHashes["output.schema.json"] != nil)
 
     // 2. Modifying a resource invalidates metadata verification in registry
-    let versionMeta = metadata.versions[0]
     let alteredMeta = AgentValidationMetadata(agentId: "Echo", versions: [
         AgentValidationMetadata.VersionMetadata(
             version: "1.0.0",
