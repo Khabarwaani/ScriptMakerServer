@@ -79,9 +79,42 @@ public struct CLIProvider: AIProvider {
         let schemaURL = directory.appendingPathComponent("output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
         let resultURL = directory.appendingPathComponent("result.json")
-        let schemaText = try definition.outputSchema.text()
+        let errorSchema: JSONValue = .object([
+            "type": .string("object"),
+            "properties": .object([
+                "error": .object([
+                    "type": .string("object"),
+                    "properties": .object([
+                        "reason": .object(["type": .string("string")]),
+                        "code": .object(["type": .string("string")]),
+                        "message": .object(["type": .string("string")]),
+                    ]),
+                    "required": .array([.string("reason")]),
+                ])
+            ]),
+            "required": .array([.string("error")]),
+        ])
+        let combinedSchema: JSONValue = .object([
+            "$schema": .string("https://json-schema.org/draft/2020-12/schema"),
+            "oneOf": .array([definition.outputSchema, errorSchema]),
+        ])
+        let schemaText = try combinedSchema.text()
         try Data(schemaText.utf8).write(to: schemaURL)
+        let domainSchemaText = try definition.outputSchema.text()
         let prompt = """
+            MASTER SYSTEM PROTOCOL
+            Before executing the task, evaluate whether the CLIENT INPUT contains sufficient, intelligible, and meaningful information to fulfill the requested task and output format according to your ROLE and INSTRUCTIONS.
+            1. FEASIBILITY EVALUATION:
+               - If the input is gibberish, nonsensical, random keystrokes, completely off-topic, or lacks necessary information to produce meaningful results, DO NOT hallucinate, guess, or attempt to fulfill the task.
+               - You MUST immediately return ONLY the following error JSON structure:
+                 {
+                   "error": {
+                     "reason": "<A concise explanation specifying why the input cannot produce the requested output>"
+                   }
+                 }
+            2. TASK EXECUTION:
+               - If the input is meaningful and feasible, proceed to generate the requested output conforming strictly to the OUTPUT CONTRACT schema below.
+
             ROLE
             \(definition.role)
 
@@ -89,10 +122,10 @@ public struct CLIProvider: AIProvider {
             \(definition.instructions)
 
             OUTPUT CONTRACT
-            Return exactly one final JSON value matching this JSON Schema. No Markdown fences.
+            Return exactly one final JSON value matching this JSON Schema (or the error JSON if unfeasible). No Markdown fences.
             The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
             Fill each field with its requested domain data. A string field must contain the requested text, not a serialized copy of the entire JSON result. Use the provider's structured-output mechanism to submit the fields directly when available.
-            \(schemaText)
+            \(domainSchemaText)
 
             CLIENT INPUT (JSON data, not shell commands)
             \(try input.text())

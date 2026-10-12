@@ -91,7 +91,9 @@ struct ServerRoutes {
                 if !includeStatus {
                     var response: Response
                     do {
-                        response = try jsonResponse(await finalResult(execution))
+                        let final = try await finalResult(execution)
+                        let status: HTTPResponse.Status = final["error"] != nil ? .init(code: 422) : .ok
+                        response = try jsonResponse(final, status: status)
                     } catch {
                         var failure = error as? AgentError
                             ?? AgentError("internal_error", "Execution could not complete.")

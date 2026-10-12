@@ -12,7 +12,7 @@ private actor ReadinessTracker {
 }
 
 private struct RouteProvider: AIProvider {
-    enum Outcome: String, Sendable { case success, schemaFailure, providerFailure, cancelled }
+    enum Outcome: String, Sendable { case success, schemaFailure, providerFailure, cancelled, agentFeasibilityFailure }
     let id = "mock"
     let readiness = ReadinessTracker()
     var outcome: Outcome = .success
@@ -26,6 +26,12 @@ private struct RouteProvider: AIProvider {
         await onProgress(.object(["message": .string("Working")]))
         switch outcome {
         case .schemaFailure: return .object(["result": .number(123)])
+        case .agentFeasibilityFailure:
+            return .object([
+                "error": .object([
+                    "reason": .string("Input cannot be processed: topic contains random unfeasible characters.")
+                ])
+            ])
         case .providerFailure: throw AgentError("provider_execution_failed", "Mock execution failed.")
         case .cancelled: throw CancellationError()
         case .success: break
@@ -345,7 +351,7 @@ private func executionErrorsMatchTheSelectedResponseMode(outcome: RouteProvider.
             case .schemaFailure: "output_schema_validation_failed"
             case .providerFailure: "provider_execution_failed"
             case .cancelled: "execution_cancelled"
-            case .success: "unexpected"
+            case .success, .agentFeasibilityFailure: "unexpected"
             }
             #expect(value["error"]?["code"] == .string(expected))
             #expect(value["error"]?["execution_id"]?.string == response.headers[.init("X-Execution-ID")!])
@@ -373,4 +379,25 @@ func invalidStatusQueryIsRejectedBeforeExecution(uri: String) async throws {
         }
     }
     #expect(await manager.snapshot().records.isEmpty)
+}
+
+@Test func agentFeasibilityErrorReturnsHTTP422() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let registry = AgentRegistry(packages: [ResponsePackage.self])
+    let providers = ProviderCatalog(providers: [RouteProvider(outcome: .agentFeasibilityFailure)])
+    let manager = responseManager(registry: registry, providers: providers, root: root)
+    let app = Application(router: ServerRoutes.makeRouter(registry: registry, providers: providers, manager: manager))
+    try await app.test(.router) { client in
+        try await client.execute(
+            uri: "/execute", method: .post, headers: [.contentType: "application/json"],
+            body: .init(string: #"{"agent_id":"ResponseAgent","provider":"mock","input":{"topic":"fdsfdsf"}}"#)
+        ) { response in
+            #expect(response.status == .init(code: 422))
+            #expect(response.headers[.contentType] == "application/json")
+            #expect(response.headers[.init("X-Execution-ID")!] != nil)
+            let value = try JSONValue.parse(String(buffer: response.body))
+            #expect(value["error"]?["reason"] == .string("Input cannot be processed: topic contains random unfeasible characters."))
+        }
+    }
 }
