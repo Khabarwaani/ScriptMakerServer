@@ -38,5 +38,15 @@ Keep the repository root limited to Xcode entry points, `.gitignore`, and groupe
 - Verify that the PR is merged and its resulting commit is on remote `develop`.
   Sync the primary `develop` checkout with `git pull --ff-only origin develop` for
   integration cleanup, close the linked issue if needed, and remove the agent's
-  clean worktree. Keep the worktree if PR creation, checks, merge, or verification
-  fails; never force-remove unfinished work.
+  clean worktree. Then delete the completed local task branch using
+  `git branch -d <task-branch>`; removing a worktree alone does not delete its branch.
+- A squash merge may prevent Git from recognizing the original branch as merged.
+  Before using `git branch -D <task-branch>`, verify the PR targets `develop` and is
+  merged, its merge commit is an ancestor of remote `develop`, and the local branch
+  tip exactly matches the merged PR's `headRefOid`. Otherwise preserve the branch
+  and investigate its additional or unmerged work. For legacy branches without a
+  PR, delete only when their tip is already an ancestor of `develop`.
+- Never delete `develop`, `main`, or a branch checked out in any active worktree.
+  Never force-remove a dirty worktree. Keep the worktree and branch if PR creation,
+  checks, merge, or verification fails; never discard unfinished work. Finish every
+  task by checking `git worktree list` and `git branch -vv` for leftover task state.
