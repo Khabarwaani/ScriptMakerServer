@@ -7,6 +7,8 @@ let package = Package(
     products: [
         .executable(name: "AgentServer", targets: ["AgentServer"]),
         .executable(name: "AgentTools", targets: ["AgentTools"]),
+        .executable(name: "AgentValidator", targets: ["AgentValidator"]),
+        .plugin(name: "ValidateAgentsPlugin", targets: ["ValidateAgentsPlugin"]),
         .library(name: "AgentCore", targets: ["AgentCore"])
     ],
     dependencies: [
@@ -24,19 +26,29 @@ let package = Package(
             ]
         ),
         .target(name: "AgentResources", path: ".", exclude: [
-            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Tests", "AGENTS.md", "Agents"
+            "Sources/AgentCore", "Sources/AgentServer", "Sources/AgentTools", "Sources/AgentValidator", "Plugins", "Tests", "AGENTS.md", "Agents"
         ], sources: ["Sources/AgentResources/AgentResources.swift"], resources: [
             .copy("Sources/AgentResources/Web"), .copy("config")
         ]),
         .executableTarget(name: "AgentTools", dependencies: ["AgentCore"]),
-        .executableTarget(name: "AgentServer", dependencies: [
-            "AgentCore",
-            "AgentResources",
-            .product(name: "NewsResearcher", package: "NewsResearcher"),
-            .product(name: "ScriptWriter", package: "ScriptWriter"),
-            .product(name: "Hummingbird", package: "hummingbird"),
-            .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
-        ]),
+        .executableTarget(name: "AgentValidator", dependencies: ["AgentCore"]),
+        .plugin(
+            name: "ValidateAgentsPlugin",
+            capability: .buildTool(),
+            dependencies: ["AgentValidator"]
+        ),
+        .executableTarget(
+            name: "AgentServer",
+            dependencies: [
+                "AgentCore",
+                "AgentResources",
+                .product(name: "NewsResearcher", package: "NewsResearcher"),
+                .product(name: "ScriptWriter", package: "ScriptWriter"),
+                .product(name: "Hummingbird", package: "hummingbird"),
+                .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
+            ],
+            plugins: ["ValidateAgentsPlugin"]
+        ),
         .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"]),
         .testTarget(name: "AgentServerTests", dependencies: ["AgentServer", "AgentCore", .product(name: "HummingbirdTesting", package: "hummingbird")])
     ]

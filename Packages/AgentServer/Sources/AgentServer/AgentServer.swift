@@ -52,7 +52,10 @@ struct AgentServer {
         let instance = try await ServerInstance.start(
             port: configuration.port, timeoutSeconds: configuration.shutdownTimeoutSeconds)
         defer { withExtendedLifetime(instance) {} }
-        let registry = AgentRegistry(root: configuration.agentsDirectory)
+        let registry = AgentRegistry(
+            validationMetadata: GeneratedAgentValidationCatalog.metadata,
+            root: configuration.agentsDirectory
+        )
         let adapters: [any AIProvider] = configuration.providers.compactMap { id, settings in
             guard let kind = CLIProvider.Kind(rawValue: id) else { return nil }
             return CLIProvider(kind: kind, settings: settings)
