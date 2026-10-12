@@ -15,7 +15,10 @@ validation and Swift package tooling. It does not import Hummingbird.
 Each agent is an independent SPM library under `Agents/AgentID` conforming to `AgentPackageContract`.
 Agent availability requires explicit Swift registration in `AgentRegistry.registeredPackages`.
 The build enforces validation of schemas, contracts, resources, and examples, and generates package README
-and metadata. At startup, the server verifies packaged validation metadata and rejects unvalidated or changed resources.
+and embedded metadata. Checked-in agent READMEs use the same generator through
+`AgentTools docs`; `AgentTools docs --check` detects drift before PRs and releases.
+Builds do not rewrite source documentation. At startup, the server verifies packaged
+validation metadata and rejects unvalidated or changed resources.
 
 ## Operational decisions
 

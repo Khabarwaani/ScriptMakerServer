@@ -286,4 +286,47 @@ func invalidSemanticVersions(value: String) { #expect(SemanticVersion(value) == 
     #expect(docMeta.readme.contains("# Echo"))
     #expect(docMeta.readme.contains("## Available Versions"))
     #expect(docMeta.readme.contains("Custom authored version notes for Echo 1.0.0."))
+    #expect(docMeta.readme.contains("#### Output JSON Schema"))
+    #expect(docMeta.readme.contains("status=false"))
+    #expect(docMeta.readme.contains("explicitly register"))
+}
+
+@Test func readmeDriftChecksAreReadOnlyAndRefreshIsDeterministic() throws {
+    let fixture = try AgentFixture()
+    let package = fixture.agents.appendingPathComponent("Echo")
+    let readme = package.appendingPathComponent("README.md")
+    let original = try String(contentsOf: readme, encoding: .utf8)
+    let initial = try AgentDocumentationGenerator.synchronizeReadmes(in: fixture.agents, checkOnly: true)
+    #expect(initial.isEmpty)
+    let instructions = package.appendingPathComponent("1.0.0/instructions.md")
+    try "New instructions for documentation drift coverage.".write(to: instructions, atomically: true, encoding: .utf8)
+    let stale = try AgentDocumentationGenerator.synchronizeReadmes(in: fixture.agents, checkOnly: true)
+    #expect(stale == ["Echo"])
+    let unchanged = try String(contentsOf: readme, encoding: .utf8)
+    #expect(unchanged == original)
+    let refreshed = try AgentDocumentationGenerator.synchronizeReadmes(in: fixture.agents)
+    #expect(refreshed == ["Echo"])
+    let current = try String(contentsOf: readme, encoding: .utf8)
+    #expect(current.contains("New instructions for documentation drift coverage."))
+    let expected = try AgentDocumentationGenerator.generate(packageDirectory: package).readme
+    #expect(current == expected)
+    let repeated = try AgentDocumentationGenerator.synchronizeReadmes(in: fixture.agents)
+    #expect(repeated.isEmpty)
+}
+
+@Test func versionToolRefreshesReadmeAndInvalidResourcesDoNotOverwriteIt() throws {
+    let fixture = try AgentFixture()
+    let package = fixture.agents.appendingPathComponent("Echo")
+    try AgentPackageTools.addVersion(id: "Echo", version: "1.1.0", sourceVersion: "1.0.0", root: fixture.agents)
+    let readme = package.appendingPathComponent("README.md")
+    let current = try String(contentsOf: readme, encoding: .utf8)
+    #expect(current.contains("### Version 1.1.0") && current.contains("### Version 1.0.0"))
+    let consistent = try AgentDocumentationGenerator.synchronizeReadmes(in: fixture.agents, checkOnly: true)
+    #expect(consistent.isEmpty)
+    try "{invalid JSON".write(to: package.appendingPathComponent("1.1.0/output.schema.json"), atomically: true, encoding: .utf8)
+    #expect(throws: AgentPackageValidator.ValidationError.self) {
+        try AgentDocumentationGenerator.synchronizeReadmes(in: fixture.agents)
+    }
+    let preserved = try String(contentsOf: readme, encoding: .utf8)
+    #expect(preserved == current)
 }

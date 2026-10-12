@@ -116,6 +116,8 @@ swift run --package-path Packages/AgentServer AgentTools add MyAgent 1.0.0
 swift run --package-path Packages/AgentServer AgentTools check
 swift run --package-path Packages/AgentServer AgentTools check --build
 swift run --package-path Packages/AgentServer AgentTools version MyAgent 1.1.0 1.0.0
+swift run --package-path Packages/AgentServer AgentTools docs
+swift run --package-path Packages/AgentServer AgentTools docs --check
 ```
 
 Write a complete role sentence, explicit workflow and constraints, and a supported
@@ -130,6 +132,15 @@ Agent availability requires typed package linking and registration in `AgentRegi
 The build automatically validates agent contracts, schemas and examples, and generates package documentation.
 Adding or updating an agent or version requires updating package declarations and rebuilding the server;
 undeclared or unbuilt additions remain unavailable.
+
+The build generates embedded documentation for `/help`; it does not rewrite source
+README files. `AgentTools docs` refreshes checked-in agent READMEs using that same
+generator, including exact input/output schemas and current API behavior.
+`AgentTools docs --check` detects drift without writing. Run it before a PR or
+release, and commit regenerated READMEs after resource changes. Creation/version
+commands refresh the affected README automatically. Write authored notes in
+`notes.md`, rather than editing generated READMEs. See the
+[AgentServer package README](../Packages/AgentServer/README.md) for the package entry point.
 
 ## Bug tracking and agent worktrees
 

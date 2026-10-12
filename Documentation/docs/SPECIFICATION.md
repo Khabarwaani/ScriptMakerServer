@@ -20,7 +20,7 @@ Swift packages. Initially expose four HTTP endpoints.
 
 1. Provider independence: agent definitions must not depend on a provider.
 2. Versioned agents: multiple versions of an agent must coexist.
-3. Runtime discovery: adding Markdown agent versions must not require a rebuild.
+3. Package-backed discovery: only explicitly linked and registered versions are available after a rebuild.
 4. Structured input/output: requests use JSON; successful final results conform to the selected output schema.
 5. Optional status streaming: deliver lifecycle/progress events when requested; keep provider output internal.
 6. Asynchronous execution: execute multiple agents concurrently.
@@ -71,24 +71,25 @@ The server validates the final result before reporting successful completion.
 
 ## 5. Agent storage and discovery
 
-The initial implementation supports directory-based definitions:
+Registered Swift packages contain the declared version resources:
 
 ```text
-AgentServer/
+Packages/AgentServer/
 ├── Package.swift
 ├── Sources/
 ├── Tests/
 └── Agents/
     ├── NewsResearcher/
-    │   ├── 1.0.0/
-    │   │   ├── role.md
-    │   │   ├── instructions.md
-    │   │   └── output.schema.json
+    │   ├── Package.swift
+    │   ├── README.md
     │   └── 1.1.0/
     │       ├── role.md
     │       ├── instructions.md
+    │       ├── input.schema.json
     │       └── output.schema.json
-    ScriptRefiner/
+    └── ScriptRefiner/
+        ├── Package.swift
+        ├── README.md
         └── 1.0.0/
             ├── role.md
             ├── instructions.md
@@ -96,12 +97,13 @@ AgentServer/
             └── output.schema.json
 ```
 
-The registry discovers agents and versions, validates definition completeness,
-rejects or marks invalid definitions unavailable, loads selected version files,
-caches immutable definitions where appropriate and isolates versions. Definitions
-must not change during execution. New Markdown versions are discoverable without
-a rebuild. The storage root must be configurable rather than hardcoded throughout
-the application.
+The registry discovers explicitly registered Swift agent packages and their declared
+versions. Build-time validation checks contracts, schemas, examples and resources;
+startup verifies validation metadata. Invalid or undeclared definitions remain
+unavailable. Definitions are cached as immutable snapshots and do not change during
+execution. Adding or changing versions requires package declarations and a rebuild.
+The configurable storage root supports validation and tooling; it does not make
+undeclared Markdown directories available at runtime.
 
 ### 5.1 Version resolution
 
@@ -184,7 +186,7 @@ event: status
 data: {"execution_id":"exec_001","status":"running"}
 
 event: result
-data: {"execution_id":"exec_001","result":{"status":"pass","confidence":95,"key_notes":["Research complete"]}}
+data: {"execution_id":"exec_001","result":{"verified":true,"confidence":95,"date":"12-10-26","notes":["The reported claims were checked against an authoritative source."]}}
 
 event: completed
 data: {"execution_id":"exec_001"}
@@ -309,16 +311,18 @@ endpoints, resumable streams and persistent recovery are outside scope.
 
 ## 10. Swift Package Manager
 
-SPM manages compile-time Swift dependencies. Markdown definitions remain
-discoverable at runtime independent of compilation. Executable Swift agents
-may later use packages, but:
+Each agent is an independently linked Swift package conforming to
+`AgentPackageContract`, with versioned Markdown/schema resources and explicit
+registration in `AgentRegistry.registeredPackages`. New agent directories are not
+compiled or registered automatically. Update dependencies, declared resource versions
+and registration, then rebuild the server to make changes available.
 
-- A new agent directory is not automatically a compiled Swift module.
-- Runtime discovery remains separate from compile-time dependency resolution.
-- Do not assume SPM dynamically loads multiple versions of one package identity.
-- Markdown versions remain independently addressable through the registry.
-
-Prioritize runtime definitions over requiring every agent to be a Swift package.
+The build validates declarations, schemas and examples and embeds documentation
+metadata for help. Checked-in agent READMEs are generated from the same resources:
+refresh with `AgentTools docs`, commit them, and verify with `AgentTools docs --check`
+before PRs and releases. Builds do not mutate source README files. Version identifiers
+remain immutable and independently addressable; multiple versions of a package
+identity are not dynamically linked at runtime.
 
 ## 11. Error handling
 
@@ -395,7 +399,7 @@ Version 1 is complete when:
 8. Multiple versions execute independently.
 9. Concurrent executions never mix inputs, output or cancellation state.
 10. Expected workload is handled without avoidable blocking or resource leaks.
-11. Runtime definition additions need no rebuild.
+11. Newly declared, registered versions become available after a rebuild; undeclared additions remain unavailable.
 12. Provider failures, invalid output and cancellation failures are clear.
 
 Final architectural objective: a small, reliable Swift service providing a common

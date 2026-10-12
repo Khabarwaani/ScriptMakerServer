@@ -84,8 +84,14 @@ public enum AgentDocumentationGenerator {
     public static func generateReadme(agentId: String, versions: [AgentVersionDocumentation]) -> String {
         var doc = "# \(agentId)\n\n"
         doc += "Independent Swift package with provider-independent agent definitions.\n\n"
+        doc += "Generated from the versioned resources. From the repository root, refresh with `swift run --package-path Packages/AgentServer AgentTools docs`; verify with `AgentTools docs --check`. Put authored notes in a version's `notes.md` rather than editing this generated file.\n\n"
+        doc += "## Server integration\n\n"
+        doc += "The server must link this Swift package, adapt it to `AgentPackageContract`, and explicitly register it in `AgentRegistry.registeredPackages`. Version resources are compiled and validated at build time. Rebuild the server after adding or changing declared versions; adding Markdown directories alone does not make an agent available.\n\n"
+        doc += "Test this package from the repository root:\n\n```sh\nswift test --package-path Packages/AgentServer/Agents/\(agentId)\n```\n\n"
+        doc += "## HTTP execution\n\n"
+        doc += "`GET /agents` returns only agent IDs, display names and available versions. `POST /execute` returns one schema-validated JSON value or a structured error by default; `status=false` can be omitted. Use `POST /execute?status=true` for lifecycle/progress SSE and one validated final result. Raw provider text stays internal. Select this agent on `/help` or `/try`; those pages include the status checkbox and Copy controls. Full contracts are available from `/openapi.json`.\n\n"
 
-        if let latest = versions.last {
+        if let latest = versions.last(where: { SemanticVersion($0.version)?.stable == true }) ?? versions.last {
             doc += "## Responsibility\n\n\(latest.role)\n\n"
         }
 
@@ -104,25 +110,28 @@ public enum AgentDocumentationGenerator {
                 doc += "\n"
             }
             doc += "#### Instructions\n\n\(ver.instructions)\n\n"
+            if let schema = ver.inputSchema {
+                doc += "#### Input JSON Schema\n\n" + jsonBlock(schema) + "\n"
+            } else {
+                doc += "#### Input\n\nAny JSON object; this version does not declare an input schema.\n\n"
+            }
+            doc += "#### Output JSON Schema\n\n" + jsonBlock(ver.outputSchema) + "\n"
             if !ver.inputExamples.isEmpty {
-                doc += "#### Example Input\n\n```json\n"
-                if let data = try? JSONEncoder().encode(ver.inputExamples.first),
-                   let str = String(data: data, encoding: .utf8) {
-                    doc += str + "\n"
-                }
-                doc += "```\n\n"
+                doc += "#### Example Input\n\n" + jsonBlock(ver.inputExamples[0]) + "\n"
             }
             if !ver.outputExamples.isEmpty {
-                doc += "#### Example Output (Illustrative Only)\n\n```json\n"
-                if let data = try? JSONEncoder().encode(ver.outputExamples.first),
-                   let str = String(data: data, encoding: .utf8) {
-                    doc += str + "\n"
-                }
-                doc += "```\n\n"
+                doc += "#### Example Output (Illustrative Only)\n\n" + jsonBlock(ver.outputExamples[0]) + "\n"
             }
         }
 
-        return doc
+        return doc.trimmingCharacters(in: .whitespacesAndNewlines) + "\n"
+    }
+
+    private static func jsonBlock(_ value: JSONValue) -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let text = (try? encoder.encode(value)).map { String(decoding: $0, as: UTF8.self) } ?? "null"
+        return "```json\n" + text + "\n```\n"
     }
 
     /// Generates `AgentDocumentationMetadata` for an agent package directory.
@@ -144,7 +153,7 @@ public enum AgentDocumentationGenerator {
 
         versionDirs.sort { (a, b) -> Bool in
             guard let va = SemanticVersion(a.lastPathComponent), let vb = SemanticVersion(b.lastPathComponent) else { return false }
-            return va < vb
+            return va == vb ? va.raw < vb.raw : va < vb
         }
 
         var versionDocs: [AgentVersionDocumentation] = []
@@ -233,5 +242,25 @@ public enum AgentDocumentationGenerator {
             }
         }
         return results
+    }
+
+    /// Refresh checked-in READMEs, or report drift without writing in check-only mode.
+    public static func synchronizeReadmes(in agentsDirectory: URL, checkOnly: Bool = false) throws -> [String] {
+        _ = try AgentPackageValidator.validateAll(in: agentsDirectory)
+        var changed: [String] = []
+        for documentation in try generateAll(in: agentsDirectory) {
+            let package = agentsDirectory.appendingPathComponent(documentation.agentId, isDirectory: true)
+            let readme = package.appendingPathComponent("README.md")
+            guard readme.resolvingSymlinksInPath().path.hasPrefix(package.resolvingSymlinksInPath().path + "/") else {
+                throw AgentError("invalid_request", "Package README must remain within its package directory.")
+            }
+            if (try? String(contentsOf: readme, encoding: .utf8)) != documentation.readme {
+                changed.append(documentation.agentId)
+                if !checkOnly {
+                    try documentation.readme.write(to: readme, atomically: true, encoding: .utf8)
+                }
+            }
+        }
+        return changed
     }
 }

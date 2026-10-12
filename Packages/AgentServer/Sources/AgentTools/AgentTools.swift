@@ -50,9 +50,18 @@ struct AgentTools {
                     print(result)
                 }
             }
+        case "docs" where args.count == 1 || args == ["docs", "--check"]:
+            let checkOnly = args.contains("--check")
+            let changed = try AgentDocumentationGenerator.synchronizeReadmes(
+                in: configuration.agentsDirectory, checkOnly: checkOnly)
+            if checkOnly && !changed.isEmpty {
+                print(changed.map { "\($0): README.md is out of date. Run AgentTools docs." }.joined(separator: "\n"))
+                exit(1)
+            }
+            print(checkOnly ? "All package READMEs match their versioned resources." : "Updated \(changed.count) package README(s).")
         default:
             print(
-                "Usage: swift run AgentTools add AGENT [VERSION]\n       swift run AgentTools version AGENT NEW_VERSION SOURCE_VERSION\n       swift run AgentTools check [--build]"
+                "Usage: swift run AgentTools add AGENT [VERSION]\n       swift run AgentTools version AGENT NEW_VERSION SOURCE_VERSION\n       swift run AgentTools check [--build]\n       swift run AgentTools docs [--check]"
             )
             exit(2)
         }
