@@ -120,9 +120,10 @@ one. Clients may select an exact version, including a prerelease; automatic sele
 uses the highest stable semantic version.
 
 Swift packages embed the resources listed in their manifests at compile time.
-The server independently scans runtime version directories. New Markdown versions
-in the configured running agent root need no server rebuild. Building the server
-copies the repository's definitions into its packaged defaults.
+Agent availability requires typed package linking and registration in `AgentRegistry.registeredPackages`.
+The build automatically validates agent contracts, schemas and examples, and generates package documentation.
+Adding or updating an agent or version requires updating package declarations and rebuilding the server;
+undeclared or unbuilt additions remain unavailable.
 
 ## Bug tracking and agent worktrees
 

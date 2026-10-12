@@ -75,7 +75,11 @@ final class AgentFixture: Sendable {
         id: "Echo", version: "1.1.0", sourceVersion: "1.0.0", root: fixture.agents)
     try AgentPackageTools.addVersion(
         id: "Echo", version: "2.0.0-beta.1", sourceVersion: "1.0.0", root: fixture.agents)
-    #expect(try AgentPackageTools.check(root: fixture.agents).isEmpty)
+    let issues = try AgentPackageTools.check(root: fixture.agents, registeredPackages: [EchoPackage.self])
+    // Unregistered Writer package is flagged
+    #expect(issues.contains(where: { $0.contains("Writer: package is not registered") }))
+    // But Echo has no issues
+    #expect(!issues.contains(where: { $0.contains("Echo:") }))
 
     let registry = AgentRegistry(packages: [EchoPackage.self], root: fixture.agents)
 

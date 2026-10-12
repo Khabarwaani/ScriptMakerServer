@@ -11,11 +11,11 @@ library are the Swift package at `Packages/AgentServer`. Development guidance is
 provider contracts/adapters, process lifecycle, actor-owned execution management,
 validation and Swift package tooling. It does not import Hummingbird.
 
-`AgentResources` packages default configuration, web pages and public versioned
-agent definitions. These snapshots are build artifacts. The registry independently
-scans the configured runtime root, allowing new Markdown versions without compilation.
-Each agent is also an independent SPM library under `Agents/AgentID` for reuse by
-other Swift packages. Runtime discovery does not dynamically link agent Swift modules.
+`AgentResources` packages default configuration and web pages.
+Each agent is an independent SPM library under `Agents/AgentID` conforming to `AgentPackageContract`.
+Agent availability requires explicit Swift registration in `AgentRegistry.registeredPackages`.
+The build enforces validation of schemas, contracts, resources, and examples, and generates package README
+and metadata. At startup, the server verifies packaged validation metadata and rejects unvalidated or changed resources.
 
 ## Operational decisions
 

@@ -58,11 +58,16 @@ public enum AgentPackageTools {
         try updateSourceVersions(id: id, package: package)
     }
 
-    public static func check(root: URL) throws -> [String] {
+    public static func check(
+        root: URL,
+        registeredPackages: [any AgentPackageContract.Type] = AgentRegistry.registeredPackages
+    ) throws -> [String] {
         var issues: [String] = []
         let packages = try FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
         let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath().path + "/"
+        let registeredMap = Dictionary(uniqueKeysWithValues: registeredPackages.map { ($0.id, $0) })
+
         for package in packages
         where (try? package.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
             let id = package.lastPathComponent
@@ -71,6 +76,12 @@ public enum AgentPackageTools {
                 issues.append("\(id): invalid package identifier or path")
                 continue
             }
+
+            guard let registeredPackage = registeredMap[id] else {
+                issues.append("\(id): package is not registered in AgentRegistry.registeredPackages")
+                continue
+            }
+
             for name in [
                 "Package.swift", "README.md", "Sources/\(id)/\(id).swift",
                 "Tests/\(id)Tests/DefinitionTests.swift",
@@ -79,11 +90,26 @@ public enum AgentPackageTools {
                     issues.append("\(id): missing \(name)")
                 }
             }
-            let versions = try FileManager.default.contentsOfDirectory(
+            let diskVersionURLs = try FileManager.default.contentsOfDirectory(
                 at: package, includingPropertiesForKeys: nil
             ).filter { SemanticVersion($0.lastPathComponent) != nil }
-            if versions.isEmpty { issues.append("\(id): no semantic versions") }
-            for version in versions {
+            let diskVersions = Set(diskVersionURLs.map(\.lastPathComponent))
+
+            if diskVersions.isEmpty { issues.append("\(id): no semantic versions") }
+
+            let registeredVersions = Set(registeredPackage.versions)
+            for diskVer in diskVersions {
+                if !registeredVersions.contains(diskVer) {
+                    issues.append("\(id)/\(diskVer): version is present on disk but not declared in registered package versions")
+                }
+            }
+            for regVer in registeredVersions {
+                if !diskVersions.contains(regVer) {
+                    issues.append("\(id)/\(regVer): version is registered but missing directory on disk")
+                }
+            }
+
+            for version in diskVersionURLs {
                 for name in ["role.md", "instructions.md", "output.schema.json"] {
                     let file = version.appendingPathComponent(name)
                     guard file.resolvingSymlinksInPath().path.hasPrefix(resolvedRoot),
@@ -97,18 +123,31 @@ public enum AgentPackageTools {
                         issues.append("\(id): role must be a complete sentence")
                     }
                     if name == "output.schema.json" {
-                        do { try OutputValidator.checkSchema(JSONValue.parse(text)) } catch {
+                        do {
+                            let schemaJSON = try JSONValue.parse(text)
+                            try OutputValidator.checkSchema(schemaJSON)
+                            if let examples = schemaJSON["examples"]?.array {
+                                for example in examples {
+                                    try OutputValidator.validate(example, schema: schemaJSON)
+                                }
+                            }
+                        } catch {
                             issues.append(
-                                "\(id)/\(version.lastPathComponent): invalid or unsupported output schema")
+                                "\(id)/\(version.lastPathComponent): invalid or unsupported output schema: \(error)")
                         }
                     }
                 }
                 let input = version.appendingPathComponent("input.schema.json")
                 if FileManager.default.fileExists(atPath: input.path) {
                     do {
-                        try OutputValidator.checkSchema(
-                            JSONValue.parse(String(contentsOf: input, encoding: .utf8)))
-                    } catch { issues.append("\(id)/\(version.lastPathComponent): invalid input schema") }
+                        let inputSchemaJSON = try JSONValue.parse(String(contentsOf: input, encoding: .utf8))
+                        try OutputValidator.checkSchema(inputSchemaJSON)
+                        if let examples = inputSchemaJSON["examples"]?.array {
+                            for example in examples {
+                                try OutputValidator.validate(example, schema: inputSchemaJSON)
+                            }
+                        }
+                    } catch { issues.append("\(id)/\(version.lastPathComponent): invalid input schema: \(error)") }
                 }
             }
         }

@@ -16,8 +16,10 @@ verified on remote `develop` and local `develop` is synced.
 - Use Swift 6, Swift Concurrency, Hummingbird 2 and SSE.
 - Keep reusable domain code in `AgentCore`; HTTP mapping belongs in `AgentServer`.
 - Keep CLI-specific behavior in provider adapters. Never concatenate client data into shell commands.
-- Agent directories are runtime configuration, not automatically compiled SPM targets.
-- Version directories are immutable once published. Change instructions by adding a version.
+- Agents are linked Swift subpackages conforming to `AgentPackageContract` and explicitly registered in `AgentRegistry.registeredPackages`.
+- Version directories are immutable once published. Change instructions by adding a version and rebuilding.
+- Build-time validation validates contracts, resources, schemas and examples; build-generated documentation provides READMEs and help metadata.
+- Undeclared or unbuilt agent additions remain unavailable at runtime.
 - Preserve loopback defaults; implement authentication before allowing remote binding.
 - Never log secrets or full input/prompts by default. Use sanitized structured errors.
 - Use deterministic mock providers for unit tests. Live CLI integration tests must be separate and opt-in.
