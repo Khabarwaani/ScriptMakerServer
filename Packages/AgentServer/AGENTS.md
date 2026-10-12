@@ -22,6 +22,9 @@ unmerged work, and verify the merged PR head before deleting a squash-merged bra
 - Agents are linked Swift subpackages conforming to `AgentPackageContract` and explicitly registered in `AgentRegistry.registeredPackages`.
 - Version directories are immutable once published. Change instructions by adding a version and rebuilding.
 - Build-time validation validates contracts, resources, schemas and examples; build-generated documentation provides READMEs and help metadata.
+- After agent resource changes, run `AgentTools docs` and commit the regenerated
+  package READMEs. Run `AgentTools docs --check` before PRs and releases; the build
+  generates embedded metadata but does not update checked-in README files.
 - Undeclared or unbuilt agent additions remain unavailable at runtime.
 - Preserve loopback defaults; implement authentication before allowing remote binding.
 - Never log secrets or full input/prompts by default. Use sanitized structured errors.

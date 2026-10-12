@@ -26,6 +26,7 @@ public enum AgentPackageTools {
                 #"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{"type":"string"}}}"#,
                 to: definition.appendingPathComponent("output.schema.json"))
             try packageFiles(id: id, version: version, package: package)
+            try refreshReadme(package: package)
         } catch {
             try? FileManager.default.removeItem(at: package)
             throw error
@@ -56,6 +57,7 @@ public enum AgentPackageTools {
         try FileManager.default.copyItem(at: source, to: destination)
         try writeManifest(id: id, package: package)
         try updateSourceVersions(id: id, package: package)
+        try refreshReadme(package: package)
     }
 
     public static func check(
@@ -266,11 +268,13 @@ public enum AgentPackageTools {
                 #expect(try JSONSerialization.jsonObject(with: schema) is [String: Any])
             }
             """, to: tests.appendingPathComponent("DefinitionTests.swift"))
-        try write(
-            "# \(id)\n\nIndependent Swift agent package. Version directories contain runtime definitions.\nOpen Package.swift in Xcode or run swift test in this directory.",
-            to: package.appendingPathComponent("README.md"))
     }
     private static func write(_ text: String, to url: URL) throws {
         try (text + "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func refreshReadme(package: URL) throws {
+        let documentation = try AgentDocumentationGenerator.generate(packageDirectory: package)
+        try documentation.readme.write(to: package.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
     }
 }
