@@ -12,7 +12,8 @@ async function serverFetch(path, options) {
   try {
     return await fetch(path, options);
   } catch {
-    const error = new Error(`Server is unreachable at ${location.origin}. Start AgentServer and retry.`);
+    const method = (options?.method || 'GET').toUpperCase();
+    const error = new Error(`Could not reach server for ${method} ${path} at ${location.origin}. Start AgentServer and retry.`);
     error.code = 'server_unreachable';
     throw error;
   }
