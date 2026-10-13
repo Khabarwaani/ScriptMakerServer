@@ -275,7 +275,7 @@ public struct ReelJokeMakerOutput: Codable, Sendable, Equatable, JSONSchemaConve
 }
 
 /// Provider-independent, versioned ReelJokeMaker agent definition conforming to AgentProtocol.
-public enum ReelJokeMakerDefinition: AgentProtocol, FeasibilityVerifyingAgent, FailureRecoverableAgent {
+public enum ReelJokeMakerDefinition: AgentProtocol, FailureRecoverableAgent {
     public typealias Input = ReelJokeMakerInput
     public typealias Output = ReelJokeMakerOutput
 

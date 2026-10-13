@@ -30,12 +30,8 @@ public protocol AgentProtocol: Sendable {
 
     /// Generates the complete prompt string to be passed to the AI provider.
     static func buildPrompt(version: String, input: Input) throws -> String
-}
 
-/// Protocol for agents that can evaluate ahead-of-time whether a given input is feasible.
-public protocol FeasibilityVerifyingAgent: AgentProtocol {
-    /// Evaluates if the given input is feasible to produce a meaningful result.
-    /// Returns .feasible or .unfeasible with a descriptive reason.
+    /// Verifies input feasibility (defaults to .feasible).
     static func verifyFeasibility(input: Input) -> FeasibilityResult
 }
 
@@ -52,6 +48,9 @@ public enum FeasibilityResult: Sendable, Equatable {
 }
 
 extension AgentProtocol {
+    public static func verifyFeasibility(input: Input) -> FeasibilityResult {
+        .feasible
+    }
     public static var name: String { id }
 
     public static func directory(version: String) throws -> URL {
@@ -126,8 +125,7 @@ extension AgentProtocol {
                - If the input is meaningful and feasible, proceed to generate the requested output conforming strictly to the OUTPUT CONTRACT schema below.
             """
 
-        if let verifier = Self.self as? any FeasibilityVerifyingAgent.Type,
-           case .unfeasible(let reason) = verifier.verifyFeasibility(input: input) {
+        if case .unfeasible(let reason) = verifyFeasibility(input: input) {
             feasibilityProtocol += "\n\nPRE-VALIDATION NOTE: The client input has been flagged as potentially unfeasible: \(reason)"
         }
 
