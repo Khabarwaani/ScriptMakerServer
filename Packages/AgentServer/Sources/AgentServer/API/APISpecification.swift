@@ -79,7 +79,17 @@ enum APISpecification {
         ]
         if let version = defaultAgent?.latest { requestExample["version"] = .string(version) }
         let error = object(
-            ["code": string, "message": string, "execution_id": string], required: ["code", "message"])
+            [
+                "code": string, "message": string, "execution_id": string,
+                "details": object([
+                    "agent_id": string, "version": string,
+                    "violations": array(object([
+                        "path": string, "field": string, "keyword": string, "message": string,
+                        "expected": .bool(true), "actual": string,
+                    ], required: ["path", "field", "keyword", "message", "expected", "actual"])),
+                    "truncated": boolean,
+                ], required: ["agent_id", "version", "violations", "truncated"]),
+            ], required: ["code", "message"])
         let execution = object(
             [
                 "execution_id": string, "agent_id": string, "version": string, "provider": string,
