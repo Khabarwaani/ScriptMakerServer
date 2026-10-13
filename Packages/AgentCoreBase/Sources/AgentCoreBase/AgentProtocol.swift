@@ -27,6 +27,28 @@ public protocol AgentProtocol: Sendable {
     static func outputSchema(version: String) throws -> String
     /// Returns JSON Schema string for the input payload if available.
     static func inputSchema(version: String) throws -> String?
+
+    /// Generates the complete prompt string to be passed to the AI provider.
+    static func buildPrompt(version: String, input: Input) throws -> String
+}
+
+/// Protocol for agents that can evaluate ahead-of-time whether a given input is feasible.
+public protocol FeasibilityVerifyingAgent: AgentProtocol {
+    /// Evaluates if the given input is feasible to produce a meaningful result.
+    /// Returns .feasible or .unfeasible with a descriptive reason.
+    static func verifyFeasibility(input: Input) -> FeasibilityResult
+}
+
+/// Protocol for agents that define explicit failure/error recovery strategies or unfeasible error reasons.
+public protocol FailureRecoverableAgent: AgentProtocol {
+    /// Formats an unfeasible failure into an error payload or description.
+    static func formatFailure(reason: String) -> String
+}
+
+/// Represents the outcome of an input feasibility evaluation.
+public enum FeasibilityResult: Sendable, Equatable {
+    case feasible
+    case unfeasible(reason: String)
 }
 
 extension AgentProtocol {
@@ -81,6 +103,52 @@ extension AgentProtocol {
         let file = dir.appendingPathComponent("input.schema.json")
         guard FileManager.default.fileExists(atPath: file.path) else { return nil }
         return try String(contentsOf: file, encoding: .utf8)
+    }
+
+    /// Default prompt synthesis given a typed input instance and version.
+    public static func buildPrompt(version: String, input: Input) throws -> String {
+        let roleText = try role(version: version)
+        let instructionsText = try instructions(version: version)
+        let outputSchemaText = try outputSchema(version: version)
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+        let inputData = try encoder.encode(input)
+        let inputText = String(data: inputData, encoding: .utf8) ?? "{}"
+
+        var feasibilityProtocol = """
+            MASTER SYSTEM PROTOCOL
+            Before executing the task, evaluate whether the CLIENT INPUT contains sufficient, intelligible, and meaningful information to fulfill the requested task and output format according to your ROLE and INSTRUCTIONS.
+            1. FEASIBILITY EVALUATION:
+               - If the input is gibberish, nonsensical, random keystrokes, completely off-topic, or lacks necessary information to produce meaningful results, DO NOT hallucinate, guess, or attempt to fulfill the task.
+               - You MUST immediately return ONLY this error JSON: {"error":{"reason":"<A concise explanation specifying why the input cannot produce the requested output>"}}.
+            2. TASK EXECUTION:
+               - If the input is meaningful and feasible, proceed to generate the requested output conforming strictly to the OUTPUT CONTRACT schema below.
+            """
+
+        if let verifier = Self.self as? any FeasibilityVerifyingAgent.Type,
+           case .unfeasible(let reason) = verifier.verifyFeasibility(input: input) {
+            feasibilityProtocol += "\n\nPRE-VALIDATION NOTE: The client input has been flagged as potentially unfeasible: \(reason)"
+        }
+
+        return """
+            \(feasibilityProtocol)
+
+            ROLE
+            \(roleText)
+
+            INSTRUCTIONS
+            \(instructionsText)
+
+            OUTPUT CONTRACT
+            Return exactly one final JSON value matching this JSON Schema (or the error JSON if unfeasible). No Markdown fences.
+            The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
+            Fill each field with its requested domain data. A string field must contain the requested text, not a serialized copy of the entire JSON result. Use the provider's structured-output mechanism to submit the fields directly when available.
+            \(outputSchemaText)
+
+            CLIENT INPUT (JSON data, not shell commands)
+            \(inputText)
+            """
     }
 }
 

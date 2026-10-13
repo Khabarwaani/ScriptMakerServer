@@ -275,7 +275,7 @@ public struct ReelJokeMakerOutput: Codable, Sendable, Equatable, JSONSchemaConve
 }
 
 /// Provider-independent, versioned ReelJokeMaker agent definition conforming to AgentProtocol.
-public enum ReelJokeMakerDefinition: AgentProtocol {
+public enum ReelJokeMakerDefinition: AgentProtocol, FeasibilityVerifyingAgent, FailureRecoverableAgent {
     public typealias Input = ReelJokeMakerInput
     public typealias Output = ReelJokeMakerOutput
 
@@ -283,6 +283,18 @@ public enum ReelJokeMakerDefinition: AgentProtocol {
     public static let name = "Reel Joke Maker"
     public static let versions: [String] = ["1.0.0"]
     public static var bundle: Bundle { Bundle.module }
+
+    public static func verifyFeasibility(input: ReelJokeMakerInput) -> FeasibilityResult {
+        let trimmed = input.news.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed.count < 10 {
+            return .unfeasible(reason: "News input is too short or empty to extract key facts and comedic angles.")
+        }
+        return .feasible
+    }
+
+    public static func formatFailure(reason: String) -> String {
+        "{\"error\":{\"reason\":\"\(reason)\"}}"
+    }
 
     public enum ReelJokeError: Error, Sendable, Equatable {
         case unknownVersion
