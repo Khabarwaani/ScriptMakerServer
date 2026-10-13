@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "script"
+  ],
+  "properties": {
+    "script": {
+      "type": "string",
+      "description": "Original script with scenes, script points and subscenes. All continuity and timing checks run automatically, even without supplied issues or correction_focus."
+    },
+    "output_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3,
+      "description": "Number of refined script variations to generate. Defaults to 3."
+    },
+    "scene_duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "default": 10.0,
+      "description": "Target duration allocated per scene in seconds. Defaults to 10.0."
+    },
+    "scene_count": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Maximum scenes allowed. Defaults to 1."
+    },
+    "wps_range": {
+      "type": "object",
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum words per second for spoken dialogue."
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum words per second for spoken dialogue."
+        }
+      },
+      "additionalProperties": false,
+      "default": {
+        "min": 2.5,
+        "max": 3.5
+      },
+      "description": "Target words-per-second (WPS) pacing range governing dialogue timing."
+    },
+    "issues_found": {
+      "type": "array",
+      "description": "Optional list of user-specified issues already known or identified in the script.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "location_sequence",
+              "camera_movement",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing",
+              "character_continuity",
+              "prop_continuity",
+              "spatial_continuity",
+              "action_continuity",
+              "dialogue_overflow"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "correction_focus": {
+      "type": "array",
+      "description": "Optional subset of issue types to prioritize during refinement.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "text_correction",
+          "emotion_detection",
+          "speech_sequence",
+          "location_continuity",
+          "camera_continuity",
+          "character_voice",
+          "timing_preservation",
+          "character_continuity",
+          "prop_continuity",
+          "spatial_continuity",
+          "action_continuity",
+          "dialogue_overflow"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "script": "INT. OFFICE - DAY\nJOHN (laughing happily)\nI just lost everything.\nEXT. BEACH - NIGHT\nMARY (whispering)\nWhy did we move here so suddenly?",
+      "output_count": 3,
+      "scene_duration_seconds": 10.0,
+      "scene_count": 1,
+      "wps_range": {
+        "min": 2.5,
+        "max": 3.5
+      },
+      "issues_found": [
+        {
+          "category": "emotion_inconsistency",
+          "description": "John is laughing while stating he lost everything."
+        }
+      ],
+      "correction_focus": [
+        "text_correction",
+        "emotion_detection",
+        "location_continuity"
+      ]
+    },
+    {
+      "script": "INT. BROADCAST STUDIO - NIGHT\n1. ANCHOR (rapidly reading 60 words)\nTonight we bring you breaking developments from across three continents where emergency meetings have concluded without resolution following hours of intense negotiation.\n2. Anchor pauses for 8 seconds.",
+      "output_count": 1,
+      "scene_duration_seconds": 10.0,
+      "scene_count": 2,
+      "wps_range": {
+        "min": 2.5,
+        "max": 3.5
+      },
+      "issues_found": [
+        {
+          "category": "dialogue_overflow",
+          "description": "Spoken dialogue exceeds 10.0 seconds scene duration limit."
+        }
+      ],
+      "correction_focus": [
+        "dialogue_overflow",
+        "timing_preservation"
+      ]
+    }
+  ]
+}

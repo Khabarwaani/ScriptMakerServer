@@ -17,6 +17,10 @@
 - A per-port temporary JSONL execution log records session state transitions and
   outcomes, resets on a fresh start, and is available through Help's `/logs` viewer
   and full-log download. Recent reads and downloads use bounded memory.
+- ScriptRefiner 1.2.0 adds scene timing constraints, dialogue words-per-second (WPS)
+  pacing, and dialogue overflow detection. Refined scripts include per-scene timing
+  breakdowns divided into dialogue and non-dialogue durations with comprehensive
+  post-generation verification. Existing versions 1.0.0 and 1.1.0 remain unchanged.
 - ScriptRefiner 1.1.0 adds automatic full prop lifecycle, character, spatial and
   action continuity audits across every script point, shot and subscene. Both input
   issue/focus options and detected-issue categories include the new continuity

@@ -51,3 +51,13 @@ import Testing
     #expect(throws: AgentError.self) { try CodexOutputSchema.executionResult(.object(["output": decoded, "error": error["error"]!]), schema: domain) }
     #expect(CodexOutputSchema.executionSchema(.object(["type": .string("null")])) == nil)
 }
+
+@Test func codexSchemaConvertsScriptRefinerVersions() async throws {
+    let registry = AgentRegistry()
+    for version in ["1.0.0", "1.1.0", "1.2.0"] {
+        let definition = try await registry.resolve(id: "ScriptRefiner", version: version)
+        _ = try #require(CodexOutputSchema.make(definition.outputSchema))
+        let native = try #require(CodexOutputSchema.executionSchema(definition.outputSchema))
+        #expect(native["type"]?.string == "object")
+    }
+}
