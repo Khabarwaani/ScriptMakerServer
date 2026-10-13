@@ -1,37 +1,59 @@
 # Changelog
 
-## Unreleased
+## 2.0.0
 
 - Separate configurable development (8080), production (8081), and automatic
   testing ports (9000–9999). Tests check availability, retry up to 30 distinct
   candidates, and never replace or stop existing servers (#52).
-
+- Explicit target port reclamation during server launch, cleanly reaping managed
+  listening processes on the target port (#55).
 - Deterministically populate declared schema defaults into agent execution inputs
   prior to validation and provider execution, and remove invalid static JSON placeholder
-  in web UI.
+  in web UI (#53).
+- Dedicated agent documentation (`/agents/{agent_id}` and `/help/agents/{agent_id}`)
+  and dedicated Try pages (`/agents/{agent_id}/try` and `/try/agents/{agent_id}`)
+  alongside central help and try pages (#61).
+- Add DialogueRefiner agent and schema-driven Try inputs for all agents (#60).
 - Add configurable lazy global `provider_pool_size` (default five), idle LRU,
-  bounded burst workers, verified native context reset and error retirement.
+  bounded burst workers, verified native context reset and error retirement (#39, #50).
 - Add private process-identity journaling and safe restart cleanup after forced
   server termination; no supervisor is added and unknown processes are preserved.
 - Add pool counts/memory, reuse modes, execution phase timings and queue reasons to
   status/logs/help, plus opt-in real-provider benchmark tooling.
 - Translate Codex native strict schemas for optional fields without modifying
-  immutable agent contracts or bypassing their final-result validation.
+  immutable agent contracts or bypassing their final-result validation (#44).
 - Preserve master feasibility errors through native Codex/Antigravity envelopes
-  and separate Grok pre-tool commentary from final JSON at protocol boundaries.
+  and separate Grok pre-tool commentary from final JSON at protocol boundaries (#40, #46, #48).
 - Failed tracked requests retain bounded error code/message so their failure reason
-  remains visible after completion.
+  remains visible after completion (#36).
 - A per-port temporary JSONL execution log records session state transitions and
   outcomes, resets on a fresh start, and is available through Help's `/logs` viewer
-  and full-log download. Recent reads and downloads use bounded memory.
+  and full-log download. Recent reads and downloads use bounded memory (#38).
 - ScriptRefiner 1.2.0 adds scene timing constraints, dialogue words-per-second (WPS)
   pacing, and dialogue overflow detection. Refined scripts include per-scene timing
   breakdowns divided into dialogue and non-dialogue durations with comprehensive
-  post-generation verification. Existing versions 1.0.0 and 1.1.0 remain unchanged.
+  post-generation verification. Existing versions 1.0.0 and 1.1.0 remain unchanged (#45).
 - ScriptRefiner 1.1.0 adds automatic full prop lifecycle, character, spatial and
   action continuity audits across every script point, shot and subscene. Both input
   issue/focus options and detected-issue categories include the new continuity
-  types; 1.0.0 remains available unchanged.
+  types; 1.0.0 remains available unchanged (#37).
+- Formalize three-tier architecture separating presentation (`AgentServer`), core
+  orchestration (`AgentCore`), and domain packages (`Agents/*`) (#42).
+- `/status`, `/openapi.json`, and RPC client info report server version 2.0.0.
+
+### Migration
+
+Update clients and scripts relying on single-port behavior: development defaults to
+8080, production defaults to 8081, and automated tests use ephemeral allocations in
+9000–9999. In-process clients and schemas remain backward-compatible; agent contract
+versions remain independent of the server major version.
+
+### Verification
+
+Native macOS Swift build, 97 server and core unit tests (including /status and
+OpenAPI version assertions), automatic input contract discovery tests, standalone
+agent-package builds via `AgentTools check --build`, and README drift checks via
+`AgentTools docs --check`. Deterministic mock providers ensure hermetic testing.
 
 ## 1.1.0
 

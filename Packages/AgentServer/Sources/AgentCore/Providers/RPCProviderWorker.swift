@@ -43,9 +43,9 @@ actor RPCProviderWorker: ProviderWorker {
             await rpc.setHandler { try await self.receive($0) }
             try await rpc.start()
             let parameters: JSONValue = kind == .codex
-                ? .object(["clientInfo": .object(["name": .string("agentserver"), "version": .string("1.1.0")])])
+                ? .object(["clientInfo": .object(["name": .string("agentserver"), "version": .string("2.0.0")])])
                 : .object(["protocolVersion": .number(1), "clientCapabilities": .object([:]),
-                           "clientInfo": .object(["name": .string("agentserver"), "version": .string("1.1.0")])])
+                           "clientInfo": .object(["name": .string("agentserver"), "version": .string("2.0.0")])])
             let capabilities = try await rpc.request("initialize", parameters)
             if kind == .grok && capabilities["agentCapabilities"]?["sessionCapabilities"]?["close"] == nil {
                 capability.block()
