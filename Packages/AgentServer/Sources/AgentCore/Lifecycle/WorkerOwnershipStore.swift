@@ -86,10 +86,14 @@ public final class WorkerOwnershipStore: @unchecked Sendable {
         else { throw Self.unavailable }
         lock.lock()
         defer { lock.unlock() }
-        guard records.count < 256 else { throw Self.unavailable }
+        let previous = records
+        // A preserved stale PID can later be assigned to our new verified child.
+        // Replace its stale record, never accumulate ambiguous duplicate PIDs.
+        records.removeAll { $0.worker.pid == pid }
+        guard records.count < 256 else { records = previous; throw Self.unavailable }
         records.append(Record(owner: owner, worker: worker))
         do { try persist() } catch {
-            records.removeLast()
+            records = previous
             throw Self.unavailable
         }
     }

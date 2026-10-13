@@ -224,6 +224,10 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
                 processTiming.launched = Date()
             }
             do { try ownership?.register(child.processIdentifier) } catch {
+                // A very short readiness child can exit before identity capture.
+                // Its normal exit is still collected below; no live worker exists
+                // to journal. Live unverifiable children continue to fail closed.
+                if !child.isRunning { return }
                 platformSignal(process: child, graceful: false)
                 child.waitUntilExit()
                 lock.withLock { process = nil }

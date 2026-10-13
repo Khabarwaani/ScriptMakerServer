@@ -106,4 +106,20 @@ private final class ProcessTable: @unchecked Sendable {
     table.remove(owner.pid)
     let result = try await store.cleanupAfterRestart(graceSeconds: 0)
     #expect(result.preserved == 1 && table.signalled.isEmpty)
+    // Once that PID represents a newly verified child, registration replaces
+    // the stale entry and the manifest remains decodable after restart.
+    table.put(owner)
+    try store.register(pid)
+    let records = try JSONDecoder().decode([WorkerOwnershipStore.Record].self, from: Data(contentsOf: url))
+    #expect(records.count == 1 && records.first?.worker.birth == "unrelated")
+    _ = try WorkerOwnershipStore(url: url, inspect: table.inspect, exists: table.exists, signal: table.signal)
+}
+
+@Test func shortReadinessChildrenNeedNoLiveOwnershipRecord() async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try WorkerOwnershipStore(url: root.appendingPathComponent("workers.json"))
+    for _ in 0..<20 {
+        _ = try await ProcessRunner(ownership: store).run(executable: URL(fileURLWithPath: "/usr/bin/true"), arguments: [], timeoutSeconds: 5)
+    }
 }
