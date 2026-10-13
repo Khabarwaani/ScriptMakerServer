@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReelJokeMakerInput",
+  "type": "object",
+  "required": [
+    "news"
+  ],
+  "properties": {
+    "news": {
+      "type": "string",
+      "description": "News article headline or story summary to convert into a satirical 10-second reel script."
+    },
+    "language": {
+      "type": "string",
+      "default": "hi-IN",
+      "description": "Spoken dialogue language code. Defaults to Hindi as spoken in India (hi-IN)."
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 5.0,
+      "maximum": 30.0,
+      "default": 10.0,
+      "description": "Target total reel duration in seconds. Defaults to 10.0."
+    },
+    "wps_range": {
+      "type": "object",
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum words per second for spoken dialogue."
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum words per second for spoken dialogue."
+        }
+      },
+      "additionalProperties": false,
+      "default": {
+        "min": 2.5,
+        "max": 3.5
+      },
+      "description": "Target words-per-second (WPS) pacing range governing dialogue timing."
+    },
+    "output_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3,
+      "description": "Number of comedic reel variations to generate. Defaults to 3."
+    },
+    "format": {
+      "type": "string",
+      "default": "mobile_vertical_9_16",
+      "description": "Target video presentation format. Defaults to mobile vertical reel (9:16)."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "news": "City municipal corporation announces free high-speed Wi-Fi in public parks, but routers are installed on top of 50-foot coconut trees.",
+      "language": "hi-IN",
+      "duration_seconds": 10.0,
+      "output_count": 3
+    }
+  ]
+}

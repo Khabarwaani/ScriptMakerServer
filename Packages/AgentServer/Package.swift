@@ -18,6 +18,7 @@ let package = Package(
         .package(path: "Agents/ReelIdeaGenerator"),
         .package(path: "Agents/DialogueGenerator"),
         .package(path: "Agents/ThemeMixer"),
+        .package(path: "Agents/ReelJokeMaker"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
@@ -32,6 +33,7 @@ let package = Package(
                 .product(name: "ReelIdeaGenerator", package: "ReelIdeaGenerator"),
                 .product(name: "DialogueGenerator", package: "DialogueGenerator"),
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
+                .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
             ]
@@ -59,6 +61,7 @@ let package = Package(
                 .product(name: "ReelIdeaGenerator", package: "ReelIdeaGenerator"),
                 .product(name: "DialogueGenerator", package: "DialogueGenerator"),
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
+                .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
             ],
