@@ -17,7 +17,9 @@ public final class ServerInstance: Sendable {
                 _ = try await stopPlatformOwner(descriptor: descriptor, timeoutSeconds: timeoutSeconds)
             }
             try applyPlatformWriteLock(descriptor: descriptor)
-            try await reclaimPort(port, timeoutSeconds: timeoutSeconds)
+            if replaceExisting {
+                try await reclaimPort(port, timeoutSeconds: timeoutSeconds)
+            }
             return ServerInstance(descriptor: descriptor)
         } catch {
             closePlatformDescriptor(descriptor)
