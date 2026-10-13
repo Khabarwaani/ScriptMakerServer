@@ -7,7 +7,29 @@ import Testing
     #expect(configuration.host == "127.0.0.1")
     #expect(configuration.port == 8080)
     #expect(configuration.shutdownTimeoutSeconds == 900)
+    #expect(configuration.providerPoolSize == 5)
     #expect(configuration.agentsDirectory.lastPathComponent == "Agents")
+}
+
+@Test(arguments: [-1, 9]) func rejectsPoolSizeOutsideTotalLimit(size: Int) throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("server.json")
+    try Data("{\"provider_pool_size\":\(size),\"max_processes\":8}".utf8).write(to: file)
+    #expect(throws: ServerConfiguration.ConfigurationError.self) {
+        try ServerConfiguration(environment: ["AGENT_SERVER_CONFIG": file.path])
+    }
+}
+
+@Test(arguments: [0, 3, 8]) func readsGlobalPoolCapacity(size: Int) throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("server.json")
+    try Data("{\"provider_pool_size\":\(size),\"max_processes\":8}".utf8).write(to: file)
+    let config = try ServerConfiguration(environment: ["AGENT_SERVER_CONFIG": file.path])
+    #expect(config.providerPoolSize == size)
 }
 
 @Test func readsCentralConfigurationAndEnvironmentOverrides() throws {

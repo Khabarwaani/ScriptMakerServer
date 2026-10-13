@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Add configurable lazy global `provider_pool_size` (default five), idle LRU,
+  bounded burst workers, verified native context reset and error retirement.
+- Add private process-identity journaling and safe restart cleanup after forced
+  server termination; no supervisor is added and unknown processes are preserved.
+- Add pool counts/memory, reuse modes, execution phase timings and queue reasons to
+  status/logs/help, plus opt-in real-provider benchmark tooling.
+- Translate Codex native strict schemas for optional fields without modifying
+  immutable agent contracts or bypassing their final-result validation.
 - Failed tracked requests retain bounded error code/message so their failure reason
   remains visible after completion.
 - A per-port temporary JSONL execution log records session state transitions and

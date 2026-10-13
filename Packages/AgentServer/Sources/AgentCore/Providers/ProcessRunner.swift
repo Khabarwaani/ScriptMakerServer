@@ -7,14 +7,57 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
     private var process: Process?
     private var cancelled = false
     private var outputContinuation: AsyncThrowingStream<Data, any Error>.Continuation?
+    private var inputHandle: FileHandle?
+    private let ownership: WorkerOwnershipStore?
+    private var hasLaunched = false
+    public struct Timing: Sendable {
+        public var launched: Date?
+        public var ready: Date?
+        public var result: Date?
+        public var exited: Date?
+    }
+    private var processTiming = Timing()
 
-    public init() {}
+    public init(ownership: WorkerOwnershipStore? = nil) { self.ownership = ownership }
+    public var timing: Timing {
+        lock.lock(); defer { lock.unlock() }
+        return processTiming
+    }
+    public var healthy: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return !cancelled && (!hasLaunched || process?.isRunning == true)
+    }
+    public func markResultReceived() {
+        lock.lock(); defer { lock.unlock() }
+        if processTiming.result == nil { processTiming.result = Date() }
+    }
+    public func markProviderReady() {
+        let first = lock.withLock {
+            guard processTiming.ready == nil else { return false }
+            processTiming.ready = Date()
+            return true
+        }
+        if first, let pid = processID { ownership?.refresh(pid) }
+    }
+    public func send(_ data: Data) throws {
+        lock.lock(); defer { lock.unlock() }
+        guard !cancelled, let inputHandle, process?.isRunning == true else {
+            throw AgentError("provider_worker_stopped", "The provider worker is no longer running.")
+        }
+        try inputHandle.write(contentsOf: data)
+    }
+    public func stop() async {
+        cancel()
+        while processID != nil { await terminationPause() }
+    }
 
     public func cancel() {
         lock.lock()
         cancelled = true
         let process = self.process
+        let hasOutput = outputContinuation != nil
         lock.unlock()
+        guard process != nil || hasOutput else { return }
         if let process, process.isRunning { platformSignal(process: process, graceful: true) }
         DispatchQueue.global().asyncAfter(deadline: .now() + 5) { [self] in
             forceTerminate()
@@ -30,6 +73,16 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
         input: String? = nil, timeoutSeconds: Int,
         onLine: @escaping @Sendable (String) async throws -> Void = { _ in }
     ) async throws -> String {
+        try await runSession(executable: executable, arguments: arguments, directory: directory,
+                             input: input, timeoutSeconds: timeoutSeconds, onLine: onLine)
+    }
+
+    func runSession(
+        executable: URL, arguments: [String], directory: URL? = nil,
+        input: String? = nil, timeoutSeconds: Int, keepInputOpen: Bool = false,
+        onStarted: @escaping @Sendable () async -> Void = {},
+        onLine: @escaping @Sendable (String) async throws -> Void = { _ in }
+    ) async throws -> String {
         let child = Process()
         let stdout = Pipe()
         let stderr = Pipe()
@@ -43,6 +96,7 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
         child.standardOutput = stdout
         child.standardError = stderr
         child.standardInput = stdin
+        lock.withLock { inputHandle = stdin.fileHandleForWriting }
         configurePlatformPipe(stdin.fileHandleForWriting)
         var environment = ProcessInfo.processInfo.environment
         environment["NO_COLOR"] = "1"
@@ -76,6 +130,7 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
             if handle.availableData.isEmpty { handle.readabilityHandler = nil }
         }
         defer {
+            clearProcess()
             stdout.fileHandleForReading.readabilityHandler = nil
             stderr.fileHandleForReading.readabilityHandler = nil
             try? stdout.fileHandleForReading.close()
@@ -83,12 +138,15 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
             try? stdin.fileHandleForWriting.close()
         }
         let (exitEvents, exitContinuation) = AsyncStream<Int32>.makeStream()
-        child.terminationHandler = { process in
+        child.terminationHandler = { [self] process in
+            lock.withLock { processTiming.exited = Date() }
             exitContinuation.yield(process.terminationStatus)
             exitContinuation.finish()
         }
         try launch(child)
+        await onStarted()
         let timeout = Task { [self] in
+            guard timeoutSeconds > 0 else { return }
             do { try await Task.sleep(for: .seconds(timeoutSeconds)) } catch { return }
             continuation.finish(
                 throwing: AgentError(
@@ -100,11 +158,10 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
         }
         defer {
             timeout.cancel()
-            clearProcess()
         }
         let inputTask = Task.detached {
             if let input { try stdin.fileHandleForWriting.write(contentsOf: Data(input.utf8)) }
-            try stdin.fileHandleForWriting.close()
+            if !keepInputOpen { try stdin.fileHandleForWriting.close() }
         }
         var pending = Data()
         var finalText = ""
@@ -119,6 +176,7 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
                     pending.removeSubrange(...newline)
                     try await onLine(line)
                     // Keep bounded output for readiness probes and text-format providers.
+                    if keepInputOpen { continue }
                     if finalText.utf8.count + line.utf8.count < 4_194_304 {
                         finalText += line + "\n"
                     } else {
@@ -130,7 +188,7 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
             if !pending.isEmpty {
                 let line = String(decoding: pending, as: UTF8.self)
                 try await onLine(line)
-                finalText += line
+                if !keepInputOpen { finalText += line }
             }
             var iterator = exitEvents.makeAsyncIterator()
             let exitCode = await iterator.next() ?? -1
@@ -157,21 +215,35 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
     }
 
     private func launch(_ child: Process) throws {
-        lock.lock()
-        defer { lock.unlock() }
-        guard !cancelled else { throw CancellationError() }
         do {
-            try child.run()
-            process = child
+            try lock.withLock {
+                guard !cancelled else { throw CancellationError() }
+                try child.run()
+                process = child
+                hasLaunched = true
+                processTiming.launched = Date()
+            }
+            do { try ownership?.register(child.processIdentifier) } catch {
+                platformSignal(process: child, graceful: false)
+                child.waitUntilExit()
+                lock.withLock { process = nil }
+                throw error
+            }
         } catch {
+            if error is CancellationError { throw error }
+            if let error = error as? AgentError { throw error }
             throw AgentError(
                 "process_launch_failed", "The configured provider process could not be launched.")
         }
     }
     private func clearProcess() {
         lock.lock()
+        let pid = process?.processIdentifier
         process = nil
+        inputHandle = nil
+        outputContinuation = nil
         lock.unlock()
+        if let pid { ownership?.unregister(pid) }
     }
 
     private func terminationPause() async {

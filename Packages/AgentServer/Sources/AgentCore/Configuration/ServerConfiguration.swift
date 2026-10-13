@@ -9,6 +9,7 @@ public struct ServerConfiguration: Sendable {
     public let shutdownTimeoutSeconds: Int
     public let executionTimeoutSeconds: Int
     public let maxProcesses: Int
+    public let providerPoolSize: Int
     public let maxQueuedExecutions: Int
     public let retentionSeconds: Int
     public let runtimeDirectory: URL
@@ -53,15 +54,17 @@ public struct ServerConfiguration: Sendable {
         self.shutdownTimeoutSeconds = timeout
         let executionTimeout = settings.execution_timeout_seconds ?? 1800
         let processes = settings.max_processes ?? 8
+        let poolSize = settings.provider_pool_size ?? min(5, processes)
         let queued = settings.max_queued_executions ?? 64
         let retention = settings.retention_seconds ?? 3600
         guard (1...86400).contains(executionTimeout), (1...128).contains(processes),
-            (1...10000).contains(queued), (1...86400).contains(retention)
+            (1...10000).contains(queued), (1...86400).contains(retention), (0...processes).contains(poolSize)
         else {
             throw ConfigurationError.invalidConfigurationFile
         }
         self.executionTimeoutSeconds = executionTimeout
         self.maxProcesses = processes
+        self.providerPoolSize = poolSize
         self.maxQueuedExecutions = queued
         self.retentionSeconds = retention
         if let path = settings.runtime_directory {
@@ -78,7 +81,8 @@ public struct ServerConfiguration: Sendable {
                 "antigravity": ProviderSettings(executable: "agy"),
                 "grok": ProviderSettings(executable: "grok"),
             ]
-        guard providers.keys.allSatisfy({ CLIProvider.Kind(rawValue: $0) != nil }) else {
+        guard providers.keys.allSatisfy({ CLIProvider.Kind(rawValue: $0) != nil }),
+            providers.values.allSatisfy({ $0.reasoning_effort == nil || ["none", "minimal", "low", "medium", "high", "xhigh", "max"].contains($0.reasoning_effort!) }) else {
             throw ConfigurationError.invalidConfigurationFile
         }
     }
@@ -90,6 +94,7 @@ public struct ServerConfiguration: Sendable {
         var shutdown_timeout_seconds: Int?
         var execution_timeout_seconds: Int?
         var max_processes: Int?
+        var provider_pool_size: Int?
         var max_queued_executions: Int?
         var retention_seconds: Int?
         var runtime_directory: String?

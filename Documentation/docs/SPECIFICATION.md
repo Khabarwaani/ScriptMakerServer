@@ -41,6 +41,23 @@ Swift packages. Initially expose four HTTP endpoints.
 | AI execution | Provider-specific CLI adapters |
 | Dependencies | Swift Package Manager (SPM) |
 
+### Provider worker lifecycle extension (#39)
+
+The server owns one lazy pool across all agents and providers. Configuration
+`provider_pool_size` defaults to five and cannot exceed `max_processes`; zero
+disables retention. Compatible idle workers use verified fresh native contexts,
+with LRU eviction of idle workers and temporary burst workers within total
+resource limits. Healthy idle workers have no expiry; memory pressure can reclaim
+them. Errors, timeout, cancellation and failed reset retire the affected worker
+without replay. Unsupported providers continue using fresh processes.
+
+Graceful shutdown reaps all owned workers. After a forced parent exit, cleanup
+occurs on the next start after acquiring the instance lock, using a private
+identity manifest and verified birth/executable/UID/ownership. Unknown processes
+and live owners are preserved. No supervisor is required. Compact phase timings,
+queue reasons and pool usage are exposed in status/logs/help without retaining
+prompts or results. See [RUN.md](RUN.md) for platform and provider limits.
+
 ## 4. Agent definition
 
 Each agent has a unique identifier and one or more immutable semantic versions.

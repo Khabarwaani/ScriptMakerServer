@@ -64,6 +64,7 @@ struct ServerRoutes {
                 active_executions: snapshot.activeCount, queued_executions: snapshot.queuedCount,
                 system_resources: SystemResources.sample(),
                 provider_resident_memory_bytes: snapshot.residentMemoryBytes,
+                worker_pool: snapshot.worker_pool,
                 executions: snapshot.records, providers: providers.statuses()))
         }
         router.post(RouterPath(APIOperation.executeAgent.path)) { request, context in
@@ -174,6 +175,7 @@ struct ServerRoutes {
         let queued_executions: Int
         let system_resources: SystemResources
         let provider_resident_memory_bytes: UInt64
+        let worker_pool: WorkerPoolSnapshot?
         let executions: [ExecutionRecord]
         let providers: [ProviderStatus]
         struct ServerInfo: Codable {

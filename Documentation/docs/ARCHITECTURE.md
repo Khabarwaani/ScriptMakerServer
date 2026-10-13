@@ -93,3 +93,33 @@ a per-port temporary file, reset only after the server acquires its instance loc
 on a fresh start. The Help-linked `/logs` viewer uses a bounded 200-entry tail;
 `/execution-logs/download` streams a fixed full-file snapshot in chunks. Inputs,
 results and provider output are excluded from the log.
+
+## Provider reuse and restart ownership
+
+ExecutionManager owns a value-state global LRU pool (default five retained
+workers), with reservations before process launch and termination before
+replacement. Busy workers cannot be evicted. Temporary burst workers and retiring
+workers count toward the total process budget; pool memory includes retained idle
+workers. Resource pressure can reclaim idle workers. Reset is confirmed before
+publishing a successful result or returning a worker to the idle pool.
+
+Native contexts are request-specific. Codex app-server request threads are deleted
+and checked as unloaded; Grok owned no-leader stdio sessions require an advertised
+and successful close operation. Unsupported setup before inference falls back to
+fresh execution. Generation/reset failures are never replayed; reset failures
+block further reuse for that provider for the session. Antigravity and unverified
+Grok settings stay fresh. Provider settings/model are immutable for a server
+session; pool keys additionally include provider, agent and version.
+
+The private per-port ownership manifest captures child and owner PID/start/exe/UID
+identities at launch. Startup cleanup follows acquisition of the instance lock and
+re-verifies worker identity and absence of its original live owner before sending
+signals. Unknown/PID-reused/live-owner processes are preserved. No watchdog is
+created; SIGKILL cleanup is deferred until restart. Platform identity hooks fail
+closed when verification is unavailable.
+
+Codex native strict output schemas represent optional domain fields as required
+nullable transport fields. The adapter removes only transport-added optional nulls
+before authoritative validation against the unchanged domain schema; originally
+nullable, required and unknown fields are preserved. Unsupported native shapes
+use prompt-based JSON with the same authoritative server validation.

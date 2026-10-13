@@ -55,3 +55,23 @@ The server writes this file in its temporary `AgentServer` directory, prints its
 path on startup, and clears it on a fresh start. It records accepted executions
 and outcomes without prompts, results or raw provider output. Failed tracked
 requests also retain a bounded error code and message; shutdown purges memory.
+
+## Provider workers
+
+`provider_pool_size` defaults to five retained workers globally across all agents
+and providers. Workers are created lazily, reused only after native context reset,
+and evicted by idle LRU; healthy workers have no idle expiry. Temporary burst
+workers obey the total `max_processes` and memory limits and are removed after use.
+Errors, timeouts, cancellation and reset failures retire the worker. Codex and
+compatible Grok stdio sessions support reuse; unverified reset/settings paths
+continue using fresh processes. Set a provider's `worker_reuse` to false to force
+the fresh adapter. `/status` includes pool counts, modes, phase timings and queue
+reasons, which are also visible in Help and session logs.
+
+Normal shutdown closes owned workers. After a crash/SIGKILL they can survive until
+restart; the per-port private ownership manifest permits cleanup only after
+verifying process identity and that its old owner is no longer alive. Unrelated
+or unverified processes are preserved. No separate watchdog is launched.
+
+See [run instructions](../../Documentation/docs/RUN.md#global-provider-worker-pool)
+for lifecycle limitations and the opt-in `AgentTools benchmark PROVIDER` command.

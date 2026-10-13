@@ -15,6 +15,8 @@ struct AgentServer {
                 print("AgentServer: \(configurationError)")
             } else if let instanceError = error as? ServerInstance.InstanceError {
                 print("AgentServer: \(instanceError)")
+            } else if let failure = error as? AgentError {
+                print("AgentServer: \(failure.code): \(failure.message)")
             } else {
                 print(
                     "AgentServer could not start or complete shutdown. Check port availability and filesystem permissions."
@@ -57,9 +59,16 @@ struct AgentServer {
             validationMetadata: GeneratedAgentValidationCatalog.metadata,
             root: configuration.agentsDirectory
         )
+        #if os(macOS) || os(Linux)
+        let ownership = try WorkerOwnershipStore(url: WorkerOwnershipStore.fileURL(port: configuration.port))
+        let cleanup = try await ownership.cleanupAfterRestart()
+        print("AgentServer worker restart cleanup: \(cleanup.terminated) terminated, \(cleanup.preserved) preserved.")
+        #else
+        let ownership: WorkerOwnershipStore? = nil
+        #endif
         let adapters: [any AIProvider] = configuration.providers.compactMap { id, settings in
             guard let kind = CLIProvider.Kind(rawValue: id) else { return nil }
-            return CLIProvider(kind: kind, settings: settings)
+            return CLIProvider(kind: kind, settings: settings, ownership: ownership)
         }
         let providers = ProviderCatalog(providers: adapters)
         let logURL = FileManager.default.temporaryDirectory
@@ -70,7 +79,8 @@ struct AgentServer {
             registry: registry, providers: providers, runtimeRoot: configuration.runtimeDirectory,
             maxProcesses: configuration.maxProcesses, maxQueued: configuration.maxQueuedExecutions,
             timeoutSeconds: configuration.executionTimeoutSeconds,
-            retentionSeconds: configuration.retentionSeconds, sessionLog: sessionLog)
+            retentionSeconds: configuration.retentionSeconds, sessionLog: sessionLog,
+            providerPoolSize: configuration.providerPoolSize, ownership: ownership)
         let router = ServerRoutes.makeRouter(registry: registry, providers: providers, manager: manager)
         let app = Application(
             router: router,

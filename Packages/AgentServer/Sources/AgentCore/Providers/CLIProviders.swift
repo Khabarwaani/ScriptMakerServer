@@ -5,11 +5,32 @@ public struct CLIProvider: AIProvider {
     public enum Kind: String, Sendable { case codex, antigravity, grok }
     public let kind: Kind
     public let settings: ProviderSettings
+    private let ownership: WorkerOwnershipStore?
+    private let reuseCapability = WorkerReuseCapability()
     public var id: String { kind.rawValue }
     public var isAvailable: Bool { (try? executable()) != nil }
-    public init(kind: Kind, settings: ProviderSettings) {
+    public var workerReuseMode: String {
+        #if os(Windows)
+        return "fresh:ownership-unverified"
+        #else
+        guard settings.worker_reuse != false else { return "fresh:disabled" }
+        guard !reuseCapability.blocked else { return "fresh:reset-unavailable" }
+        // ACP model/effort override parity is not yet verified for Grok.
+        if kind == .codex { return "persistent" }
+        if kind == .grok && settings.model == nil && settings.reasoning_effort == nil { return "persistent" }
+        return kind == .antigravity ? "fresh:reset-unverified" : "fresh:settings-unverified"
+        #endif
+    }
+    public func makeWorker(ownership: WorkerOwnershipStore?) throws -> any ProviderWorker {
+        guard workerReuseMode == "persistent" else { return FreshProviderWorker(provider: self, ownership: ownership) }
+        let primary = RPCProviderWorker(kind: kind, settings: settings, executable: try executable(),
+                                        ownership: ownership, capability: reuseCapability)
+        return CapabilityGatedWorker(primary: primary, provider: self, ownership: ownership)
+    }
+    public init(kind: Kind, settings: ProviderSettings, ownership: WorkerOwnershipStore? = nil) {
         self.kind = kind
         self.settings = settings
+        self.ownership = ownership
     }
 
     private func executable() throws -> URL {
@@ -53,7 +74,7 @@ public struct CLIProvider: AIProvider {
             case .antigravity, .grok: ["--help"]
             }
         do {
-            let text = try await ProcessRunner().run(
+            let text = try await ProcessRunner(ownership: ownership).run(
                 executable: executable, arguments: arguments, timeoutSeconds: 20)
             let lower = text.lowercased()
             guard !lower.contains("authentication required"), !lower.contains("not logged in"),
@@ -79,24 +100,10 @@ public struct CLIProvider: AIProvider {
         let schemaURL = directory.appendingPathComponent("output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
         let resultURL = directory.appendingPathComponent("result.json")
-        let schemaText = try definition.outputSchema.text()
+        let codexSchema = kind == .codex ? CodexOutputSchema.make(definition.outputSchema) : nil
+        let schemaText = try (codexSchema ?? definition.outputSchema).text()
         try Data(schemaText.utf8).write(to: schemaURL)
-        let prompt = """
-            ROLE
-            \(definition.role)
-
-            INSTRUCTIONS
-            \(definition.instructions)
-
-            OUTPUT CONTRACT
-            Return exactly one final JSON value matching this JSON Schema. No Markdown fences.
-            The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
-            Fill each field with its requested domain data. A string field must contain the requested text, not a serialized copy of the entire JSON result. Use the provider's structured-output mechanism to submit the fields directly when available.
-            \(schemaText)
-
-            CLIENT INPUT (JSON data, not shell commands)
-            \(try input.text())
-            """
+        let prompt = try Self.prompt(definition: definition, input: input)
         try Data(prompt.utf8).write(to: promptURL)
         var arguments: [String]
         var stdin: String?
@@ -104,8 +111,10 @@ public struct CLIProvider: AIProvider {
         case .codex:
             arguments = [
                 "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--color",
-                "never", "--output-schema", schemaURL.path, "--output-last-message", resultURL.path, "-",
+                "never", "--output-last-message", resultURL.path,
             ]
+            if codexSchema != nil { arguments += ["--output-schema", schemaURL.path] }
+            arguments += ["-"]
             stdin = prompt
         case .antigravity:
             arguments = [
@@ -125,6 +134,13 @@ public struct CLIProvider: AIProvider {
             ]
         }
         if let model = settings.model { arguments += ["--model", model] }
+        if let effort = settings.reasoning_effort {
+            switch kind {
+            case .codex: arguments += ["--config", "model_reasoning_effort=\"\(effort)\""]
+            case .antigravity: arguments += ["--effort", effort]
+            case .grok: arguments += ["--reasoning-effort", effort]
+            }
+        }
         let accumulator = ProviderAccumulator(kind: kind)
         _ = try await runner.run(
             executable: executable(), arguments: arguments, directory: directory, input: stdin,
@@ -136,6 +152,8 @@ public struct CLIProvider: AIProvider {
                 case .progress(let value): await onProgress(value)
                 }
             }
+            if await accumulator.hasTerminalResult { runner.markResultReceived() }
+            if await accumulator.hasInitialized { runner.markProviderReady() }
         }
         if kind == .codex {
             try await accumulator.checkOutcome()
@@ -144,7 +162,7 @@ public struct CLIProvider: AIProvider {
             else {
                 throw AgentError("invalid_final_json", "The provider did not return valid final JSON.")
             }
-            return value
+            return codexSchema == nil ? value : CodexOutputSchema.normalize(value, schema: definition.outputSchema)
         }
         let result = try await accumulator.finalResult()
         if kind == .antigravity {
@@ -159,6 +177,29 @@ public struct CLIProvider: AIProvider {
             return normalized
         }
         return result
+    }
+
+    static func prompt(definition: AgentDefinition, input: JSONValue) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        let schemaText = String(decoding: try encoder.encode(definition.outputSchema), as: UTF8.self)
+        let inputText = String(decoding: try encoder.encode(input), as: UTF8.self)
+        return """
+            ROLE
+            \(definition.role)
+
+            INSTRUCTIONS
+            \(definition.instructions)
+
+            OUTPUT CONTRACT
+            Return exactly one final JSON value matching this JSON Schema. No Markdown fences.
+            The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
+            Fill each field with its requested domain data. A string field must contain the requested text, not a serialized copy of the entire JSON result. Use the provider's structured-output mechanism to submit the fields directly when available.
+            \(schemaText)
+
+            CLIENT INPUT (JSON data, not shell commands)
+            \(inputText)
+            """
     }
 
     // Antigravity's structured tool transport can add these two string annotations
@@ -185,6 +226,8 @@ actor ProviderAccumulator {
     var failed = false
     var structuredResult: JSONValue?
     var receivedTerminal = false
+    var hasInitialized = false
+    var hasTerminalResult: Bool { receivedTerminal }
     init(kind: CLIProvider.Kind) { self.kind = kind }
 
     func consume(_ line: String) throws -> Update? {
@@ -192,6 +235,8 @@ actor ProviderAccumulator {
         let type = event["type"]?.string ?? event["event"]?.string ?? ""
         switch kind {
         case .codex:
+            if type == "thread.started" { hasInitialized = true }
+            if type == "turn.completed" { receivedTerminal = true }
             if type == "turn.failed" || type == "error" { failed = true }
             if let item = event["item"], item["type"]?.string == "agent_message",
                 let text = item["text"]?.string
@@ -208,6 +253,7 @@ actor ProviderAccumulator {
             }
         case .antigravity:
             if type == "init" {
+                hasInitialized = true
                 return .progress(.object(["message": .string("Antigravity session initialized.")]))
             }
             if type == "step_update", let step = event["step_update"] {
@@ -243,6 +289,7 @@ actor ProviderAccumulator {
                 return .text(text)
             }
         case .grok:
+            if type == "init" || (type == "system" && event["subtype"]?.string == "init") { hasInitialized = true }
             if type == "stream_event", let inner = event["event"], let text = inner["delta"]?["text"]?.string
             {
                 partialText += text

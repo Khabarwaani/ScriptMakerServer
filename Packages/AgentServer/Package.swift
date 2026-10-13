@@ -49,7 +49,7 @@ let package = Package(
             ],
             plugins: ["ValidateAgentsPlugin"]
         ),
-        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"]),
+        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"], exclude: ["Fixtures"]),
         .testTarget(name: "AgentServerTests", dependencies: ["AgentServer", "AgentCore", .product(name: "HummingbirdTesting", package: "hummingbird")])
     ]
 )

@@ -4,10 +4,15 @@ public struct ProviderSettings: Codable, Sendable {
     public var executable: String
     public var model: String?
     public var enabled: Bool
-    public init(executable: String, model: String? = nil, enabled: Bool = true) {
+    public var reasoning_effort: String?
+    public var worker_reuse: Bool?
+    public init(executable: String, model: String? = nil, enabled: Bool = true,
+                reasoningEffort: String? = nil, workerReuse: Bool? = nil) {
         self.executable = executable
         self.model = model
         self.enabled = enabled
+        self.reasoning_effort = reasoningEffort
+        self.worker_reuse = workerReuse
     }
 }
 
@@ -15,12 +20,15 @@ public struct ProviderStatus: Codable, Sendable {
     public let id: String
     public let available: Bool
     public let readiness: String
+    public var worker_reuse: String? = nil
 }
 
 public protocol AIProvider: Sendable {
     var id: String { get }
     var isAvailable: Bool { get }
     func checkReadiness() async throws
+    var workerReuseMode: String { get }
+    func makeWorker(ownership: WorkerOwnershipStore?) throws -> any ProviderWorker
     func execute(
         definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
         timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
@@ -28,7 +36,13 @@ public protocol AIProvider: Sendable {
     ) async throws -> JSONValue
 }
 
-extension AIProvider { public var isAvailable: Bool { true } }
+extension AIProvider {
+    public var isAvailable: Bool { true }
+    public var workerReuseMode: String { "fresh" }
+    public func makeWorker(ownership: WorkerOwnershipStore?) throws -> any ProviderWorker {
+        FreshProviderWorker(provider: self, ownership: ownership)
+    }
+}
 
 public actor ProviderCatalog {
     private let providers: [String: any AIProvider]
@@ -61,7 +75,8 @@ public actor ProviderCatalog {
     public func statuses() -> [ProviderStatus] {
         providers.keys.sorted().map {
             ProviderStatus(
-                id: $0, available: providers[$0]!.isAvailable, readiness: readinessStates[$0] ?? "unchecked")
+                id: $0, available: providers[$0]!.isAvailable, readiness: readinessStates[$0] ?? "unchecked",
+                worker_reuse: providers[$0]!.workerReuseMode)
         }
     }
 }
