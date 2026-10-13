@@ -72,7 +72,7 @@ struct ServerRoutes {
             let snapshot = await manager.snapshot()
             return try await jsonResponse(StatusResponse(
                 status: snapshot.accepting ? "healthy" : "shutting_down",
-                server: .init(version: "1.1.0", uptime_seconds: Int(Date().timeIntervalSince(startedAt))),
+                server: .init(version: "2.0.0", uptime_seconds: Int(Date().timeIntervalSince(startedAt))),
                 active_executions: snapshot.activeCount, queued_executions: snapshot.queuedCount,
                 system_resources: SystemResources.sample(),
                 provider_resident_memory_bytes: snapshot.residentMemoryBytes,

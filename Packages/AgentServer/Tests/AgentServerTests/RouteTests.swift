@@ -146,7 +146,7 @@ private enum RouteEchoPackage: AgentPackageContract {
         try await client.execute(uri: "/status", method: .get) { response in
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["status"] == .string("healthy"))
-            #expect(value["server"]?["version"] == .string("1.1.0"))
+            #expect(value["server"]?["version"] == .string("2.0.0"))
             #expect(value["executions"]?.array?.first?["status"] == .string("completed"))
             let record = try #require(value["executions"]?.array?.first)
             let startedAt = try #require(record["started_at"]?.string)
@@ -180,7 +180,7 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(response.status == .ok)
             let document = try JSONValue.parse(String(buffer: response.body))
             #expect(document["openapi"] == .string("3.1.0"))
-            #expect(document["info"]?["version"] == .string("1.1.0"))
+            #expect(document["info"]?["version"] == .string("2.0.0"))
             let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
                 .deletingLastPathComponent().deletingLastPathComponent()
             let readme = try String(contentsOf: packageRoot.appendingPathComponent("README.md"), encoding: .utf8)
