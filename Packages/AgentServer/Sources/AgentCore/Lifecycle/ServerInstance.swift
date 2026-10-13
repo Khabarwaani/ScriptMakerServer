@@ -13,11 +13,16 @@ public final class ServerInstance: Sendable {
         do {
             _ = try await stopPlatformOwner(descriptor: descriptor, timeoutSeconds: timeoutSeconds)
             try applyPlatformWriteLock(descriptor: descriptor)
+            try await reclaimPort(port, timeoutSeconds: timeoutSeconds)
             return ServerInstance(descriptor: descriptor)
         } catch {
             closePlatformDescriptor(descriptor)
             throw error
         }
+    }
+
+    public static func isPortAvailable(_ port: Int) -> Bool {
+        checkPortAvailable(port)
     }
 
     /// Returns false when no managed instance is running. Never force-kills.
@@ -30,7 +35,7 @@ public final class ServerInstance: Sendable {
 
     public enum InstanceError: Error, CustomStringConvertible {
         case unsafeLockFile, lockInspectionFailed, unverifiedProcess, signalFailed
-        case shutdownTimedOut, concurrentStartup
+        case shutdownTimedOut, concurrentStartup, portReclamationFailed
 
         public var description: String {
             switch self {
@@ -42,6 +47,8 @@ public final class ServerInstance: Sendable {
             case .shutdownTimedOut:
                 "The previous server did not shut down in time; no replacement was started."
             case .concurrentStartup: "Another server started concurrently; retry the command."
+            case .portReclamationFailed:
+                "Existing processes listening on the configured port could not be terminated, or the port remained occupied."
             }
         }
     }

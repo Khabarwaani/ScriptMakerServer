@@ -70,3 +70,38 @@ func rejectsInvalidPorts(value: String) {
         try ServerConfiguration(environment: ["AGENT_SERVER_PORT": value])
     }
 }
+
+@Test func startReclaimsOccupiedTargetPort() async throws {
+    let testPort = 19482
+    let dummy = Process()
+    dummy.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    dummy.arguments = [
+        "-c",
+        """
+        import socket, time
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind(("127.0.0.1", \(testPort)))
+        s.listen(1)
+        time.sleep(30)
+        """
+    ]
+    try dummy.run()
+    // Wait until dummy process is listening
+    var ready = false
+    for _ in 0..<30 {
+        if !ServerInstance.isPortAvailable(testPort) {
+            ready = true
+            break
+        }
+        try await Task.sleep(for: .milliseconds(100))
+    }
+    #expect(ready)
+
+    // Starting ServerInstance should reap the process on testPort and successfully acquire instance
+    let instance = try await ServerInstance.start(port: testPort, timeoutSeconds: 5)
+    #expect(ServerInstance.isPortAvailable(testPort) == true)
+    dummy.waitUntilExit()
+    withExtendedLifetime(instance) {}
+}
+
