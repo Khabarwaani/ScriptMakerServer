@@ -3,7 +3,7 @@ import Foundation
 
 /// One operation catalog drives route paths, the OpenAPI document and browser docs.
 enum APIOperation: String, CaseIterable {
-    case listAgents, executeAgent, getStatus, cancelExecution, getSpecification
+    case listAgents, executeAgent, getStatus, cancelExecution, getSpecification, getExecutionLogs, downloadExecutionLog
     var path: String {
         switch self {
         case .listAgents: "/agents"
@@ -11,30 +11,38 @@ enum APIOperation: String, CaseIterable {
         case .getStatus: "/status"
         case .cancelExecution: "/executions/{execution_id}/cancel"
         case .getSpecification: "/openapi.json"
+        case .getExecutionLogs: "/execution-logs"
+        case .downloadExecutionLog: "/execution-logs/download"
         }
     }
     var method: String { self == .executeAgent || self == .cancelExecution ? "post" : "get" }
     var summary: String {
         switch self {
-        case .listAgents: "Discover agents, versions and contracts"
-        case .executeAgent: "Execute an agent and stream events"
+        case .listAgents: "List agent IDs, names and available versions"
+        case .executeAgent: "Execute an agent and return its validated result"
         case .getStatus: "Read health and tracked execution states"
         case .cancelExecution: "Cancel a specific execution"
         case .getSpecification: "Read the current OpenAPI specification"
+        case .getExecutionLogs: "Read recent session execution logs"
+        case .downloadExecutionLog: "Download the complete session execution log"
         }
     }
     var explanation: String {
         switch self {
         case .listAgents:
-            "Returns valid agents, all available semantic versions, latest stable versions, version-specific roles, instructions and input/output schemas, and provider availability. Refresh discovery after adding an agent definition."
+            "Returns only the agents list, with id, name and available versions for each valid registered agent. Agent contracts, documentation and provider metadata are available from /openapi.json."
         case .executeAgent:
-            "Supply agent_id, provider and a JSON input object. Omit version for the highest stable version; prereleases must be explicitly selected. X-Execution-ID and the started event identify accepted work. Final output is validated against the resolved version's schema before result and completed are emitted."
+            "Returns one final schema-validated JSON value or a structured error by default (status=false, which may be omitted). Add ?status=true for SSE status/progress updates and one validated result or terminal error. Provisional provider output is never returned. Supply agent_id, provider and a JSON input object; omit version for the highest stable version. X-Execution-ID identifies accepted work; in final-only mode the header arrives with the final response."
         case .getStatus:
-            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. Metadata includes resolved version, provider, timestamps, streaming state and resource usage; input and credentials are excluded."
+            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time and freezes at ended_at for terminal states. worker_pool includes retained, idle, busy, temporary and retiring workers and their resident memory. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain execution_id, status, timing, bounded phase_timings, queue_reasons, worker_reused and a bounded error code/message when failed; execution resources, prompts and results are not retained. Readiness/preparation precede acceptance; total_seconds includes them."
         case .cancelExecution:
             "Requests cancellation only for this execution. Repeated requests are safe. A running execution remains cancelling until its provider process stops. Unknown IDs return a structured 404 error."
         case .getSpecification:
             "Returns this live OpenAPI 3.1 document. Agent schemas and examples reflect the current registry. Clients can use this endpoint to discover request and response contracts."
+        case .getExecutionLogs:
+            "Returns the latest 200 execution state snapshots from the temporary JSONL session log, oldest first. Includes IDs, states, timing and bounded error details, without prompts or provider output. A fresh server start clears the file. Open /logs from Help to view details."
+        case .downloadExecutionLog:
+            "Streams the complete session log as newline-delimited JSON in bounded chunks. Includes accepted executions and their state transitions and outcomes. Download is a fixed snapshot; a fresh server start clears the log."
         }
     }
 }
@@ -71,7 +79,17 @@ enum APISpecification {
         ]
         if let version = defaultAgent?.latest { requestExample["version"] = .string(version) }
         let error = object(
-            ["code": string, "message": string, "execution_id": string], required: ["code", "message"])
+            [
+                "code": string, "message": string, "execution_id": string,
+                "details": object([
+                    "agent_id": string, "version": string,
+                    "violations": array(object([
+                        "path": string, "field": string, "keyword": string, "message": string,
+                        "expected": .bool(true), "actual": string,
+                    ], required: ["path", "field", "keyword", "message", "expected", "actual"])),
+                    "truncated": boolean,
+                ], required: ["agent_id", "version", "violations", "truncated"]),
+            ], required: ["code", "message"])
         let execution = object(
             [
                 "execution_id": string, "agent_id": string, "version": string, "provider": string,
@@ -82,24 +100,36 @@ enum APISpecification {
                             JSONValue.string)),
                 ]),
                 "streaming": boolean,
-                "started_at": .object(["type": .string("string"), "format": .string("date-time")]),
+                "started_at": .object([
+                    "type": .string("string"), "format": .string("date-time"),
+                    "description": .string("Time the execution was accepted, including queued work."),
+                ]),
+                "running_at": .object([
+                    "type": .string("string"), "format": .string("date-time"),
+                    "description": .string("Time execution began running; absent if it never ran."),
+                ]),
                 "ended_at": .object(["type": .string("string"), "format": .string("date-time")]),
+                "elapsed_seconds": .object([
+                    "type": .string("number"), "minimum": .number(0),
+                    "description": .string("Running duration excluding queue time. Zero before running; fixed after termination."),
+                ]),
                 "schema_validated": boolean, "error": reference("Error"), "process_id": integer,
+                "phase_timings": .object(["type": .string("object"), "additionalProperties": .object(["type": .string("number"), "minimum": .number(0)])]),
+                "queue_reasons": array(string), "worker_reused": boolean,
                 "resident_memory_bytes": integer,
             ],
             required: [
-                "execution_id", "agent_id", "version", "provider", "status", "streaming", "started_at",
+                "execution_id", "status", "started_at",
+                "elapsed_seconds",
             ])
-        let definition = object(
-            [
-                "version": string, "role": string, "instructions": string, "input_schema": .bool(true),
-                "output_schema": .bool(true),
-            ], required: ["version", "role", "instructions", "output_schema"])
-        let agent = object(
-            ["id": string, "versions": array(string), "latest": string, "definitions": array(definition)],
-            required: ["id", "versions", "definitions"])
+        let agent = JSONValue.object([
+            "type": .string("object"),
+            "properties": .object(["id": string, "name": string, "versions": array(string)]),
+            "required": .array(["id", "name", "versions"].map(JSONValue.string)),
+            "additionalProperties": .bool(false),
+        ])
         let provider = object(
-            ["id": string, "available": boolean, "readiness": string],
+            ["id": string, "available": boolean, "readiness": string, "worker_reuse": string],
             required: ["id", "available", "readiness"])
         let status = object(
             [
@@ -108,6 +138,10 @@ enum APISpecification {
                     ["version": string, "uptime_seconds": integer], required: ["version", "uptime_seconds"]),
                 "active_executions": integer, "queued_executions": integer,
                 "provider_resident_memory_bytes": integer,
+                "worker_pool": object([
+                    "retained": integer, "idle": integer, "busy": integer, "temporary": integer, "retiring": integer,
+                    "capacity": integer, "max_processes": integer, "resident_memory_bytes": integer,
+                ]),
                 "system_resources": object([
                     "physical_memory_bytes": integer, "available_memory_bytes": integer,
                     "load_average": .object(["type": .string("number")]), "cpu_count": integer,
@@ -131,8 +165,10 @@ enum APISpecification {
         var schemas: [String: JSONValue] = [
             "Error": error, "ErrorResponse": object(["error": reference("Error")], required: ["error"]),
             "ExecuteRequest": request, "ExecutionRecord": execution, "StatusResponse": status,
-            "AgentsResponse": object(
-                ["agents": array(agent), "providers": array(provider)], required: ["agents", "providers"]),
+            "AgentsResponse": .object([
+                "type": .string("object"), "properties": .object(["agents": array(agent)]),
+                "required": .array([.string("agents")]), "additionalProperties": .bool(false),
+            ]),
             "CancelResponse": cancel,
         ]
         for agent in agents {
@@ -146,22 +182,30 @@ enum APISpecification {
             }
         }
         var paths: [String: JSONValue] = [:]
+        let outputSchemas = agents.flatMap { agent in
+            agent.definitions.map { definition in
+                reference(agent.id + "_" + definition.version.replacingOccurrences(of: ".", with: "_")
+                    .replacingOccurrences(of: "+", with: "_") + "_Output")
+            }
+        }
         for operation in APIOperation.allCases {
             let responseSchema: JSONValue =
                 switch operation {
                 case .listAgents: reference("AgentsResponse")
                 case .executeAgent:
                     .object([
-                        "type": .string("string"),
+                        "anyOf": .array(outputSchemas.isEmpty ? [.bool(true)] : outputSchemas),
                         "description": .string(
-                            "Ordered SSE frames; each data payload is JSON. See x-stream-events and x-agents."
+                            "The validated final value matching the selected agent version's output schema."
                         ),
                     ])
                 case .getStatus: reference("StatusResponse")
                 case .cancelExecution: reference("CancelResponse")
                 case .getSpecification: .object(["type": .string("object")])
+                case .getExecutionLogs: object(["entries": array(reference("ExecutionRecord"))], required: ["entries"])
+                case .downloadExecutionLog: .object(["type": .string("string")])
                 }
-            let responseType = operation == .executeAgent ? "text/event-stream" : "application/json"
+            let responseType = operation == .downloadExecutionLog ? "application/x-ndjson" : "application/json"
             var entry: [String: JSONValue] = [
                 "operationId": .string(operation.rawValue), "summary": .string(operation.summary),
                 "description": .string(operation.explanation),
@@ -172,11 +216,17 @@ enum APISpecification {
                     ]),
                     "400": errorResponse("Invalid request"),
                     "404": errorResponse("Unknown agent, version, execution or endpoint"),
+                    "422": errorResponse("Input not feasible or unprocessable by agent"),
                     "503": errorResponse("Unavailable provider, resource pressure or server shutdown"),
                     "500": errorResponse("Execution or internal failure"),
                 ]),
             ]
             if operation == .executeAgent {
+                entry["parameters"] = .array([.object([
+                    "name": .string("status"), "in": .string("query"), "required": .bool(false),
+                    "schema": .object(["type": .string("boolean"), "default": .bool(false)]),
+                    "description": .string("Omit or set false for one final JSON response. Set true for SSE status updates and the validated final result. No raw provider output is exposed."),
+                ])])
                 entry["requestBody"] = .object([
                     "required": .bool(true),
                     "content": .object([
@@ -187,6 +237,14 @@ enum APISpecification {
                 ])
                 var responses = entry["responses"]!.object!
                 var success = responses["200"]!.object!
+                var content = success["content"]!.object!
+                content["text/event-stream"] = .object([
+                    "schema": .object([
+                        "type": .string("string"),
+                        "description": .string("Only when status=true: ordered started/status/result/completed or failed/cancelled SSE events. See x-stream-events."),
+                    ])
+                ])
+                success["content"] = .object(content)
                 success["headers"] = .object([
                     "X-Execution-ID": .object([
                         "description": .string("Assigned execution ID"), "schema": string,
@@ -207,7 +265,7 @@ enum APISpecification {
         }
         return .object([
             "openapi": .string("3.1.0"),
-            "info": .object(["title": .string("AgentServer HTTP API"), "version": .string("1.0.0")]),
+            "info": .object(["title": .string("AgentServer HTTP API"), "version": .string("2.0.0")]),
             "servers": .array([.object(["url": .string("/")])]), "paths": .object(paths),
             "components": .object(["schemas": .object(schemas)]), "x-agents": catalog,
             "x-providers": providerCatalog,
@@ -216,18 +274,13 @@ enum APISpecification {
                 .object([
                     "name": .string("started"),
                     "description": .string(
-                        "Execution accepted; includes ID, agent, resolved version and provider."),
+                        "Execution accepted; includes ID, agent, resolved version, provider, started_at and elapsed_seconds. Every event includes timing metadata; running_at and ended_at appear when available."),
                 ]),
                 .object([
                     "name": .string("status"),
                     "description": .string(
                         "State, periodic heartbeat or provider progress. A heartbeat alone does not prove model progress."
                     ),
-                ]),
-                .object([
-                    "name": .string("output"),
-                    "description": .string(
-                        "Incremental provisional provider text; formatted as JSON when complete."),
                 ]),
                 .object([
                     "name": .string("result"),

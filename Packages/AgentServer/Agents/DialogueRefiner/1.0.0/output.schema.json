@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "detected_issues",
+    "refined_scripts"
+  ],
+  "properties": {
+    "detected_issues": {
+      "type": "array",
+      "description": "Dialogue and speech-timing issues found in the source, with concrete line references and spoken-line repairs.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description",
+          "correction_applied"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing",
+              "dialogue_overflow"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Identify the speaker, line, exchange, or scene boundary where dialogue connectivity or timing fails."
+          },
+          "correction_applied": {
+            "type": "string",
+            "description": "Describe the dialogue-only change made in each variation."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "refined_scripts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "Dialogue-refined variations preserving the source story and non-dialogue details.",
+      "items": {
+        "type": "object",
+        "required": [
+          "variation_index",
+          "script",
+          "notes",
+          "scene_timings"
+        ],
+        "properties": {
+          "variation_index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "script": {
+            "type": "string",
+            "description": "Complete script with refined spoken lines and only necessary speech cues or scene boundaries; story and action remain faithful."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Dialogue approach, source-story safeguards, scene-count departures, and remaining limitations."
+          },
+          "scene_timings": {
+            "type": "array",
+            "minItems": 1,
+            "description": "One speech/non-speech timing breakdown for each actual scene, even when the target scene count is exceeded.",
+            "items": {
+              "type": "object",
+              "required": [
+                "scene_number",
+                "dialogue_duration_seconds",
+                "non_dialogue_duration_seconds",
+                "total_duration_seconds"
+              ],
+              "properties": {
+                "scene_number": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "1-based index of the scene."
+                },
+                "dialogue_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Spoken dialogue duration calculated from dialogue word count and wps_range."
+                },
+                "non_dialogue_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Duration allocated to non-dialogue elements (actions, pauses, transitions)."
+                },
+                "total_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Total scene duration (dialogue + non-dialogue), fitting within scene_duration_seconds."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "detected_issues": [
+        {
+          "category": "dialogue_sequence",
+          "description": "Arun proposes leaving before dawn immediately after Maya mentions the letter; Maya’s reply about fear does not answer his proposal.",
+          "correction_applied": "Connected Arun’s departure proposal to the letter and let him ask if she opened it; Maya’s refusal and fear remain intact."
+        }
+      ],
+      "refined_scripts": [
+        {
+          "variation_index": 1,
+          "script": "INT. APARTMENT - NIGHT\nMAYA holds an unopened letter.\nMAYA\nThe letter came today.\nARUN\nThen we should leave before dawn. Have you opened it?\nMAYA\nNo. I’m afraid of what it says.",
+          "notes": "Arun’s response now follows Maya’s reveal. The departure plan, unopened letter, and Maya’s fear remain unchanged.",
+          "scene_timings": [
+            {
+              "scene_number": 1,
+              "dialogue_duration_seconds": 7.0,
+              "non_dialogue_duration_seconds": 3.0,
+              "total_duration_seconds": 10.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

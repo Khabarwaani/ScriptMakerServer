@@ -81,9 +81,21 @@ public enum OutputValidator {
         if let value = object["enum"] {
             guard let choices = value.array, !choices.isEmpty else { throw invalid() }
         }
+        if let fallback = object["default"], !matches(fallback, schema: schema, root: root, depth: 0) {
+            throw AgentError("invalid_agent_definition", "A declared default does not satisfy its schema.")
+        }
+        if ["properties", "allOf", "anyOf", "oneOf"].contains(where: { object[$0] != nil }) {
+            // Exercise absent object members to detect incompatible default declarations at build time.
+            _ = try InputValidator.defaults(.object([:]), schema: schema, root: root, depth: 0)
+        }
         if let reference = object["$ref"] {
             guard let text = reference.string, resolve(text, root: root) != nil else { throw invalid() }
         }
+    }
+
+    /// Fills absent fields only; explicit nulls and supplied values are preserved.
+    public static func applyDefaults(to value: JSONValue, schema: JSONValue) throws -> JSONValue {
+        try InputValidator.defaults(value, schema: schema, root: schema, depth: 0)
     }
 
     public static func validate(_ value: JSONValue, schema: JSONValue) throws {
@@ -92,15 +104,19 @@ public enum OutputValidator {
                 "output_schema_validation_failed", "The final result does not match the agent output schema.")
         }
     }
-    private static func resolve(_ reference: String, root: JSONValue) -> JSONValue? {
+    static func resolve(_ reference: String, root: JSONValue) -> JSONValue? {
         if reference == "#" { return root }
         guard reference.hasPrefix("#/") else { return nil }
         var current = root
         for part in reference.dropFirst(2).split(separator: "/", omittingEmptySubsequences: false) {
             let token = String(part).replacingOccurrences(of: "~1", with: "/").replacingOccurrences(
                 of: "~0", with: "~")
-            guard let next = current[token] else { return nil }
-            current = next
+            if let next = current[token] {
+                current = next
+            } else if let array = current.array, let index = Int(token), String(index) == token,
+                      array.indices.contains(index) {
+                current = array[index]
+            } else { return nil }
         }
         return current
     }
@@ -113,7 +129,7 @@ public enum OutputValidator {
         default: false
         }
     }
-    private static func matches(_ value: JSONValue, schema: JSONValue, root: JSONValue, depth: Int) -> Bool {
+    static func matches(_ value: JSONValue, schema: JSONValue, root: JSONValue, depth: Int) -> Bool {
         guard depth < 64 else { return false }
         if let boolean = schema.bool { return boolean }
         guard let object = schema.object else { return false }

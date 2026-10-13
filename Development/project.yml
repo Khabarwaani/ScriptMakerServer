@@ -10,6 +10,10 @@ settings:
 packages:
   AgentCore:
     path: Packages/AgentServer
+  NewsResearcher:
+    path: Packages/AgentServer/Agents/NewsResearcher
+  ScriptRefiner:
+    path: Packages/AgentServer/Agents/ScriptRefiner
   Hummingbird:
     url: https://github.com/hummingbird-project/hummingbird.git
     from: 2.27.1
@@ -19,7 +23,6 @@ packages:
 fileGroups:
   - Documentation
   - Packages/AgentServer/AGENTS.md
-  - Packages/AgentServer/Agents
   - Packages/AgentServer/Package.swift
   - Packages/AgentServer/config
   - Packages/AgentServer/Sources/AgentResources/Web
@@ -32,27 +35,51 @@ targets:
     dependencies:
       - package: AgentCore
         product: AgentCore
+  AgentValidator:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Packages/AgentServer/Sources/AgentValidator
+    dependencies:
+      - package: AgentCore
+        product: AgentCore
   AgentServer:
     type: tool
     platform: macOS
     sources:
       - path: Packages/AgentServer/Sources/AgentServer
+      - path: "${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift"
+        optional: true
     dependencies:
+      - target: AgentValidator
       - package: AgentCore
         product: AgentCore
+      - package: NewsResearcher
+        product: NewsResearcher
+      - package: ScriptRefiner
+        product: ScriptRefiner
       - package: Hummingbird
         product: Hummingbird
       - package: ServiceLifecycle
         product: ServiceLifecycle
+    preBuildScripts:
+      - name: Validate Agents
+        script: |
+          mkdir -p "${DERIVED_FILE_DIR}"
+          "${BUILT_PRODUCTS_DIR}/AgentValidator" "${SRCROOT}/Packages/AgentServer/Agents" "${TARGET_BUILD_DIR}/agent-validation.json" "${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift"
+        inputFiles:
+          - "${SRCROOT}/Packages/AgentServer/Agents"
+        outputFiles:
+          - "${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift"
+          - "${TARGET_BUILD_DIR}/agent-validation.json"
+        basedOnDependencyAnalysis: false
     postBuildScripts:
       - name: Copy web pages
         script: |
           mkdir -p "${TARGET_BUILD_DIR}/Web"
-          cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${TARGET_BUILD_DIR}/Web/"
+          cp "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.html "${SRCROOT}/Packages/AgentServer/Sources/AgentResources/Web/"*.js "${TARGET_BUILD_DIR}/Web/"
           mkdir -p "${TARGET_BUILD_DIR}/config"
           cp "${SRCROOT}/Packages/AgentServer/config/server.json" "${TARGET_BUILD_DIR}/config/server.json"
-          mkdir -p "${TARGET_BUILD_DIR}/Agents"
-          rsync -a --delete --exclude='.build' --exclude='.swiftpm' "${SRCROOT}/Packages/AgentServer/Agents/" "${TARGET_BUILD_DIR}/Agents/"
         basedOnDependencyAnalysis: false
 schemes:
   AgentServer:
@@ -64,6 +91,7 @@ schemes:
       customWorkingDirectory: "$(BUILT_PRODUCTS_DIR)"
       environmentVariables:
         AGENT_SERVER_CONFIG: "$(BUILT_PRODUCTS_DIR)/config/server.json"
+        AGENT_SERVER_ENV: development
   AgentServer-Stop:
     build:
       targets:
@@ -75,3 +103,4 @@ schemes:
         stop: true
       environmentVariables:
         AGENT_SERVER_CONFIG: "$(BUILT_PRODUCTS_DIR)/config/server.json"
+        AGENT_SERVER_ENV: development

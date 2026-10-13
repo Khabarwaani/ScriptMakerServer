@@ -10,5 +10,8 @@ import NewsResearcher
         }
         let schema = try Data(contentsOf: root.appendingPathComponent("output.schema.json"))
         #expect(try JSONSerialization.jsonObject(with: schema) is [String: Any])
+        #expect(try !NewsResearcherDefinition.role(version: version).isEmpty)
+        #expect(try !NewsResearcherDefinition.instructions(version: version).isEmpty)
+        #expect(try !NewsResearcherDefinition.outputSchema(version: version).isEmpty)
     }
 }

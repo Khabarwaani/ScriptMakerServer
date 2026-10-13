@@ -26,6 +26,7 @@ public enum AgentPackageTools {
                 #"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{"type":"string"}}}"#,
                 to: definition.appendingPathComponent("output.schema.json"))
             try packageFiles(id: id, version: version, package: package)
+            try refreshReadme(package: package)
         } catch {
             try? FileManager.default.removeItem(at: package)
             throw error
@@ -55,13 +56,20 @@ public enum AgentPackageTools {
         }
         try FileManager.default.copyItem(at: source, to: destination)
         try writeManifest(id: id, package: package)
+        try updateSourceVersions(id: id, package: package)
+        try refreshReadme(package: package)
     }
 
-    public static func check(root: URL) throws -> [String] {
+    public static func check(
+        root: URL,
+        registeredPackages: [any AgentPackageContract.Type] = AgentRegistry.registeredPackages
+    ) throws -> [String] {
         var issues: [String] = []
         let packages = try FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
         let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath().path + "/"
+        let registeredMap = Dictionary(uniqueKeysWithValues: registeredPackages.map { ($0.id, $0) })
+
         for package in packages
         where (try? package.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
             let id = package.lastPathComponent
@@ -70,6 +78,12 @@ public enum AgentPackageTools {
                 issues.append("\(id): invalid package identifier or path")
                 continue
             }
+
+            guard let registeredPackage = registeredMap[id] else {
+                issues.append("\(id): package is not registered in AgentRegistry.registeredPackages")
+                continue
+            }
+
             for name in [
                 "Package.swift", "README.md", "Sources/\(id)/\(id).swift",
                 "Tests/\(id)Tests/DefinitionTests.swift",
@@ -78,11 +92,26 @@ public enum AgentPackageTools {
                     issues.append("\(id): missing \(name)")
                 }
             }
-            let versions = try FileManager.default.contentsOfDirectory(
+            let diskVersionURLs = try FileManager.default.contentsOfDirectory(
                 at: package, includingPropertiesForKeys: nil
             ).filter { SemanticVersion($0.lastPathComponent) != nil }
-            if versions.isEmpty { issues.append("\(id): no semantic versions") }
-            for version in versions {
+            let diskVersions = Set(diskVersionURLs.map(\.lastPathComponent))
+
+            if diskVersions.isEmpty { issues.append("\(id): no semantic versions") }
+
+            let registeredVersions = Set(registeredPackage.versions)
+            for diskVer in diskVersions {
+                if !registeredVersions.contains(diskVer) {
+                    issues.append("\(id)/\(diskVer): version is present on disk but not declared in registered package versions")
+                }
+            }
+            for regVer in registeredVersions {
+                if !diskVersions.contains(regVer) {
+                    issues.append("\(id)/\(regVer): version is registered but missing directory on disk")
+                }
+            }
+
+            for version in diskVersionURLs {
                 for name in ["role.md", "instructions.md", "output.schema.json"] {
                     let file = version.appendingPathComponent(name)
                     guard file.resolvingSymlinksInPath().path.hasPrefix(resolvedRoot),
@@ -96,18 +125,31 @@ public enum AgentPackageTools {
                         issues.append("\(id): role must be a complete sentence")
                     }
                     if name == "output.schema.json" {
-                        do { try OutputValidator.checkSchema(JSONValue.parse(text)) } catch {
+                        do {
+                            let schemaJSON = try JSONValue.parse(text)
+                            try OutputValidator.checkSchema(schemaJSON)
+                            if let examples = schemaJSON["examples"]?.array {
+                                for example in examples {
+                                    try OutputValidator.validate(example, schema: schemaJSON)
+                                }
+                            }
+                        } catch {
                             issues.append(
-                                "\(id)/\(version.lastPathComponent): invalid or unsupported output schema")
+                                "\(id)/\(version.lastPathComponent): invalid or unsupported output schema: \(error)")
                         }
                     }
                 }
                 let input = version.appendingPathComponent("input.schema.json")
                 if FileManager.default.fileExists(atPath: input.path) {
                     do {
-                        try OutputValidator.checkSchema(
-                            JSONValue.parse(String(contentsOf: input, encoding: .utf8)))
-                    } catch { issues.append("\(id)/\(version.lastPathComponent): invalid input schema") }
+                        let inputSchemaJSON = try JSONValue.parse(String(contentsOf: input, encoding: .utf8))
+                        try OutputValidator.checkSchema(inputSchemaJSON)
+                        if let examples = inputSchemaJSON["examples"]?.array {
+                            for example in examples {
+                                try OutputValidator.validate(example, schema: inputSchemaJSON)
+                            }
+                        }
+                    } catch { issues.append("\(id)/\(version.lastPathComponent): invalid input schema: \(error)") }
                 }
             }
         }
@@ -136,6 +178,24 @@ public enum AgentPackageTools {
             """, to: package.appendingPathComponent("Package.swift"))
     }
 
+    private static func updateSourceVersions(id: String, package: URL) throws {
+        let versions = try FileManager.default.contentsOfDirectory(
+            at: package, includingPropertiesForKeys: nil
+        )
+        .map(\.lastPathComponent).filter { SemanticVersion($0) != nil }.sorted()
+        let sourceFile = package.appendingPathComponent("Sources/\(id)/\(id).swift")
+        guard FileManager.default.fileExists(atPath: sourceFile.path) else { return }
+        let currentSource = try String(contentsOf: sourceFile, encoding: .utf8)
+        let formattedVersions = versions.map { "\"\($0)\"" }.joined(separator: ", ")
+        let pattern = #"public static let versions: \[String\] = \[.*?\]"#
+        let updatedSource = currentSource.replacingOccurrences(
+            of: pattern,
+            with: "public static let versions: [String] = [\(formattedVersions)]",
+            options: .regularExpression
+        )
+        try write(updatedSource, to: sourceFile)
+    }
+
     private static func packageFiles(id: String, version: String, package: URL) throws {
         try writeManifest(id: id, package: package)
         let source = package.appendingPathComponent("Sources/\(id)", isDirectory: true)
@@ -145,17 +205,53 @@ public enum AgentPackageTools {
         try write(
             """
             import Foundation
-            public enum \(id)Definition {
+
+            public enum \(id)Definition: Sendable {
                 public static let id = "\(id)"
+                public static let versions: [String] = ["\(version)"]
+
                 public static func directory(version: String) throws -> URL {
-                    guard version.range(of: #"^[0-9A-Za-z.+-]+$"#, options: .regularExpression) != nil,
+                    guard versions.contains(version),
                           let url = Bundle.module.url(forResource: version, withExtension: nil),
                           FileManager.default.fileExists(atPath: url.appendingPathComponent("role.md").path) else {
                         throw DefinitionError.unknownVersion
                     }
                     return url
                 }
-                public enum DefinitionError: Error { case unknownVersion }
+
+                public static func role(version: String) throws -> String {
+                    let dir = try directory(version: version)
+                    return try String(contentsOf: dir.appendingPathComponent("role.md"), encoding: .utf8)
+                }
+
+                public static func instructions(version: String) throws -> String {
+                    let dir = try directory(version: version)
+                    let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+                        .filter {
+                            $0.lastPathComponent == "instructions.md"
+                                || ($0.lastPathComponent.hasPrefix("instructions.") && $0.pathExtension == "md")
+                        }
+                        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+                    guard !files.isEmpty else { throw DefinitionError.missingInstructions }
+                    return try files.map { try String(contentsOf: $0, encoding: .utf8) }.joined(separator: "\\n\\n")
+                }
+
+                public static func outputSchema(version: String) throws -> String {
+                    let dir = try directory(version: version)
+                    return try String(contentsOf: dir.appendingPathComponent("output.schema.json"), encoding: .utf8)
+                }
+
+                public static func inputSchema(version: String) throws -> String? {
+                    let dir = try directory(version: version)
+                    let file = dir.appendingPathComponent("input.schema.json")
+                    guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+                    return try String(contentsOf: file, encoding: .utf8)
+                }
+
+                public enum DefinitionError: Error {
+                    case unknownVersion
+                    case missingInstructions
+                }
             }
             """, to: source.appendingPathComponent("\(id).swift"))
         try write(
@@ -172,11 +268,13 @@ public enum AgentPackageTools {
                 #expect(try JSONSerialization.jsonObject(with: schema) is [String: Any])
             }
             """, to: tests.appendingPathComponent("DefinitionTests.swift"))
-        try write(
-            "# \(id)\n\nIndependent Swift agent package. Version directories contain runtime definitions.\nOpen Package.swift in Xcode or run swift test in this directory.",
-            to: package.appendingPathComponent("README.md"))
     }
     private static func write(_ text: String, to url: URL) throws {
         try (text + "\n").write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private static func refreshReadme(package: URL) throws {
+        let documentation = try AgentDocumentationGenerator.generate(packageDirectory: package)
+        try documentation.readme.write(to: package.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
     }
 }

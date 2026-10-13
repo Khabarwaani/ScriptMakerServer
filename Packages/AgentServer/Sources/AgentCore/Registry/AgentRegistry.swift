@@ -1,4 +1,7 @@
 import Foundation
+import NewsResearcher
+import ScriptRefiner
+import DialogueRefiner
 
 public struct AgentDefinition: Sendable {
     public let id: String
@@ -11,9 +14,26 @@ public struct AgentDefinition: Sendable {
 
 public struct AgentSummary: Codable, Sendable {
     public let id: String
+    public let name: String
     public let versions: [String]
     public let latest: String?
     public let definitions: [AgentVersionDetails]
+    public let readme: String?
+
+    public init(id: String, versions: [String], latest: String?, definitions: [AgentVersionDetails], readme: String? = nil, name: String? = nil) {
+        self.id = id
+        self.name = name ?? id
+        self.versions = versions
+        self.latest = latest
+        self.definitions = definitions
+        self.readme = readme
+    }
+}
+
+public struct AgentListItem: Codable, Sendable {
+    public let id: String
+    public let name: String
+    public let versions: [String]
 }
 
 public struct AgentVersionDetails: Codable, Sendable {
@@ -22,12 +42,43 @@ public struct AgentVersionDetails: Codable, Sendable {
     public let instructions: String
     public let input_schema: JSONValue?
     public let output_schema: JSONValue
+    public let notes: String?
+
+    public init(version: String, role: String, instructions: String, input_schema: JSONValue?, output_schema: JSONValue, notes: String? = nil) {
+        self.version = version
+        self.role = role
+        self.instructions = instructions
+        self.input_schema = input_schema
+        self.output_schema = output_schema
+        self.notes = notes
+    }
 }
 
 public actor AgentRegistry {
-    private let root: URL
+    public static let registeredPackages: [any AgentPackageContract.Type] = [
+        NewsResearcherDefinition.self,
+        ScriptRefinerDefinition.self,
+        DialogueRefinerDefinition.self,
+    ]
+
+    private let packages: [any AgentPackageContract.Type]
+    private let validationMetadata: [AgentValidationMetadata]?
+    private let root: URL?
     private var cache: [String: AgentDefinition] = [:]
-    public init(root: URL) { self.root = root.standardizedFileURL.resolvingSymlinksInPath() }
+
+    public init(
+        packages: [any AgentPackageContract.Type] = AgentRegistry.registeredPackages,
+        validationMetadata: [AgentValidationMetadata]? = nil,
+        root: URL? = nil
+    ) {
+        self.packages = packages
+        self.validationMetadata = validationMetadata
+        self.root = root?.standardizedFileURL.resolvingSymlinksInPath()
+    }
+
+    public init(root: URL) {
+        self.init(packages: Self.registeredPackages, root: root)
+    }
 
     public func list() -> [AgentSummary] {
         let definitions = discover()
@@ -35,15 +86,31 @@ public actor AgentRegistry {
             let versions = values.compactMap { SemanticVersion($0.version) }.sorted {
                 $0 == $1 ? $0.raw < $1.raw : $0 < $1
             }
+            let matchingPackage = packages.first(where: { $0.id == id })
             let details = versions.compactMap { version -> AgentVersionDetails? in
                 guard let definition = values.first(where: { $0.version == version.raw }) else { return nil }
+                let notes = matchingPackage?.documentation(version: version.raw)?.notes
                 return AgentVersionDetails(
                     version: definition.version, role: definition.role, instructions: definition.instructions,
-                    input_schema: definition.inputSchema, output_schema: definition.outputSchema)
+                    input_schema: definition.inputSchema, output_schema: definition.outputSchema,
+                    notes: notes)
             }
+            let readme = matchingPackage?.readme()
             return AgentSummary(
                 id: id, versions: versions.map(\.raw), latest: versions.last(where: \.stable)?.raw,
-                definitions: details)
+                definitions: details, readme: readme, name: matchingPackage?.name)
+        }.sorted { $0.id < $1.id }
+    }
+
+    /// Lightweight discovery without loading package documentation or probing providers.
+    public func availableAgents() -> [AgentListItem] {
+        Dictionary(grouping: discover(), by: \.id).map { id, definitions in
+            let versions = definitions.compactMap { SemanticVersion($0.version) }.sorted {
+                $0 == $1 ? $0.raw < $1.raw : $0 < $1
+            }
+            return AgentListItem(
+                id: id, name: packages.first(where: { $0.id == id })?.name ?? id,
+                versions: versions.map(\.raw))
         }.sorted { $0.id < $1.id }
     }
 
@@ -54,8 +121,12 @@ public actor AgentRegistry {
         }
         let definitions = discover().filter { $0.id == id }
         guard !definitions.isEmpty else {
-            if safeURL(root.appendingPathComponent(id)) != nil
-                && FileManager.default.fileExists(atPath: root.appendingPathComponent(id).path)
+            if packages.contains(where: { $0.id == id }) {
+                throw AgentError("invalid_agent_definition", "The agent has no valid available definitions.")
+            }
+            if let root = self.root,
+                safeURL(root.appendingPathComponent(id)) != nil,
+                FileManager.default.fileExists(atPath: root.appendingPathComponent(id).path)
             {
                 throw AgentError("invalid_agent_definition", "The agent has no valid available definitions.")
             }
@@ -75,51 +146,65 @@ public actor AgentRegistry {
     }
 
     private func safeURL(_ url: URL) -> URL? {
+        guard let root = self.root else { return nil }
         let resolved = url.standardizedFileURL.resolvingSymlinksInPath()
         return resolved.path.hasPrefix(root.path + "/") ? resolved : nil
     }
 
     private func discover() -> [AgentDefinition] {
-        guard
-            let directories = try? FileManager.default.contentsOfDirectory(
-                at: root, includingPropertiesForKeys: [.isDirectoryKey], options: .skipsHiddenFiles)
-        else { return [] }
         var found: [AgentDefinition] = []
-        for directory in directories where Self.validID(directory.lastPathComponent) {
-            guard let safeDirectory = safeURL(directory),
-                let versions = try? FileManager.default.contentsOfDirectory(
-                    at: safeDirectory, includingPropertiesForKeys: [.isDirectoryKey],
-                    options: .skipsHiddenFiles)
-            else { continue }
-            for version in versions where SemanticVersion(version.lastPathComponent) != nil {
-                let key = directory.lastPathComponent + "/" + version.lastPathComponent
-                guard safeURL(version) != nil else { continue }
+        for package in packages where Self.validID(package.id) {
+            let sortedVersions = package.versions.compactMap(SemanticVersion.init).sorted {
+                $0 == $1 ? $0.raw < $1.raw : $0 < $1
+            }
+            for semver in sortedVersions {
+                let version = semver.raw
+                let key = package.id + "/" + version
                 if let cached = cache[key] {
                     found.append(cached)
                     continue
                 }
-                do {
-                    let role = try read(version.appendingPathComponent("role.md"))
-                    let instructionFiles = try FileManager.default.contentsOfDirectory(
-                        at: version, includingPropertiesForKeys: nil
-                    )
-                    .filter {
-                        $0.lastPathComponent == "instructions.md"
-                            || ($0.lastPathComponent.hasPrefix("instructions.") && $0.pathExtension == "md")
+
+                // If validation metadata is provided, verify against it
+                if let validationMetadata = self.validationMetadata {
+                    guard let agentMeta = validationMetadata.first(where: { $0.agentId == package.id }),
+                          let versionMeta = agentMeta.versions.first(where: { $0.version == version }) else {
+                        // Unvalidated version or agent
+                        continue
                     }
-                    .sorted { $0.lastPathComponent < $1.lastPathComponent }
-                    guard !instructionFiles.isEmpty, role.contains(".") else { continue }
-                    let instructions = try instructionFiles.map(read).joined(separator: "\n\n")
-                    let schema = try JSONValue.parse(
-                        read(version.appendingPathComponent("output.schema.json")))
+
+                    // Check resource completeness and hashes
+                    guard let dir = try? package.directory(version: version) else { continue }
+                    var hashesMatch = true
+                    for (resourceName, expectedHash) in versionMeta.resourceHashes {
+                        let fileURL = dir.appendingPathComponent(resourceName)
+                        guard let computedHash = try? AgentPackageValidator.sha256Hex(for: fileURL),
+                              computedHash == expectedHash else {
+                            hashesMatch = false
+                            break
+                        }
+                    }
+                    guard hashesMatch else { continue }
+                }
+
+                do {
+                    let role = try package.role(version: version)
+                    guard role.contains(".") else { continue }
+                    let instructions = try package.instructions(version: version)
+                    guard !instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+                    let outputSchemaText = try package.outputSchema(version: version)
+                    let schema = try JSONValue.parse(outputSchemaText)
                     try OutputValidator.checkSchema(schema)
-                    let inputURL = version.appendingPathComponent("input.schema.json")
-                    let inputSchema =
-                        FileManager.default.fileExists(atPath: inputURL.path)
-                        ? try JSONValue.parse(read(inputURL)) : nil
-                    if let inputSchema { try OutputValidator.checkSchema(inputSchema) }
+                    let inputSchema: JSONValue?
+                    if let inputSchemaText = try package.inputSchema(version: version) {
+                        let parsed = try JSONValue.parse(inputSchemaText)
+                        try OutputValidator.checkSchema(parsed)
+                        inputSchema = parsed
+                    } else {
+                        inputSchema = nil
+                    }
                     let definition = AgentDefinition(
-                        id: directory.lastPathComponent, version: version.lastPathComponent, role: role,
+                        id: package.id, version: version, role: role,
                         instructions: instructions, outputSchema: schema, inputSchema: inputSchema)
                     cache[key] = definition
                     found.append(definition)
@@ -127,18 +212,5 @@ public actor AgentRegistry {
             }
         }
         return found
-    }
-
-    private func read(_ url: URL) throws -> String {
-        guard let safe = safeURL(url),
-            let size = try safe.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 1_048_576
-        else {
-            throw AgentError("invalid_agent_definition", "Definition file is unavailable or too large.")
-        }
-        let text = try String(contentsOf: safe, encoding: .utf8)
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw AgentError("invalid_agent_definition", "Definition file is empty.")
-        }
-        return text
     }
 }

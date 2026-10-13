@@ -5,7 +5,7 @@ let package = Package(
     products: [.library(name: "NewsResearcher", targets: ["NewsResearcher"])],
     targets: [
         .target(name: "NewsResearcher", path: ".", exclude: ["Tests", "README.md"],
-                sources: ["Sources/NewsResearcher/NewsResearcher.swift"], resources: [.copy("1.0.0"), .copy("1.1.0")]),
+                sources: ["Sources/NewsResearcher/NewsResearcher.swift"], resources: [.copy("1.1.0")]),
         .testTarget(name: "NewsResearcherTests", dependencies: ["NewsResearcher"])
     ]
 )

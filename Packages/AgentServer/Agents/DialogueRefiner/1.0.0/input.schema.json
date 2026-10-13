@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "script"
+  ],
+  "properties": {
+    "script": {
+      "type": "string",
+      "description": "Complete source script with dialogue, speaker labels, scenes and non-dialogue cues. Keep its story and non-dialogue facts while refining spoken lines."
+    },
+    "output_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3,
+      "description": "Exact number of dialogue-refined script variations to return. Defaults to 3."
+    },
+    "scene_duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "default": 10.0,
+      "description": "Maximum duration per scene in seconds, including speech and existing non-dialogue beats. Defaults to 10.0."
+    },
+    "scene_count": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Target number of scenes per variation, not a hard maximum. Additional scenes are allowed when coherent dialogue cannot fit the timing target. Defaults to 1."
+    },
+    "wps_range": {
+      "type": "object",
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum words per second for spoken dialogue."
+        },
+        "max": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Maximum words per second for spoken dialogue."
+        }
+      },
+      "additionalProperties": false,
+      "default": {
+        "min": 2.5,
+        "max": 3.5
+      },
+      "description": "Allowed speaking pace in words per second for timing dialogue. Defaults to 2.5–3.5 WPS."
+    },
+    "issues_found": {
+      "type": "array",
+      "description": "Optional dialogue-related issues supplied by the caller; omission does not disable automatic diagnosis.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing",
+              "dialogue_overflow"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "correction_focus": {
+      "type": "array",
+      "description": "Optional dialogue priorities; omission does not disable other dialogue checks.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "text_correction",
+          "emotion_detection",
+          "speech_sequence",
+          "character_voice",
+          "timing_preservation",
+          "dialogue_overflow"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "script": "INT. APARTMENT - NIGHT\nMAYA holds an unopened letter.\nMAYA\nThe letter came today.\nARUN\nWe should leave before dawn.\nMAYA\nNo. I am afraid of what it says.",
+      "output_count": 3,
+      "scene_duration_seconds": 10.0,
+      "scene_count": 1,
+      "wps_range": {
+        "min": 2.5,
+        "max": 3.5
+      }
+    },
+    {
+      "script": "INT. NEWSROOM - NIGHT\nANCHOR looks into camera.\nANCHOR\nEmergency talks in three countries ended without agreement after hours of debate. Leaders will meet again tomorrow.",
+      "output_count": 1,
+      "scene_duration_seconds": 10.0,
+      "scene_count": 1,
+      "wps_range": {
+        "min": 2.5,
+        "max": 3.5
+      },
+      "issues_found": [
+        {
+          "category": "dialogue_overflow",
+          "description": "Two sentences plus the opening camera beat exceed the available scene time."
+        }
+      ],
+      "correction_focus": [
+        "dialogue_overflow",
+        "timing_preservation"
+      ]
+    }
+  ]
+}

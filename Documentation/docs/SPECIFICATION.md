@@ -18,14 +18,16 @@ Swift packages. Initially expose four HTTP endpoints.
 
 ## 2. Design principles
 
-1. Provider independence: agent definitions must not depend on a provider.
-2. Versioned agents: multiple versions of an agent must coexist.
-3. Runtime discovery: adding Markdown agent versions must not require a rebuild.
-4. Structured input/output: requests use JSON; successful final results conform to the selected output schema.
-5. Streaming: deliver execution output incrementally.
-6. Asynchronous execution: execute multiple agents concurrently.
-7. Simplicity: avoid databases, brokers, distributed workers and unnecessary infrastructure.
-8. Reproducibility: record the exact agent version and provider for every execution.
+1. Three-tier architecture: Clean separation between Presentation (`AgentServer`), Core Orchestration (`AgentCore`), and Domain Agent Packages (`Agents/*`).
+2. Provider independence: agent definitions must not depend on a provider.
+3. Versioned agents: multiple versions of an agent must coexist.
+4. Package-backed discovery: only explicitly linked and registered versions are available after a rebuild.
+5. Structured input/output: requests use JSON; successful final results conform to the selected output schema.
+6. Master feasibility protocol: Single-turn feasibility gate; unfeasible/gibberish input directly yields HTTP 422 error pass-through.
+7. Optional status streaming: deliver lifecycle/progress events when requested; keep provider output internal.
+8. Asynchronous execution: execute multiple agents concurrently.
+9. Simplicity: avoid databases, brokers, distributed workers and unnecessary infrastructure.
+10. Reproducibility: record the exact agent version and provider for every execution.
 
 ## 3. Technology
 
@@ -37,9 +39,26 @@ Swift packages. Initially expose four HTTP endpoints.
 | Input/output | JSON |
 | Agent instructions | Markdown |
 | Output validation | JSON Schema |
-| Streaming | SSE (selected before development; NDJSON was an alternative) |
+| Responses | Final JSON by default; optional `status=true` SSE for lifecycle/progress and the validated result |
 | AI execution | Provider-specific CLI adapters |
 | Dependencies | Swift Package Manager (SPM) |
+
+### Provider worker lifecycle extension (#39)
+
+The server owns one lazy pool across all agents and providers. Configuration
+`provider_pool_size` defaults to five and cannot exceed `max_processes`; zero
+disables retention. Compatible idle workers use verified fresh native contexts,
+with LRU eviction of idle workers and temporary burst workers within total
+resource limits. Healthy idle workers have no expiry; memory pressure can reclaim
+them. Errors, timeout, cancellation and failed reset retire the affected worker
+without replay. Unsupported providers continue using fresh processes.
+
+Graceful shutdown reaps all owned workers. After a forced parent exit, cleanup
+occurs on the next start after acquiring the instance lock, using a private
+identity manifest and verified birth/executable/UID/ownership. Unknown processes
+and live owners are preserved. No supervisor is required. Compact phase timings,
+queue reasons and pool usage are exposed in status/logs/help without retaining
+prompts or results. See [RUN.md](RUN.md) for platform and provider limits.
 
 ## 4. Agent definition
 
@@ -62,7 +81,14 @@ may be split across multiple Markdown files with an explicitly defined load orde
 
 The client supplies a JSON object per execution. Structures may differ by agent;
 the server passes input without assuming domain-specific fields. An optional
-agent-specific input schema may be used for validation.
+agent-specific input schema may be used for validation. Before executing any
+provider, the server recursively merges declared defaults into missing fields.
+Supplied values, including explicit nulls, are preserved and validated. Required
+fields with defaults may be omitted; required fields without defaults fail.
+Optional fields without defaults remain absent. Object defaults fill missing
+members of supplied partial objects. Arrays and local references use the same
+rules. Defaults must satisfy their schemas; conflicting or ambiguous defaults
+are invalid agent definitions.
 
 ### 4.4 Output schema
 
@@ -71,36 +97,39 @@ The server validates the final result before reporting successful completion.
 
 ## 5. Agent storage and discovery
 
-The initial implementation supports directory-based definitions:
+Registered Swift packages contain the declared version resources:
 
 ```text
-AgentServer/
+Packages/AgentServer/
 ├── Package.swift
 ├── Sources/
 ├── Tests/
 └── Agents/
     ├── NewsResearcher/
-    │   ├── 1.0.0/
-    │   │   ├── role.md
-    │   │   ├── instructions.md
-    │   │   └── output.schema.json
+    │   ├── Package.swift
+    │   ├── README.md
     │   └── 1.1.0/
     │       ├── role.md
     │       ├── instructions.md
+    │       ├── input.schema.json
     │       └── output.schema.json
-    └── ScriptWriter/
+    └── ScriptRefiner/
+        ├── Package.swift
+        ├── README.md
         └── 1.0.0/
             ├── role.md
             ├── instructions.md
+            ├── input.schema.json
             └── output.schema.json
 ```
 
-The registry discovers agents and versions, validates definition completeness,
-rejects or marks invalid definitions unavailable, loads selected version files,
-caches immutable definitions where appropriate and isolates versions. Definitions
-must not change during execution. New Markdown versions are discoverable without
-a rebuild. The storage root must be configurable rather than hardcoded throughout
-the application.
+The registry discovers explicitly registered Swift agent packages and their declared
+versions. Build-time validation checks contracts, schemas, examples and resources;
+startup verifies validation metadata. Invalid or undeclared definitions remain
+unavailable. Definitions are cached as immutable snapshots and do not change during
+execution. Adding or changing versions requires package declarations and a rebuild.
+The configurable storage root supports validation and tooling; it does not make
+undeclared Markdown directories available at runtime.
 
 ### 5.1 Version resolution
 
@@ -115,21 +144,28 @@ the application.
 
 ### 6.1 List agents — `GET /agents`
 
-Return valid registered agents, all available versions and latest stable version.
+Return only valid registered agent IDs, display names and all available versions.
+Full contracts, documentation and provider metadata are available from `/openapi.json`.
 Do not expose private configuration, credentials or environment variables.
 
 ```json
 {
   "agents": [
-    {"id": "NewsResearcher", "versions": ["1.0.0", "1.1.0"], "latest": "1.1.0"},
-    {"id": "ScriptWriter", "versions": ["1.0.0"], "latest": "1.0.0"}
+    {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.1.0"]},
+    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.0.0", "1.1.0", "1.2.0"]}
   ]
 }
 ```
 
 ### 6.2 Execute agent — `POST /execute`
 
-Execute an agent and stream output. Version is optional; omission selects latest
+Execute an agent and return one final schema-validated JSON value, or a structured
+error, by default. The optional query parameter `status` defaults to `false`; omit
+it or pass `status=false` for final-only mode. Pass `status=true` to opt into SSE
+status/progress updates and one validated final result or terminal error. Raw
+provider output is internal and is not returned in either response mode.
+
+Version is optional; omission selects latest
 stable. Validate provider selection and readiness before execution begins.
 
 ```json
@@ -149,29 +185,34 @@ Execution sequence:
 4. Resolve and initialize the provider.
 5. Construct its provider-specific execution request.
 6. Deliver agent instructions and JSON input.
-7. Stream supported progress and output events.
+7. Process provider output internally; stream only lifecycle/progress when `status=true`.
 8. Obtain and parse final JSON.
 9. Validate the result against the output schema.
 10. Emit successful completion only after validation succeeds.
 
 Adapters handle differing input formats, structured-output features and streaming
 capabilities. Define events for started, status/progress, incremental output when
-available, final validated result, successful completion, failure and cancellation.
+available internally, final validated result, successful completion, failure and cancellation.
 Final results must be distinguishable from intermediate output. Invalid JSON or
 schema failure must never produce successful completion. After streaming begins,
 emit a structured error event when possible and close the stream appropriately.
 
-Selected SSE format (JSON `data` with ordered event names):
+Default responses use `application/json` and contain the final JSON directly,
+without a result envelope. Failures use the standard error envelope and an appropriate
+HTTP error status. `Accept: text/event-stream` alone does not enable streaming.
+
+Only `POST /execute?status=true` uses the following SSE format
+(JSON `data` with ordered event names):
 
 ```text
 event: started
 data: {"execution_id":"exec_001","agent_id":"NewsResearcher","version":"1.1.0","provider":"codex"}
 
-event: output
-data: {"execution_id":"exec_001","text":"Checking sources..."}
+event: status
+data: {"execution_id":"exec_001","status":"running"}
 
 event: result
-data: {"execution_id":"exec_001","result":{"summary":"Research complete","findings":[]}}
+data: {"execution_id":"exec_001","result":{"verified":true,"confidence":95,"date":"12-10-26","notes":["The reported claims were checked against an authoritative source."]}}
 
 event: completed
 data: {"execution_id":"exec_001"}
@@ -188,7 +229,7 @@ Return a snapshot of health and tracked executions, not an output stream.
 ```json
 {
   "status": "healthy",
-  "server": {"version": "1.0.0", "uptime_seconds": 3600},
+  "server": {"version": "2.0.0", "uptime_seconds": 3600},
   "active_executions": 1,
   "executions": [
     {
@@ -198,7 +239,9 @@ Return a snapshot of health and tracked executions, not an output stream.
       "provider": "codex",
       "status": "running",
       "streaming": true,
-      "started_at": "2026-10-12T06:00:00Z"
+      "started_at": "2026-10-12T06:00:00Z",
+      "running_at": "2026-10-12T06:00:02Z",
+      "elapsed_seconds": 30.5
     }
   ]
 }
@@ -208,9 +251,17 @@ Report overall health, tracked states, ID, agent ID, resolved version, provider,
 start time and whether output is actively streaming. Distinguish running,
 completed, failed, cancelling and cancelled; queued work may use an additional
 `queued` state. Include relevant aggregates such as active execution count.
+Timing uses ISO 8601 timestamps: `started_at` is acceptance time, `running_at` is
+when execution begins running, and `elapsed_seconds` excludes queue time and freezes
+at `ended_at` on termination. Queued work has zero running duration. SSE events also
+include timing metadata. Terminal records retain ID, state, timing and bounded error code/message when failed; active
+records include agent/provider and operational metadata. Tracking is in memory for
+the current server session and is purged after shutdown drains or cancels work.
 Do not expose prompts, credentials or environment variables.
 
-Assign an execution ID when accepted. The client must be able to obtain it even
+Assign an execution ID when accepted. In final-only mode, the `X-Execution-ID` header
+arrives with the final response; clients can inspect `/status` while waiting. In status
+mode it arrives with the started event. The client must be able to obtain it even
 if disconnected from the response: return it in `X-Execution-ID`, in the started
 event and in status records. Retain state long enough for monitoring and cleanup
 without requiring permanent storage.
@@ -286,16 +337,18 @@ endpoints, resumable streams and persistent recovery are outside scope.
 
 ## 10. Swift Package Manager
 
-SPM manages compile-time Swift dependencies. Markdown definitions remain
-discoverable at runtime independent of compilation. Executable Swift agents
-may later use packages, but:
+Each agent is an independently linked Swift package conforming to
+`AgentPackageContract`, with versioned Markdown/schema resources and explicit
+registration in `AgentRegistry.registeredPackages`. New agent directories are not
+compiled or registered automatically. Update dependencies, declared resource versions
+and registration, then rebuild the server to make changes available.
 
-- A new agent directory is not automatically a compiled Swift module.
-- Runtime discovery remains separate from compile-time dependency resolution.
-- Do not assume SPM dynamically loads multiple versions of one package identity.
-- Markdown versions remain independently addressable through the registry.
-
-Prioritize runtime definitions over requiring every agent to be a Swift package.
+The build validates declarations, schemas and examples and embeds documentation
+metadata for help. Checked-in agent READMEs are generated from the same resources:
+refresh with `AgentTools docs`, commit them, and verify with `AgentTools docs --check`
+before PRs and releases. Builds do not mutate source README files. Version identifiers
+remain immutable and independently addressable; multiple versions of a package
+identity are not dynamically linked at runtime.
 
 ## 11. Error handling
 
@@ -318,6 +371,16 @@ Recommended common envelope, including inside streamed `failed` events:
 {"error":{"code":"output_schema_validation_failed","message":"The final result does not match the agent output schema.","execution_id":"exec_001"}}
 ```
 
+Invalid agent input returns `input_schema_validation_failed` (HTTP 400) with
+`details.agent_id`, `details.version`, `details.violations` and `details.truncated`.
+Each violation includes the exact JSON Pointer `path`, decoded `field`, failed
+`keyword`, explanatory `message`, `expected` constraint and `actual` type (or
+`missing`). Independent violations are reported together in stable path order,
+up to 50; supplied input values are never echoed. A missing parent object is
+reported at its own path, without invented child errors. These details survive
+JSON encoding and SSE error transport. Help/Try pages display structured errors
+and report unreachable servers explicitly.
+
 Before streaming, use appropriate HTTP error status; after streaming begins,
 use the error event rather than attempting to replace the HTTP response status.
 
@@ -339,6 +402,12 @@ Detailed logs must not unnecessarily duplicate prompts, sensitive input or
 credentials. `/status` exposes operational state without confidential data.
 
 ## 14. Testing requirements
+
+Production and development use configurable fixed ports, defaulting to 8081 and
+8080 respectively. Real test servers automatically check and select a random
+available port in the configurable inclusive range 9000–9999. Occupied candidates
+and startup bind collisions count toward at most 30 distinct attempts; exhaustion
+fails clearly. Test startup and cleanup must not stop other server instances.
 
 Use deterministic mock providers; not every unit test may require live provider
 calls. Provide a separate integration path for real CLI execution.
@@ -372,7 +441,7 @@ Version 1 is complete when:
 8. Multiple versions execute independently.
 9. Concurrent executions never mix inputs, output or cancellation state.
 10. Expected workload is handled without avoidable blocking or resource leaks.
-11. Runtime definition additions need no rebuild.
+11. Newly declared, registered versions become available after a rebuild; undeclared additions remain unavailable.
 12. Provider failures, invalid output and cancellation failures are clear.
 
 Final architectural objective: a small, reliable Swift service providing a common

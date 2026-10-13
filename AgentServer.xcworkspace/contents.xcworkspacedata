@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Workspace version="1.0">
    <FileRef location="group:AgentServer.xcodeproj"></FileRef>
+   <Group location="container:" name="Agents">
+      <FileRef location="group:Packages/AgentServer/Agents/NewsResearcher"></FileRef>
+      <FileRef location="group:Packages/AgentServer/Agents/ScriptRefiner"></FileRef>
+   </Group>
 </Workspace>

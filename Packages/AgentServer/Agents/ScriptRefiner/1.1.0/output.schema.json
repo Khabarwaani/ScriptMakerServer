@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "detected_issues",
+    "refined_scripts"
+  ],
+  "properties": {
+    "detected_issues": {
+      "type": "array",
+      "description": "Comprehensive list of issues detected and diagnosed in the script.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description",
+          "correction_applied"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "location_sequence",
+              "camera_movement",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing",
+              "character_continuity",
+              "prop_continuity",
+              "spatial_continuity",
+              "action_continuity"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Concrete conflicting or missing source script points/subscenes, including lifecycle and continuity contradictions."
+          },
+          "correction_applied": {
+            "type": "string",
+            "description": "Summary of how this issue was resolved across the refined scripts."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "refined_scripts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "Array of refined script variations correcting identified issues.",
+      "items": {
+        "type": "object",
+        "required": [
+          "variation_index",
+          "script",
+          "notes"
+        ],
+        "properties": {
+          "variation_index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "script": {
+            "type": "string",
+            "description": "Refined script with stable scene-level cast/prop setup and consistent lifecycle, position and action cues at every script point/subscene."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Specific focus or subtle tonal direction of this variation."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "detected_issues": [
+        {
+          "category": "emotion_inconsistency",
+          "description": "John laughs unnaturally during grave news.",
+          "correction_applied": "Replaced laughing with somber pacing."
+        }
+      ],
+      "refined_scripts": [
+        {
+          "variation_index": 1,
+          "script": "INT. OFFICE - DAY\nJOHN (devastated)\nI just lost everything.",
+          "notes": "Direct emotional correction maintaining original word count."
+        },
+        {
+          "variation_index": 2,
+          "script": "INT. OFFICE - DAY\nJOHN (stunned silence, then quiet disbelief)\nI... I just lost everything.",
+          "notes": "Nuanced reaction emphasizing shock."
+        },
+        {
+          "variation_index": 3,
+          "script": "INT. OFFICE - DAY\nJOHN (hands shaking, voice breaking)\nIt's all gone. Everything.",
+          "notes": "Visceral physical beat preserving exact scene duration."
+        }
+      ]
+    },
+    {
+      "detected_issues": [
+        {
+          "category": "prop_continuity",
+          "description": "Point 1 establishes a brass key in Maya’s left hand; point 2 replaces it with a silver key in her right hand without a transfer, and point 3 makes it disappear before reuse.",
+          "correction_applied": "Keep the same brass key in her left hand throughout all three points, and explicitly bring it to the desk lock when used."
+        },
+        {
+          "category": "character_continuity",
+          "description": "Maya’s blue jacket becomes red between points 1 and 2 with no wardrobe change.",
+          "correction_applied": "Keep Maya’s blue jacket and identity unchanged across every point."
+        },
+        {
+          "category": "spatial_continuity",
+          "description": "Maya shifts from the desk to the door without movement, then opens the desk lock without returning.",
+          "correction_applied": "Keep her beside the desk in all three points."
+        },
+        {
+          "category": "action_continuity",
+          "description": "Point 3 uses the key after it disappears, skipping the possession and reachable-lock prerequisites.",
+          "correction_applied": "Maintain possession and show her inserting the held key into the reachable desk lock."
+        }
+      ],
+      "refined_scripts": [
+        {
+          "variation_index": 1,
+          "script": "INT. WORKSHOP - DAY\nContinuity: MAYA wears the same blue jacket throughout; one brass key, held in her left hand; she remains beside the desk.\n1. Maya holds the brass key in her left hand beside the locked desk.\n2. Close-up: the same brass key stays in her left hand; her blue jacket is unchanged.\n3. Still beside the desk, Maya inserts that key with her left hand into the desk lock and turns it. The key remains in the lock.",
+          "notes": "Preserves cast, wardrobe, prop identity, possession and blocking while making the key’s introduction, use and resulting location explicit."
+        }
+      ]
+    }
+  ]
+}

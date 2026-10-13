@@ -42,12 +42,12 @@ struct MockProvider: AIProvider {
 
 func makeManager(
     _ fixture: AgentFixture, provider: MockProvider = MockProvider(), capacity: Int = 8, timeout: Int = 30,
-    retention: Int = 3600
+    retention: Int = 3600, sessionLog: ExecutionSessionLog? = nil
 ) -> ExecutionManager {
     ExecutionManager(
-        registry: AgentRegistry(root: fixture.agents), providers: ProviderCatalog(providers: [provider]),
+        registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents), providers: ProviderCatalog(providers: [provider]),
         runtimeRoot: fixture.runtime,
-        maxProcesses: capacity, timeoutSeconds: timeout, retentionSeconds: retention,
+        maxProcesses: capacity, timeoutSeconds: timeout, retentionSeconds: retention, sessionLog: sessionLog,
         resourceSample: {
             SystemResources(
                 physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296, load_average: 0,
@@ -83,7 +83,13 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(stream.map(\.name) == ["started", "status", "output", "result", "completed"])
     #expect(stream.first(where: { $0.name == "result" })?.data["result"]?["result"] == .string("first"))
     let record = try await waitForTerminal(manager, id: accepted.id)
-    #expect(record.status == "completed" && record.schema_validated == true)
+    #expect(record.status == "completed")
+    #expect(record.running_at != nil && record.ended_at != nil && record.elapsed_seconds > 0)
+    #expect(record.agent_id == nil && record.provider == nil && record.error == nil)
+    #expect(stream.allSatisfy { $0.data["started_at"] != nil && $0.data["elapsed_seconds"] != nil })
+    #expect(stream.last?.data["ended_at"] != nil)
+    let later = await manager.snapshot().records.first { $0.execution_id == accepted.id }
+    #expect(later?.elapsed_seconds == record.elapsed_seconds)
     #expect(!FileManager.default.fileExists(atPath: fixture.runtime.appendingPathComponent(accepted.id).path))
 }
 
@@ -95,7 +101,12 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(stream.last?.name == "failed")
     #expect(!stream.contains(where: { $0.name == "completed" || $0.name == "result" }))
     let record = try await waitForTerminal(manager, id: accepted.id)
+    #expect(record.status == "failed")
+    #expect(record.error?.code == (schemaFailure ? "output_schema_validation_failed" : "provider_execution_failed"))
+    #expect(record.error?.message == stream.last?.data["error"]?["message"]?.string)
     #expect(record.error?.execution_id == accepted.id)
+    #expect(record.agent_id == nil && record.provider == nil && record.process_id == nil)
+    #expect(stream.last?.data["error"]?["execution_id"] == .string(accepted.id))
 }
 
 @Test func concurrentBurstExceedsFiveWithoutMixingResults() async throws {
@@ -133,12 +144,14 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
 @Test func disconnectDoesNotCancelAndTimeoutFails() async throws {
     let fixture = try AgentFixture()
     let manager = makeManager(fixture)
-    let accepted = try await manager.execute(request("detached"))
+    let accepted = try await manager.execute(request("detached"), streaming: false)
+    #expect(await manager.snapshot().records.first?.streaming == false)
     await manager.detach(accepted.id)
     #expect(try await waitForTerminal(manager, id: accepted.id).status == "completed")
     let timedManager = makeManager(fixture, provider: MockProvider(delayMilliseconds: 2000), timeout: 1)
     let timed = try await timedManager.execute(request("timeout"))
     #expect(await events(timed).last?.data["error"]?["code"] == .string("execution_timeout"))
+    #expect(await timedManager.snapshot().records.first?.error?.code == "execution_timeout")
 }
 
 @Test func shutdownDrainsAndRejectsNewWork() async throws {
@@ -147,13 +160,15 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     let accepted = try await manager.execute(request("drain"))
     await manager.shutdown(timeoutSeconds: 2)
     #expect(await events(accepted).last?.name == "completed")
+    #expect(await manager.snapshot().records.isEmpty)
+    #expect(await manager.snapshot().queuedCount == 0)
     await #expect(throws: AgentError.self) { try await manager.execute(request("new")) }
 }
 
 @Test func resourcePressureDefersWorkAndQueuedCancellationCleansUp() async throws {
     let fixture = try AgentFixture()
     let manager = ExecutionManager(
-        registry: AgentRegistry(root: fixture.agents),
+        registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents),
         providers: ProviderCatalog(providers: [MockProvider()]), runtimeRoot: fixture.runtime,
         resourceSample: {
             SystemResources(
@@ -162,7 +177,117 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
         })
     let accepted = try await manager.execute(request("deferred"))
     #expect(await manager.snapshot().queuedCount == 1)
+    let queued = try #require(await manager.snapshot().records.first)
+    #expect(queued.running_at == nil && queued.elapsed_seconds == 0)
     #expect(try await manager.cancel(accepted.id).status == "cancelled")
     #expect(await events(accepted).last?.name == "cancelled")
     #expect(await manager.snapshot().queuedCount == 0)
+    let cancelled = try #require(await manager.snapshot().records.first)
+    #expect(cancelled.running_at == nil && cancelled.elapsed_seconds == 0 && cancelled.ended_at != nil)
 }
+
+@Test func timingExcludesQueueTimeAndFreezesAtTermination() {
+    let accepted = Date(timeIntervalSince1970: 1_000)
+    var record = ExecutionRecord(
+        execution_id: "exec_timing", agent_id: "Echo", version: "1.0.0", provider: "mock",
+        status: "queued", streaming: true, started_at: accepted, resident_memory_bytes: 0)
+    record.updateElapsed(at: accepted.addingTimeInterval(50))
+    #expect(record.elapsed_seconds == 0)
+    record.running_at = accepted.addingTimeInterval(60)
+    record.status = "running"
+    record.updateElapsed(at: accepted.addingTimeInterval(75))
+    #expect(record.elapsed_seconds == 15)
+    record.updateElapsed(at: accepted.addingTimeInterval(80))
+    #expect(record.elapsed_seconds == 20)
+    record.ended_at = accepted.addingTimeInterval(90)
+    record.status = "completed"
+    record.updateElapsed(at: accepted.addingTimeInterval(200))
+    #expect(record.elapsed_seconds == 30)
+}
+
+@Test func completedRecordsRetainOnlyCompactOperationalDiagnostics() async throws {
+    let fixture = try AgentFixture()
+    let manager = makeManager(fixture)
+    let execution = try await manager.execute(request("private input"))
+    _ = await events(execution)
+    // HTTP stream detachment after completion must not restore extra fields.
+    await manager.detach(execution.id)
+    let record = try await waitForTerminal(manager, id: execution.id)
+    let json = try JSONValue.parse(String(decoding: JSONEncoder().encode(record), as: UTF8.self))
+    #expect(Set(json.object!.keys) == Set([
+        "execution_id", "status", "started_at", "running_at", "ended_at", "elapsed_seconds",
+        "phase_timings", "worker_reused",
+    ]))
+    #expect(!(try json.text()).contains("private input"))
+    await manager.shutdown(timeoutSeconds: 0)
+    #expect(await manager.snapshot().records.isEmpty)
+    let restarted = makeManager(fixture)
+    #expect(await restarted.snapshot().records.isEmpty)
+}
+
+@Test func shutdownCancelsActiveAndQueuedWorkBeforePurging() async throws {
+    let fixture = try AgentFixture()
+    let tracker = MockTracker()
+    let manager = makeManager(
+        fixture, provider: MockProvider(delayMilliseconds: 10_000, tracker: tracker), capacity: 1)
+    let running = try await manager.execute(request("running"))
+    let queued = try await manager.execute(request("queued"))
+    await manager.shutdown(timeoutSeconds: 0)
+    #expect(await events(running).last?.name == "cancelled")
+    #expect(await events(queued).last?.name == "cancelled")
+    let snapshot = await manager.snapshot()
+    #expect(snapshot.records.isEmpty && snapshot.activeCount == 0 && snapshot.queuedCount == 0)
+    #expect(await tracker.active == 0)
+}
+
+private struct DefaultedInputPackage: AgentPackageContract {
+    static let id = "DefaultedAgent"
+    static let versions = ["1.0.0"]
+    static func directory(version: String) throws -> URL { URL(fileURLWithPath: "/tmp/DefaultedAgent/1.0.0") }
+    static func role(version: String) throws -> String { "Role statement." }
+    static func instructions(version: String) throws -> String { "Instructions." }
+    static func outputSchema(version: String) throws -> String {
+        #"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{"type":"string"}}}"#
+    }
+    static func inputSchema(version: String) throws -> String? {
+        #"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string"},"count":{"type":"integer","default":5}}}"#
+    }
+}
+
+@Test func executionManagerPopulatesSchemaDefaultsBeforeProviderExecution() async throws {
+    let fixture = try AgentFixture()
+    actor InputCapture {
+        var captured: JSONValue?
+        func record(_ value: JSONValue) { captured = value }
+    }
+    let capture = InputCapture()
+    struct CapturingProvider: AIProvider {
+        let id = "capture"
+        let capture: InputCapture
+        func checkReadiness() async throws {}
+        func execute(
+            definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
+            timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
+            onProgress: @escaping @Sendable (JSONValue) async -> Void
+        ) async throws -> JSONValue {
+            await capture.record(input)
+            return .object(["result": .string("done")])
+        }
+    }
+    let manager = ExecutionManager(
+        registry: AgentRegistry(packages: [DefaultedInputPackage.self], root: fixture.agents),
+        providers: ProviderCatalog(providers: [CapturingProvider(capture: capture)]),
+        runtimeRoot: fixture.runtime,
+        maxProcesses: 2, timeoutSeconds: 30, retentionSeconds: 3600,
+        resourceSample: { SystemResources(physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296, load_average: 0, cpu_count: 8) }
+    )
+    let execution = try await manager.execute(
+        ExecuteRequest(agentID: "DefaultedAgent", provider: "capture", input: .object(["text": .string("hello")])),
+        streaming: false
+    )
+    for await _ in execution.events {}
+    let captured = await capture.captured
+    #expect(captured?["text"] == .string("hello"))
+    #expect(captured?["count"] == .number(5))
+}
+

@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "script"
+  ],
+  "properties": {
+    "script": {
+      "type": "string",
+      "description": "The original script text to analyze and refine."
+    },
+    "output_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 3,
+      "description": "Number of refined script variations to generate. Defaults to 3."
+    },
+    "issues_found": {
+      "type": "array",
+      "description": "Optional list of user-specified issues already known or identified in the script.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "location_sequence",
+              "camera_movement",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "correction_focus": {
+      "type": "array",
+      "description": "Optional subset of issue types to prioritize during refinement.",
+      "items": {
+        "type": "string",
+        "enum": [
+          "text_correction",
+          "emotion_detection",
+          "speech_sequence",
+          "location_continuity",
+          "camera_continuity",
+          "character_voice",
+          "timing_preservation"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "script": "INT. OFFICE - DAY\nJOHN (laughing happily)\nI just lost everything.\nEXT. BEACH - NIGHT\nMARY (whispering)\nWhy did we move here so suddenly?",
+      "output_count": 3,
+      "issues_found": [
+        {
+          "category": "emotion_inconsistency",
+          "description": "John is laughing while stating he lost everything."
+        }
+      ],
+      "correction_focus": [
+        "text_correction",
+        "emotion_detection",
+        "location_continuity"
+      ]
+    }
+  ]
+}
