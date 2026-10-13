@@ -95,7 +95,10 @@ private enum UnrelatedStartupError: Error { case failed }
 }
 
 private func acquireTestListener() async throws -> any Channel {
-    let configuration = try ServerConfiguration(environment: ["AGENT_SERVER_ENV": "testing"])
+    let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent()
+    let configuration = try ServerConfiguration(
+        environment: ["AGENT_SERVER_ENV": "testing"], workingDirectory: packageRoot)
     return try await TestingPortAllocator.withAvailablePort(configuration: configuration.testingPorts) { port in
         do {
             return try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
