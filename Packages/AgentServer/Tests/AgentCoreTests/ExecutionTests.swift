@@ -239,3 +239,55 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(snapshot.records.isEmpty && snapshot.activeCount == 0 && snapshot.queuedCount == 0)
     #expect(await tracker.active == 0)
 }
+
+private struct DefaultedInputPackage: AgentPackageContract {
+    static let id = "DefaultedAgent"
+    static let versions = ["1.0.0"]
+    static func directory(version: String) throws -> URL { URL(fileURLWithPath: "/tmp/DefaultedAgent/1.0.0") }
+    static func role(version: String) throws -> String { "Role statement." }
+    static func instructions(version: String) throws -> String { "Instructions." }
+    static func outputSchema(version: String) throws -> String {
+        #"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{"type":"string"}}}"#
+    }
+    static func inputSchema(version: String) throws -> String? {
+        #"{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,"required":["text"],"properties":{"text":{"type":"string"},"count":{"type":"integer","default":5}}}"#
+    }
+}
+
+@Test func executionManagerPopulatesSchemaDefaultsBeforeProviderExecution() async throws {
+    let fixture = try AgentFixture()
+    actor InputCapture {
+        var captured: JSONValue?
+        func record(_ value: JSONValue) { captured = value }
+    }
+    let capture = InputCapture()
+    struct CapturingProvider: AIProvider {
+        let id = "capture"
+        let capture: InputCapture
+        func checkReadiness() async throws {}
+        func execute(
+            definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
+            timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
+            onProgress: @escaping @Sendable (JSONValue) async -> Void
+        ) async throws -> JSONValue {
+            await capture.record(input)
+            return .object(["result": .string("done")])
+        }
+    }
+    let manager = ExecutionManager(
+        registry: AgentRegistry(packages: [DefaultedInputPackage.self], root: fixture.agents),
+        providers: ProviderCatalog(providers: [CapturingProvider(capture: capture)]),
+        runtimeRoot: fixture.runtime,
+        maxProcesses: 2, timeoutSeconds: 30, retentionSeconds: 3600,
+        resourceSample: { SystemResources(physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296, load_average: 0, cpu_count: 8) }
+    )
+    let execution = try await manager.execute(
+        ExecuteRequest(agentID: "DefaultedAgent", provider: "capture", input: .object(["text": .string("hello")])),
+        streaming: false
+    )
+    for await _ in execution.events {}
+    let captured = await capture.captured
+    #expect(captured?["text"] == .string("hello"))
+    #expect(captured?["count"] == .number(5))
+}
+
