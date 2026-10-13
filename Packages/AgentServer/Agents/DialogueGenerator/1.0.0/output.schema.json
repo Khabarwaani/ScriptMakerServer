@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "scripts"
+  ],
+  "properties": {
+    "scripts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "Distinct generated script variations matching the requested output_count.",
+      "items": {
+        "type": "object",
+        "required": [
+          "variation_index",
+          "script",
+          "notes",
+          "scene_timings"
+        ],
+        "properties": {
+          "variation_index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "script": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Complete script formatted with scene headings, character names, spoken dialogue lines, and action/speech cues."
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Creative approach, premise framing, character dynamics, and pacing rationale."
+          },
+          "scene_timings": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Scene timing breakdowns divided into dialogue and non-dialogue timings fitting within scene_duration_seconds.",
+            "items": {
+              "type": "object",
+              "required": [
+                "scene_number",
+                "dialogue_duration_seconds",
+                "non_dialogue_duration_seconds",
+                "total_duration_seconds"
+              ],
+              "properties": {
+                "scene_number": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "1-based index of the scene."
+                },
+                "dialogue_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Spoken dialogue duration calculated from dialogue word count and wps_range."
+                },
+                "non_dialogue_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Duration allocated to non-dialogue elements (actions, pauses, transitions)."
+                },
+                "total_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Total scene duration (dialogue + non-dialogue), fitting within scene_duration_seconds."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "scripts": [
+        {
+          "variation_index": 1,
+          "script": "INT. BUS STOP - NIGHT\nPRIYA shivers under the street lamp, checking her watch.\nPRIYA\nLast cab cancelled. It's past midnight.\nA clean night bus pulls up and the doors hiss open.\nBUS DRIVER\nStation and hospital route running all night now. Step on in.\nPRIYA (relieved)\nFirst night route? You saved my shift.",
+          "notes": "Drama format conveying the new night bus route connecting the station and hospital, with personal stakes.",
+          "scene_timings": [
+            {
+              "scene_number": 1,
+              "dialogue_duration_seconds": 6.5,
+              "non_dialogue_duration_seconds": 3.5,
+              "total_duration_seconds": 10.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

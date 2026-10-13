@@ -3,6 +3,7 @@ import NewsResearcher
 import ScriptRefiner
 import DialogueRefiner
 import ReelIdeaGenerator
+import DialogueGenerator
 import ThemeMixer
 
 public struct AgentDefinition: Sendable {
@@ -62,6 +63,7 @@ public actor AgentRegistry {
         ScriptRefinerDefinition.self,
         DialogueRefinerDefinition.self,
         ReelIdeaGeneratorDefinition.self,
+        DialogueGeneratorDefinition.self,
         ThemeMixerDefinition.self,
     ]
 

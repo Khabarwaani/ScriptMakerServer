@@ -3,6 +3,7 @@ import NewsResearcher
 import ScriptRefiner
 import DialogueRefiner
 import ReelIdeaGenerator
+import DialogueGenerator
 import ThemeMixer
 
 public protocol AgentPackageContract: Sendable {
@@ -41,6 +42,9 @@ extension DialogueRefinerDefinition: AgentPackageContract {
 }
 extension ReelIdeaGeneratorDefinition: AgentPackageContract {
     public static var name: String { "Reel Idea Generator" }
+}
+extension DialogueGeneratorDefinition: AgentPackageContract {
+    public static var name: String { "Dialogue Generator" }
 }
 extension ThemeMixerDefinition: AgentPackageContract {
     public static var name: String { "Theme Mixer" }

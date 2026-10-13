@@ -16,6 +16,7 @@ let package = Package(
         .package(path: "Agents/ScriptRefiner"),
         .package(path: "Agents/DialogueRefiner"),
         .package(path: "Agents/ReelIdeaGenerator"),
+        .package(path: "Agents/DialogueGenerator"),
         .package(path: "Agents/ThemeMixer"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
@@ -29,6 +30,7 @@ let package = Package(
                 .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "DialogueRefiner", package: "DialogueRefiner"),
                 .product(name: "ReelIdeaGenerator", package: "ReelIdeaGenerator"),
+                .product(name: "DialogueGenerator", package: "DialogueGenerator"),
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
@@ -55,6 +57,7 @@ let package = Package(
                 .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "DialogueRefiner", package: "DialogueRefiner"),
                 .product(name: "ReelIdeaGenerator", package: "ReelIdeaGenerator"),
+                .product(name: "DialogueGenerator", package: "DialogueGenerator"),
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")

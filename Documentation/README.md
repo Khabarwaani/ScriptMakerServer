@@ -100,6 +100,8 @@ Packages/AgentServer/
     NewsResearcher/                   Research agent package
     ScriptRefiner/                    Script-refining agent package
     DialogueRefiner/                  Dialogue-only refinement agent package
+    ReelIdeaGenerator/                Independent reel idea concept agent package
+    DialogueGenerator/                Script & dialogue generator agent package
   config/                             Central server configuration
 ignoreGit/                            Ignored local helpers; never committed
 ```
@@ -334,3 +336,8 @@ Every registered agent also provides dedicated shareable pages:
 - **Agent documentation** (`/agents/{agent_id}` or `/help/agents/{agent_id}`): Inspect role, instructions, package README, version history, input/output schemas, and example payloads in a focused view.
 - **Dedicated Try page** (`/agents/{agent_id}/try` or `/try/agents/{agent_id}`): Run the agent directly with schema-driven input controls, visible default values, required/optional indicators, and real-time streaming execution results.
 - **Central API reference** (`/help`) and **Central API tester** (`/try`): Continue to list all available agents and provide multi-operation testing across the server.
+
+### DialogueGenerator
+
+`DialogueGenerator` generates script variations with natural dialogue, scene cues, and timing breakdowns directly from `news_details`, requested `emotion`, and `format_type`. It is independent of upstream idea generation, but seamlessly accepts and incorporates upstream reel ideas when provided in shared pipeline JSON (via `idea`, `ideas`, or `theme`/`core_message`). Output matches the standard script format with `variation_index`, `script`, `notes`, and per-scene `scene_timings` calculated using the requested or default WPS range.
+
