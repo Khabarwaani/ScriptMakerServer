@@ -99,6 +99,7 @@ Packages/AgentServer/
   Agents/
     NewsResearcher/                   Research agent package
     ScriptRefiner/                    Script-refining agent package
+    DialogueRefiner/                  Dialogue-only refinement agent package
   config/                             Central server configuration
 ignoreGit/                            Ignored local helpers; never committed
 ```
@@ -313,3 +314,18 @@ example. Output fixtures are derived similarly and validated before execution.
 No agent-specific test code is required. Agents without input schemas have no
 field contract to enumerate. These checks prove input handling and output
 validation with mocks, not live model behavior.
+
+### DialogueRefiner and schema-based Try inputs
+
+`DialogueRefiner` accepts the same input keys and returns the same JSON structure as
+`ScriptRefiner`. It rewrites spoken lines to improve conversational links and
+character voice while preserving story events and non-dialogue action. Its
+`scene_count` is a target: a variation may use more scenes when the dialogue and
+existing beats cannot fit the per-scene duration at the allowed WPS. `output_count`
+still specifies the exact number of variations.
+
+The `/try` page builds controls from the selected agent version's input schema.
+Enum values appear as choices, nested object fields and array items can be edited,
+and optional keys can be included or omitted. The separate Request JSON box stays
+editable and is the body sent to the server. Invalid handwritten JSON is preserved
+until corrected. Connection errors identify the HTTP method and path.

@@ -210,6 +210,11 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(String(buffer: response.body).contains("Send request"))
             #expect(String(buffer: response.body).contains("include-status"))
         }
+        try await client.execute(uri: "/assets/schema-form.js", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/javascript; charset=utf-8")
+            #expect(String(buffer: response.body).contains("class SchemaInputForm"))
+        }
         try await client.execute(uri: "/assets/copy.js", method: .get) { response in
             #expect(response.status == .ok)
             #expect(response.headers[.contentType] == "text/javascript; charset=utf-8")
