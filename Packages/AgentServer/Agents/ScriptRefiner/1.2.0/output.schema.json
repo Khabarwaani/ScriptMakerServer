@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "detected_issues",
+    "refined_scripts"
+  ],
+  "properties": {
+    "detected_issues": {
+      "type": "array",
+      "description": "Comprehensive list of issues detected and diagnosed in the script.",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "description",
+          "correction_applied"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "emotion_inconsistency",
+              "dialogue_sequence",
+              "location_sequence",
+              "camera_movement",
+              "character_role_mismatch",
+              "location_mismatch",
+              "pacing_timing",
+              "character_continuity",
+              "prop_continuity",
+              "spatial_continuity",
+              "action_continuity",
+              "dialogue_overflow"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "description": "Concrete conflicting or missing source script points/subscenes, including lifecycle, timing, and continuity contradictions."
+          },
+          "correction_applied": {
+            "type": "string",
+            "description": "Summary of how this issue was resolved across the refined scripts."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "refined_scripts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "Array of refined script variations correcting identified issues.",
+      "items": {
+        "type": "object",
+        "required": [
+          "variation_index",
+          "script",
+          "notes",
+          "scene_timings"
+        ],
+        "properties": {
+          "variation_index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "script": {
+            "type": "string",
+            "description": "Refined script with stable scene-level cast/prop setup, pacing, and consistent cues at every script point."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Specific focus, timing adjustments, or subtle tonal direction of this variation."
+          },
+          "scene_timings": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Scene timing breakdowns divided into dialogue and non-dialogue timings fitting within scene_duration_seconds.",
+            "items": {
+              "type": "object",
+              "required": [
+                "scene_number",
+                "dialogue_duration_seconds",
+                "non_dialogue_duration_seconds",
+                "total_duration_seconds"
+              ],
+              "properties": {
+                "scene_number": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "1-based index of the scene."
+                },
+                "dialogue_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Spoken dialogue duration calculated from dialogue word count and wps_range."
+                },
+                "non_dialogue_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Duration allocated to non-dialogue elements (actions, pauses, transitions)."
+                },
+                "total_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Total scene duration (dialogue + non-dialogue), fitting within scene_duration_seconds."
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "detected_issues": [
+        {
+          "category": "emotion_inconsistency",
+          "description": "John laughs unnaturally during grave news.",
+          "correction_applied": "Replaced laughing with somber pacing."
+        }
+      ],
+      "refined_scripts": [
+        {
+          "variation_index": 1,
+          "script": "INT. OFFICE - DAY\nJOHN (devastated)\nI just lost everything.",
+          "notes": "Direct emotional correction maintaining original word count and pacing.",
+          "scene_timings": [
+            {
+              "scene_number": 1,
+              "dialogue_duration_seconds": 1.6,
+              "non_dialogue_duration_seconds": 8.4,
+              "total_duration_seconds": 10.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "detected_issues": [
+        {
+          "category": "dialogue_overflow",
+          "description": "Anchor's speech exceeds the 10.0-second scene limit at 3.0 WPS.",
+          "correction_applied": "Split speech across 2 scenes and tightened wording to fit within 10.0s per scene."
+        }
+      ],
+      "refined_scripts": [
+        {
+          "variation_index": 1,
+          "script": "INT. BROADCAST STUDIO - NIGHT\nSCENE 1:\nANCHOR (urgent)\nBreaking news tonight: emergency talks have collapsed across three continents.\nSCENE 2:\nANCHOR (gravely)\nLeaders failed to reach resolution after hours of intense negotiation.",
+          "notes": "Distributed dialogue across 2 scenes to respect the 10.0s duration ceiling and 3.0 WPS pacing.",
+          "scene_timings": [
+            {
+              "scene_number": 1,
+              "dialogue_duration_seconds": 4.0,
+              "non_dialogue_duration_seconds": 6.0,
+              "total_duration_seconds": 10.0
+            },
+            {
+              "scene_number": 2,
+              "dialogue_duration_seconds": 3.6,
+              "non_dialogue_duration_seconds": 6.4,
+              "total_duration_seconds": 10.0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
