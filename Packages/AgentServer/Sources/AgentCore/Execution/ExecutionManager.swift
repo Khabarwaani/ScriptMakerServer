@@ -64,8 +64,10 @@ public actor ExecutionManager {
             throw AgentError("invalid_request", "Input must be a JSON object and provider must be specified.")
         }
         let definition = try await registry.resolve(id: request.agent_id, version: request.version)
+        var effectiveInput = request.input
         if let schema = definition.inputSchema {
-            do { try OutputValidator.validate(request.input, schema: schema) } catch {
+            effectiveInput = OutputValidator.applyDefaults(to: effectiveInput, schema: schema)
+            do { try OutputValidator.validate(effectiveInput, schema: schema) } catch {
                 throw AgentError(
                     "input_schema_validation_failed", "Input does not match the selected agent input schema.")
             }
@@ -91,7 +93,7 @@ public actor ExecutionManager {
             "preparation_seconds": max(0, Date().timeIntervalSince(requestBegan) - readinessDuration),
         ]
         entries[id] = Entry(record: record, continuation: continuation, requestBegan: requestBegan)
-        pending[id] = Work(definition: definition, input: request.input, provider: provider)
+        pending[id] = Work(definition: definition, input: effectiveInput, provider: provider)
         queue.append(id)
         logState(id)
         emit(

@@ -86,6 +86,38 @@ public enum OutputValidator {
         }
     }
 
+    /// Deterministically populates declared schema defaults into an input JSON object.
+    /// Does not require AI inference: reads "default" annotations directly from schema properties.
+    public static func applyDefaults(to value: JSONValue, schema: JSONValue) -> JSONValue {
+        guard var dict = value.object, let schemaObj = schema.object else { return value }
+        guard let properties = schemaObj["properties"]?.object else { return value }
+
+        for (key, propSchema) in properties {
+            guard let propObj = propSchema.object else { continue }
+            let defaultValue = propObj["default"]
+
+            if dict[key] == nil || dict[key] == .null {
+                if let defaultValue {
+                    dict[key] = defaultValue
+                }
+            } else if var childDict = dict[key]?.object {
+                if childDict.isEmpty, let defaultValue {
+                    dict[key] = defaultValue
+                } else {
+                    if let defaultObj = defaultValue?.object {
+                        for (subKey, subDefault) in defaultObj {
+                            if childDict[subKey] == nil || childDict[subKey] == .null {
+                                childDict[subKey] = subDefault
+                            }
+                        }
+                    }
+                    dict[key] = applyDefaults(to: .object(childDict), schema: propSchema)
+                }
+            }
+        }
+        return .object(dict)
+    }
+
     public static func validate(_ value: JSONValue, schema: JSONValue) throws {
         guard matches(value, schema: schema, root: schema, depth: 0) else {
             throw AgentError(
