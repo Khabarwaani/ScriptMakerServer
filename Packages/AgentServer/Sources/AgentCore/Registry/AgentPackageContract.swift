@@ -50,8 +50,3 @@ extension DialogueGeneratorDefinition: AgentPackageContract {
 extension ThemeMixerDefinition: AgentPackageContract {
     public static var name: String { "Theme Mixer" }
 }
-extension ReelJokeMakerDefinition: AgentProtocol {
-    public typealias Input = ReelJokeMakerInput
-    public typealias Output = ReelJokeMakerOutput
-    public static var name: String { "Reel Joke Maker" }
-}
