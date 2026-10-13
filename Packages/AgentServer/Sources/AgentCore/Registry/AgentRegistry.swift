@@ -2,6 +2,7 @@ import Foundation
 import NewsResearcher
 import ScriptRefiner
 import DialogueRefiner
+import ReelIdeaGenerator
 
 public struct AgentDefinition: Sendable {
     public let id: String
@@ -59,6 +60,7 @@ public actor AgentRegistry {
         NewsResearcherDefinition.self,
         ScriptRefinerDefinition.self,
         DialogueRefinerDefinition.self,
+        ReelIdeaGeneratorDefinition.self,
     ]
 
     private let packages: [any AgentPackageContract.Type]

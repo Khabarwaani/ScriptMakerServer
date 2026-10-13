@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["news_details", "emotion", "format_type"],
+  "properties": {
+    "news_details": {
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "description": "News title or headline." },
+        "summary": { "type": "string", "description": "Optional account of the event." },
+        "key_points": { "type": "array", "items": { "type": "string" }, "description": "Optional supporting facts." },
+        "people": { "type": "array", "items": { "type": "string" }, "description": "Optional people relevant to the news." },
+        "location": { "type": ["string", "object"], "description": "Optional place or structured location." }
+      },
+      "additionalProperties": true,
+      "description": "News JSON from any caller. Only title is required; other fields and additional context are welcome."
+    },
+    "emotion": {
+      "type": "string", "minLength": 1,
+      "examples": ["urgent", "curious", "hopeful", "somber", "tense", "humorous"],
+      "description": "Desired emotional tone. Choose a suggestion or enter a custom value."
+    },
+    "format_type": {
+      "type": "string", "minLength": 1,
+      "examples": ["drama", "monologue", "fight", "dialogue", "satire", "explainer"],
+      "description": "One presentation format for the entire reel. Choose a suggestion or enter a custom value."
+    },
+    "output_count": {
+      "type": "integer", "minimum": 1, "maximum": 5, "default": 3,
+      "description": "Number of distinct ideas to return."
+    },
+    "scene_duration_seconds": {
+      "type": "number", "exclusiveMinimum": 0, "default": 10,
+      "description": "Target duration for each scene, in seconds."
+    },
+    "scene_count": {
+      "type": "integer", "minimum": 1, "default": 1,
+      "description": "Target number of scenes for each idea."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "news_details": {
+        "title": "City opens its first night bus route",
+        "key_points": ["The route will connect the railway station and the hospital after midnight."],
+        "location": "Riverton"
+      },
+      "emotion": "hopeful",
+      "format_type": "drama",
+      "output_count": 3,
+      "scene_duration_seconds": 10,
+      "scene_count": 2
+    }
+  ]
+}
