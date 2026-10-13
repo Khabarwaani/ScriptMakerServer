@@ -5,6 +5,7 @@
   "shutdown_timeout_seconds": 900,
   "execution_timeout_seconds": 1800,
   "max_processes": 8,
+  "provider_pool_size": 5,
   "max_queued_executions": 64,
   "retention_seconds": 3600,
   "providers": {

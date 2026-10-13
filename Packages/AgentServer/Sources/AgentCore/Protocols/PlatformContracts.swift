@@ -38,3 +38,11 @@ protocol LockPlatformDelegate: Sendable {
     static func stopPlatformOwner(descriptor: Int32, timeoutSeconds: Int) async throws -> Bool
     static func applyPlatformWriteLock(descriptor: Int32) throws
 }
+
+protocol ProcessIdentityPlatformHook: Sendable {
+    static var currentPID: Int32 { get }
+    static var currentUser: UInt32 { get }
+    static func inspect(_ pid: Int32) -> ProcessIdentity?
+    static func exists(_ pid: Int32) -> Bool
+    static func signal(_ identity: ProcessIdentity, _ graceful: Bool) -> Bool
+}

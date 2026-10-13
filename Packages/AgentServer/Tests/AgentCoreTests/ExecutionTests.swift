@@ -205,7 +205,7 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     #expect(record.elapsed_seconds == 30)
 }
 
-@Test func completedRecordsRetainOnlyIDStateAndTiming() async throws {
+@Test func completedRecordsRetainOnlyCompactOperationalDiagnostics() async throws {
     let fixture = try AgentFixture()
     let manager = makeManager(fixture)
     let execution = try await manager.execute(request("private input"))
@@ -216,7 +216,9 @@ func waitForTerminal(_ manager: ExecutionManager, id: String) async throws -> Ex
     let json = try JSONValue.parse(String(decoding: JSONEncoder().encode(record), as: UTF8.self))
     #expect(Set(json.object!.keys) == Set([
         "execution_id", "status", "started_at", "running_at", "ended_at", "elapsed_seconds",
+        "phase_timings", "worker_reused",
     ]))
+    #expect(!(try json.text()).contains("private input"))
     await manager.shutdown(timeoutSeconds: 0)
     #expect(await manager.snapshot().records.isEmpty)
     let restarted = makeManager(fixture)

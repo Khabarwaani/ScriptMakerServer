@@ -34,7 +34,7 @@ enum APIOperation: String, CaseIterable {
         case .executeAgent:
             "Returns one final schema-validated JSON value or a structured error by default (status=false, which may be omitted). Add ?status=true for SSE status/progress updates and one validated result or terminal error. Provisional provider output is never returned. Supply agent_id, provider and a JSON input object; omit version for the highest stable version. X-Execution-ID identifies accepted work; in final-only mode the header arrives with the final response."
         case .getStatus:
-            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time and freezes at ended_at for terminal states. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain execution_id, status, timing and a bounded error code/message when failed; execution resources, prompts and results are not retained."
+            "Returns a snapshot, not an output stream. States include queued, running, cancelling, cancelled, completed and failed. started_at is acceptance time; running_at is when queued work begins running. elapsed_seconds excludes queue time and freezes at ended_at for terminal states. worker_pool includes retained, idle, busy, temporary and retiring workers and their resident memory. Tracking is in memory for this server session only and is purged on shutdown. Terminal records retain execution_id, status, timing, bounded phase_timings, queue_reasons, worker_reused and a bounded error code/message when failed; execution resources, prompts and results are not retained. Readiness/preparation precede acceptance; total_seconds includes them."
         case .cancelExecution:
             "Requests cancellation only for this execution. Repeated requests are safe. A running execution remains cancelling until its provider process stops. Unknown IDs return a structured 404 error."
         case .getSpecification:
@@ -104,6 +104,8 @@ enum APISpecification {
                     "description": .string("Running duration excluding queue time. Zero before running; fixed after termination."),
                 ]),
                 "schema_validated": boolean, "error": reference("Error"), "process_id": integer,
+                "phase_timings": .object(["type": .string("object"), "additionalProperties": .object(["type": .string("number"), "minimum": .number(0)])]),
+                "queue_reasons": array(string), "worker_reused": boolean,
                 "resident_memory_bytes": integer,
             ],
             required: [
@@ -117,7 +119,7 @@ enum APISpecification {
             "additionalProperties": .bool(false),
         ])
         let provider = object(
-            ["id": string, "available": boolean, "readiness": string],
+            ["id": string, "available": boolean, "readiness": string, "worker_reuse": string],
             required: ["id", "available", "readiness"])
         let status = object(
             [
@@ -126,6 +128,10 @@ enum APISpecification {
                     ["version": string, "uptime_seconds": integer], required: ["version", "uptime_seconds"]),
                 "active_executions": integer, "queued_executions": integer,
                 "provider_resident_memory_bytes": integer,
+                "worker_pool": object([
+                    "retained": integer, "idle": integer, "busy": integer, "temporary": integer, "retiring": integer,
+                    "capacity": integer, "max_processes": integer, "resident_memory_bytes": integer,
+                ]),
                 "system_resources": object([
                     "physical_memory_bytes": integer, "available_memory_bytes": integer,
                     "load_average": .object(["type": .string("number")]), "cpu_count": integer,

@@ -21,6 +21,13 @@ Execution state/outcome logs are stored in a temporary JSONL file that resets on
 a fresh start. Open `/logs` from Help for ID/time/status and expandable details,
 or download the full session log.
 
+Provider workers are created lazily in one global pool, retaining up to five by
+default. Compatible idle workers are reused with fresh native request contexts;
+idle eviction uses LRU. `/status` and execution logs report pool usage, phase
+timings and queue reasons. See [worker lifecycle configuration](docs/RUN.md) and
+[measured provider comparisons](docs/PROVIDER_BENCHMARKS.md). Unsupported reset
+capabilities use fresh processes.
+
 The four API routes, in-process scheduling, provider adapters, validation and
 cancellation are implemented. See [run instructions](docs/RUN.md) for verification
 limitations and CLI integration checks. Provider installation alone does not prove
@@ -39,7 +46,7 @@ swift run --package-path Packages/AgentServer AgentServer
 
 Configuration is in [config/server.json](../Packages/AgentServer/config/server.json): loopback, port 8080,
 15-minute graceful shutdown allowance, execution timeout, process/queue budgets,
-status retention and provider executable/model settings. Built configuration, agent
+status retention, `provider_pool_size` and provider executable/model settings. Built configuration, agent
 definitions and web assets are served from the build output. Execution scratch
 files default to Application Support rather than the source checkout.
 
