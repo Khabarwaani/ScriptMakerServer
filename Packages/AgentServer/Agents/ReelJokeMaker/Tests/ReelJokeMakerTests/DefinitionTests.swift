@@ -35,3 +35,4 @@ import ReelJokeMaker
     let badFeasibility = ReelJokeMakerDefinition.verifyFeasibility(input: badInput)
     #expect(badFeasibility != .feasible)
     #expect(ReelJokeMakerDefinition.formatFailure(reason: "too short").contains("too short"))
+}
