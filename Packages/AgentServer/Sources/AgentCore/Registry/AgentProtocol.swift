@@ -1,4 +1,8 @@
 @_exported import AgentCoreBase
 import Foundation
 
-extension AgentProtocol: AgentPackageContract {}
+extension AgentPackageContract {
+    // Default fallback adapter implementations for AgentProtocol conformers
+}
+
+extension ReelJokeMakerDefinition: AgentPackageContract {}
