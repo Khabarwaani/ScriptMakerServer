@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "script"
+  ],
+  "properties": {
+    "script": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Complete source script with consistent visual cues throughout and a VISUAL THEME & COLOUR GUIDE section appended at the bottom, covering the palette, clothing, objects, locations, lighting and overlays."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "script": "INT. STUDIO - NIGHT\nVISUAL SETUP: Warm neutral studio backdrop uses var(--paper); the display surround uses var(--card). Soft neutral lighting; restrained var(--accent) detail on the display. ANCHOR retains the same var(--ink-2) jacket throughout.\nANCHOR stands beside a display.\nANCHOR\nThe new route connects the station and hospital after midnight.\n\nVISUAL THEME & COLOUR GUIDE\nMode: light. Warm neutral layers with a rare orange focal accent.\nClothing: ANCHOR — var(--ink-2) jacket, consistent in every shot.\nObjects: Display — var(--card) surround, var(--ink) text, var(--line) dividers.\nLocation: Studio — var(--paper) backdrop, var(--sunken) recessed panels; retain layout across cuts.\nLighting: Soft neutral illumination; preserve palette relationships and avoid coloured light spills.\nOverlays: var(--ink) text on var(--card); use var(--accent) for the single primary highlight.\nPalette: Light-mode declarations; all styling references these variables.\n:root {\n  --paper: #F5F3EE;\n  --card: #FFFFFF;\n  --sunken: #EFECE4;\n  --popover: #FFFFFF;\n  --hover: #F0EDE5;\n  --scrim: rgba(31,30,27,.40);\n  --line: #E3DFD5;\n  --line-strong: #CFCABD;\n  --ink: #1F1E1B;\n  --ink-2: #6B675F;\n  --ink-3: #9A958A;\n  --on-accent: #FFFFFF;\n  --accent: #E0692A;\n  --accent-hover: #C9581D;\n  --accent-tint: #F8E6DA;\n  --danger: #B3382C;\n  --danger-tint: #F7E4E1;\n  --success: #3F7D58;\n  --success-tint: #E3F0E8;\n  --warning: #A8741A;\n  --warning-tint: #F7ECD6;\n}"
+    }
+  ]
+}

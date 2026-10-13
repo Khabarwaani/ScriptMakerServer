@@ -4,6 +4,7 @@ import ScriptRefiner
 import DialogueRefiner
 import ReelIdeaGenerator
 import DialogueGenerator
+import ThemeMixer
 
 public struct AgentDefinition: Sendable {
     public let id: String
@@ -63,6 +64,7 @@ public actor AgentRegistry {
         DialogueRefinerDefinition.self,
         ReelIdeaGeneratorDefinition.self,
         DialogueGeneratorDefinition.self,
+        ThemeMixerDefinition.self,
     ]
 
     private let packages: [any AgentPackageContract.Type]
