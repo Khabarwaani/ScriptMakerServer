@@ -3,7 +3,7 @@ import Foundation
 /// Provider-independent, versioned visual-theme instructions.
 public enum ThemeMixerDefinition: Sendable {
     public static let id = "ThemeMixer"
-    public static let versions: [String] = ["1.0.0"]
+    public static let versions: [String] = ["1.0.0", "1.1.0"]
 
     public static func directory(version: String) throws -> URL {
         guard versions.contains(version),

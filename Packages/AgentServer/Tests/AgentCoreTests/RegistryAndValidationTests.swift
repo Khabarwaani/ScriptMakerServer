@@ -119,7 +119,8 @@ final class AgentFixture: Sendable {
     #expect(try await registry.resolve(id: "DialogueRefiner", version: nil).version == "1.0.0")
     #expect(try await registry.resolve(id: "ReelIdeaGenerator", version: nil).version == "1.0.0")
     #expect(try await registry.resolve(id: "DialogueGenerator", version: nil).version == "1.0.0")
-    #expect(try await registry.resolve(id: "ThemeMixer", version: nil).version == "1.0.0")
+    #expect(try await registry.resolve(id: "ThemeMixer", version: nil).version == "1.1.0")
+    #expect(try await registry.resolve(id: "ThemeMixer", version: "1.0.0").version == "1.0.0")
     #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.1.0").version == "1.1.0")
     #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.0.0").version == "1.0.0")
 }
