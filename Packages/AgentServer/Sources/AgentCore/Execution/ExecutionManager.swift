@@ -325,6 +325,19 @@ public actor ExecutionManager {
                 onPhase: { name, seconds in await self.recordPhase(id, name, seconds) })
             guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
             let validation = Date()
+            if result["error"] != nil {
+                entries[id]?.record.schema_validated = false
+                recordPhase(id, "validation_seconds", Date().timeIntervalSince(validation))
+                let cleanup = Date()
+                await release(lease, healthy: false)
+                guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
+                recordPhase(id, "cleanup_seconds", Date().timeIntervalSince(cleanup))
+                // Preserve develop's direct feasibility error / HTTP 422 flow,
+                // while retiring the request's worker on an error result.
+                emit(id, "result", ["result": result])
+                finish(id, state: "completed", event: "completed")
+                return
+            }
             try OutputValidator.validate(result, schema: work.definition.outputSchema)
             recordPhase(id, "validation_seconds", Date().timeIntervalSince(validation))
             entries[id]?.record.schema_validated = true

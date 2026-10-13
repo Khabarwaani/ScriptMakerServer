@@ -1,6 +1,7 @@
 # Provider latency and worker reuse
 
-Opt-in local checks on 2026-10-13, feature #39 based on develop `a126746`,
+Opt-in local checks on 2026-10-13, feature #39 initially based on `a126746`,
+then integrated with develop `99837f7`,
 macOS and Swift 6. All rows use NewsResearcher 1.1.0 or ScriptRefiner 1.1.0,
 the same public TfL research topic/source and a fictional continuity script with
 `output_count: 1`. Model and reasoning effort are omitted, preserving installed
@@ -13,14 +14,17 @@ cleanup. Each cell is one request, not an average or a controlled speedup estima
 
 | Provider | Agent | Fresh adapter | Automatic cold | Automatic second | Second reused |
 | --- | --- | ---: | ---: | ---: | --- |
-| Codex | NewsResearcher | 26.081 | 26.226 | 21.661 | Yes |
-| Codex | ScriptRefiner | 29.118 | 23.048 | 25.000 | Yes |
+| Codex | NewsResearcher | 28.169 | 22.293 | 25.527 | Yes |
+| Codex | ScriptRefiner | 36.976 | 28.439 | 27.626 | Yes |
 | Grok | NewsResearcher | 28.978 | 17.162 | 18.614 | Yes |
 | Grok | ScriptRefiner | 14.487 | 13.497 | 16.563 | Yes |
 | Antigravity | NewsResearcher | 34.602 | 29.277 | 30.689 | No |
 | Antigravity | ScriptRefiner | 15.611 | 15.911 | 43.574 | No |
 
-All 18 executions completed with validated results. Native Codex request threads
+The initial 18 executions completed with validated results. The Codex rows above
+are a second six-request check after latest develop integration, also successful.
+The Grok and Antigravity rows show the initial checkpoint; further checks below
+record compatibility fixes and provider limitations. Native Codex request threads
 were deleted and verified unloaded; Grok advertised and confirmed session close.
 Antigravity has no verified context reset and remains fresh. Grok explicit
 model/effort overrides also remain fresh until native configuration parity is
@@ -30,6 +34,26 @@ child-process fixtures; killing real in-flight model/tool work was not needed.
 Initial Codex research checks exposed optional properties rejected by native strict
 output (#44). The final table uses the schema bridge fix. The agent's original
 schema remains authoritative and unchanged.
+
+Latest develop introduced master feasibility errors. Its root `oneOf` was rejected
+by Antigravity, which requires an object root (#46). An object declaration alone
+avoided launch rejection but failed final-result framing. Codex and Antigravity
+now use an explicit private native `output`/`error` envelope, removed before public
+responses and original domain validation. This supports either a domain result or
+a direct feasibility error without exposing transport fields or changing schemas.
+
+Grok native research emits provisional assistant commentary before tool activity
+and final JSON afterward (#48). The adapter now resets the result candidate at
+explicit ACP tool boundaries and parses the whole final segment strictly. A public
+TfL protocol probe reproduced this framing, and deterministic tests cover the fix
+and reject commentary mixed into the final segment. Subsequent live Grok checks
+were rejected by the backend (`session/prompt`, code -32003, rate/limit diagnostic),
+including fresh CLI checks; these failures are not reported as successful reuse.
+
+A transient CPU-pressure queue during an intermediate Codex comparison exposed a
+missing maintenance loop in the benchmark harness. It now runs the same periodic
+maintenance as the server, so queued work is reconsidered when pressure clears.
+The final Codex table uses the corrected harness; resource limits were unchanged.
 
 Generation dominates these runs. Warm totals vary in both directions. Fresh
 Antigravity cleanup can also take several seconds after a terminal result, so a

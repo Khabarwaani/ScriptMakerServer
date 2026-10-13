@@ -5,6 +5,51 @@ import Foundation
 enum CodexOutputSchema {
     private enum Unsupported: Error { case shape }
     static func make(_ schema: JSONValue) -> JSONValue? { try? convert(schema, depth: 0) }
+    static let feasibilitySchema: JSONValue = .object([
+        "type": .string("object"), "additionalProperties": .bool(false),
+        "required": .array([.string("reason")]),
+        "properties": .object(["reason": .object(["type": .string("string")]),
+            "code": .object(["type": .string("string")]), "message": .object(["type": .string("string")])]),
+    ])
+    /// Codex forbids a root oneOf/anyOf. A private transport envelope permits
+    /// either domain output or the master's feasibility error without changing
+    /// the public result. Both fresh and persistent adapters use this bridge.
+    static func executionSchema(_ domain: JSONValue) -> JSONValue? {
+        guard (try? OutputValidator.validate(.null, schema: domain)) == nil,
+              let strict = make(domain), let error = make(feasibilitySchema) else { return nil }
+        return .object(["type": .string("object"), "additionalProperties": .bool(false),
+            "$defs": .object(["agent": relocateReferences(strict)]),
+            "required": .array([.string("output"), .string("error")]),
+            "properties": .object([
+                "output": .object(["anyOf": .array([.object(["$ref": .string("#/$defs/agent")]), .object(["type": .string("null")])])]),
+                "error": .object(["anyOf": .array([error, .object(["type": .string("null")])])]),
+            ])])
+    }
+    private static func relocateReferences(_ value: JSONValue) -> JSONValue {
+        if let array = value.array { return .array(array.map(relocateReferences)) }
+        guard var object = value.object else { return value }
+        for (key, child) in object {
+            if key == "$ref", let reference = child.string, reference == "#" || reference.hasPrefix("#/") {
+                object[key] = .string("#/$defs/agent" + reference.dropFirst())
+            } else if !["const", "enum", "examples", "default"].contains(key) {
+                object[key] = relocateReferences(child)
+            }
+        }
+        return .object(object)
+    }
+    static func executionResult(_ value: JSONValue, schema: JSONValue) throws -> JSONValue {
+        guard let object = value.object, Set(object.keys) == ["output", "error"],
+              let output = object["output"], let error = object["error"] else {
+            throw AgentError("invalid_final_json", "Codex did not return a complete native result envelope.")
+        }
+        if error == .null, output != .null { return normalize(output, schema: schema) }
+        if output == .null, error != .null {
+            let normalized = normalize(error, schema: feasibilitySchema)
+            try OutputValidator.validate(normalized, schema: feasibilitySchema)
+            return .object(["error": normalized])
+        }
+        throw AgentError("invalid_final_json", "Codex returned conflicting or empty native results.")
+    }
     private static func convert(_ schema: JSONValue, depth: Int) throws -> JSONValue {
         guard depth < 64, var object = schema.object else { throw Unsupported.shape }
         for key in ["$defs", "definitions"] {

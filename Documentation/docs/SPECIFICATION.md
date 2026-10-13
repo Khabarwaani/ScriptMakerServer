@@ -18,14 +18,16 @@ Swift packages. Initially expose four HTTP endpoints.
 
 ## 2. Design principles
 
-1. Provider independence: agent definitions must not depend on a provider.
-2. Versioned agents: multiple versions of an agent must coexist.
-3. Package-backed discovery: only explicitly linked and registered versions are available after a rebuild.
-4. Structured input/output: requests use JSON; successful final results conform to the selected output schema.
-5. Optional status streaming: deliver lifecycle/progress events when requested; keep provider output internal.
-6. Asynchronous execution: execute multiple agents concurrently.
-7. Simplicity: avoid databases, brokers, distributed workers and unnecessary infrastructure.
-8. Reproducibility: record the exact agent version and provider for every execution.
+1. Three-tier architecture: Clean separation between Presentation (`AgentServer`), Core Orchestration (`AgentCore`), and Domain Agent Packages (`Agents/*`).
+2. Provider independence: agent definitions must not depend on a provider.
+3. Versioned agents: multiple versions of an agent must coexist.
+4. Package-backed discovery: only explicitly linked and registered versions are available after a rebuild.
+5. Structured input/output: requests use JSON; successful final results conform to the selected output schema.
+6. Master feasibility protocol: Single-turn feasibility gate; unfeasible/gibberish input directly yields HTTP 422 error pass-through.
+7. Optional status streaming: deliver lifecycle/progress events when requested; keep provider output internal.
+8. Asynchronous execution: execute multiple agents concurrently.
+9. Simplicity: avoid databases, brokers, distributed workers and unnecessary infrastructure.
+10. Reproducibility: record the exact agent version and provider for every execution.
 
 ## 3. Technology
 

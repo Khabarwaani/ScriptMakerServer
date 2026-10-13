@@ -35,3 +35,19 @@ import Testing
     #expect(CodexOutputSchema.make(dynamic) == nil)
     #expect(CodexOutputSchema.make(try JSONValue.parse(#"{"allOf":[{"type":"object"}]}"#)) == nil)
 }
+
+@Test func nativeEnvelopePreservesDomainAndFeasibilityResults() throws {
+    let domain = try JSONValue.parse(##"{"type":"object","additionalProperties":false,"required":["result"],"properties":{"result":{"$ref":"#/$defs/Text"},"optional":{"type":"string"}},"$defs":{"Text":{"type":"string"}}}"##)
+    let native = try #require(CodexOutputSchema.executionSchema(domain))
+    let success = try JSONValue.parse(#"{"output":{"result":"kept","optional":null},"error":null}"#)
+    try OutputValidator.validate(success, schema: native)
+    let decoded = try CodexOutputSchema.executionResult(success, schema: domain)
+    #expect(decoded == .object(["result": .string("kept")]))
+    try OutputValidator.validate(decoded, schema: domain)
+    let error = try JSONValue.parse(#"{"output":null,"error":{"reason":"Unfeasible","code":null,"message":null}}"#)
+    try OutputValidator.validate(error, schema: native)
+    #expect(try CodexOutputSchema.executionResult(error, schema: domain) == .object(["error": .object(["reason": .string("Unfeasible")])]))
+    #expect(throws: AgentError.self) { try CodexOutputSchema.executionResult(.object(["output": .null, "error": .null]), schema: domain) }
+    #expect(throws: AgentError.self) { try CodexOutputSchema.executionResult(.object(["output": decoded, "error": error["error"]!]), schema: domain) }
+    #expect(CodexOutputSchema.executionSchema(.object(["type": .string("null")])) == nil)
+}

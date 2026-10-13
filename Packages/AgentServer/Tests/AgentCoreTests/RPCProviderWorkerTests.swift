@@ -70,12 +70,37 @@ func nativeResetFailureDisablesFutureReuseWithoutReplay(kind: CLIProvider.Kind) 
     #expect(worker.runner.processID == nil && !worker.healthy)
 }
 
+@Test(arguments: [CLIProvider.Kind.codex, .grok])
+func nativeWorkersPreserveFeasibilityErrors(kind: CLIProvider.Kind) async throws {
+    let fixture = try AgentFixture()
+    let provider = CLIProvider(kind: kind, settings: .init(executable: try await FixtureCompiler.shared.executable().path))
+    let worker = try provider.makeWorker(ownership: nil)
+    let definition = try await AgentRegistry(packages: [EchoPackage.self], root: fixture.agents).resolve(id: "Echo", version: nil)
+    let value = try await worker.execute(definition: definition, input: .object(["text": .string("unfeasible")]),
+        directory: fixture.runtime, timeoutSeconds: 10, onOutput: { _ in }, onProgress: { _ in }, onPhase: { _, _ in })
+    #expect(value == .object(["error": .object(["reason": .string("Fixture input is unfeasible.")])]))
+    await worker.shutdown()
+    #expect(worker.runner.processID == nil)
+}
+
 @Test func antigravityAndUnverifiedSettingsStayOnFreshProcesses() throws {
     let antigravity = CLIProvider(kind: .antigravity, settings: .init(executable: "agy"))
     #expect(try !antigravity.makeWorker(ownership: nil).reusable)
     let grok = CLIProvider(kind: .grok, settings: .init(executable: "grok", reasoningEffort: "low"))
     #expect(try !grok.makeWorker(ownership: nil).reusable)
     #expect(grok.workerReuseMode == "fresh:settings-unverified")
+}
+
+@Test func grokFinalSegmentRejectsEmbeddedJSONAfterCommentary() async throws {
+    let fixture = try AgentFixture()
+    let provider = CLIProvider(kind: .grok, settings: .init(executable: try await FixtureCompiler.shared.executable().path))
+    let worker = try provider.makeWorker(ownership: nil)
+    let definition = try await AgentRegistry(packages: [EchoPackage.self], root: fixture.agents).resolve(id: "Echo", version: nil)
+    await #expect(throws: AgentError("invalid_final_json", "Grok did not return a complete final JSON value.")) {
+        try await worker.execute(definition: definition, input: .object(["text": .string("invalid-native")]),
+            directory: fixture.runtime, timeoutSeconds: 10, onOutput: { _ in }, onProgress: { _ in }, onPhase: { _, _ in })
+    }
+    await worker.shutdown()
 }
 
 @Test(arguments: [CLIProvider.Kind.codex, .grok])

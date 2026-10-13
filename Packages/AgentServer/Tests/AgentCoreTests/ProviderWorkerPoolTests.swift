@@ -33,6 +33,7 @@ final class SyntheticWorker: ProviderWorker, @unchecked Sendable {
         await onPhase("provider_startup_seconds", 0.001)
         await onPhase("generation_seconds", Double(delay) / 1000)
         if input["text"] == .string("fail") { throw AgentError("provider_execution_failed", "Synthetic failure.") }
+        if input["text"] == .string("unfeasible") { return .object(["error": .object(["reason": .string("Input is unfeasible.")])]) }
         return .object(["result": input["text"] == .string("invalid") ? .number(1) : input["text"] ?? .string("ok")])
     }
     func reset() async throws {
@@ -191,6 +192,18 @@ func workerErrorsRetireWithoutPublishingSuccess(value: String) async throws {
     let next = try await manager.execute(request("valid"))
     _ = await events(next)
     #expect(factory.workers.count == 2)
+    await manager.shutdown(timeoutSeconds: 1)
+}
+
+@Test func feasibilityErrorsPreserveDirectResultAndRetireWorkers() async throws {
+    let fixture = try AgentFixture(), factory = WorkerFactory()
+    let manager = pooledManager(fixture, factory: factory)
+    let accepted = try await manager.execute(request("unfeasible"))
+    let stream = await events(accepted)
+    #expect(stream.last?.name == "completed")
+    #expect(stream.first(where: { $0.name == "result" })?.data["result"]?["error"]?["reason"] == .string("Input is unfeasible."))
+    #expect(factory.workers.count == 1 && factory.workers.first?.healthy == false)
+    #expect(await manager.snapshot().worker_pool?.retained == 0)
     await manager.shutdown(timeoutSeconds: 1)
 }
 

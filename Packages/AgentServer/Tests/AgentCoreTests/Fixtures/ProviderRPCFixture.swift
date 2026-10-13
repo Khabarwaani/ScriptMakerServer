@@ -41,12 +41,21 @@ while let line = readLine() {
         contexts[context] = text
         if CommandLine.arguments.contains("--delay-result") { Thread.sleep(forTimeInterval: 3600) }
         if text == "crash" { exit(23) }
-        let result = String(decoding: try! JSONSerialization.data(withJSONObject: ["result": text]), as: UTF8.self)
+        var output: [String: Any] = text == "unfeasible" ? ["error": ["reason": "Fixture input is unfeasible."]] : ["result": text]
+        if isCodex, params["outputSchema"] != nil {
+            output = text == "unfeasible"
+                ? ["output": NSNull(), "error": ["reason": "Fixture input is unfeasible.", "code": NSNull(), "message": NSNull()]]
+                : ["output": output, "error": NSNull()]
+        }
+        let result = (text == "invalid-native" ? "Unexpected final commentary. " : "") + String(decoding: try! JSONSerialization.data(withJSONObject: output), as: UTF8.self)
         if isCodex {
             emit(["id": id, "result": ["turn": ["id": "turn-test", "status": "inProgress"]]])
             emit(["method": "item/completed", "params": ["threadId": context, "item": ["type": "agentMessage", "text": result]]])
             emit(["method": "turn/completed", "params": ["threadId": context, "turn": ["status": "completed"]]])
         } else {
+            emit(["method": "session/update", "params": ["sessionId": context, "update": ["sessionUpdate": "agent_message_chunk", "content": ["type": "text", "text": "Provisional tool preface."]]]])
+            emit(["method": "session/update", "params": ["sessionId": context, "update": ["sessionUpdate": "tool_call", "toolCallId": "fixture-tool"]]])
+            emit(["method": "session/update", "params": ["sessionId": context, "update": ["sessionUpdate": "tool_call_update", "toolCallId": "fixture-tool", "status": "completed"]]])
             emit(["method": "session/update", "params": ["sessionId": context, "update": ["sessionUpdate": "agent_message_chunk", "content": ["type": "text", "text": result]]]])
             emit(["id": id, "result": ["stopReason": "end_turn"]])
         }

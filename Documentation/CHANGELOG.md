@@ -10,6 +10,8 @@
   status/logs/help, plus opt-in real-provider benchmark tooling.
 - Translate Codex native strict schemas for optional fields without modifying
   immutable agent contracts or bypassing their final-result validation.
+- Preserve master feasibility errors through native Codex/Antigravity envelopes
+  and separate Grok pre-tool commentary from final JSON at protocol boundaries.
 - Failed tracked requests retain bounded error code/message so their failure reason
   remains visible after completion.
 - A per-port temporary JSONL execution log records session state transitions and

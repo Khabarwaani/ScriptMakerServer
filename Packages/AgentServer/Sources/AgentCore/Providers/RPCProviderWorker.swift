@@ -62,7 +62,8 @@ actor RPCProviderWorker: ProviderWorker {
                 throw AgentError("provider_reset_unsupported", "Persistent session setup/reset is unavailable; a fresh process is required.")
             }
         }
-        let prompt = try CLIProvider.prompt(definition: definition, input: input)
+        let schema = kind == .codex ? CodexOutputSchema.executionSchema(definition.outputSchema) : nil
+        let prompt = try CLIProvider.prompt(definition: definition, input: input, nativeEnvelope: schema != nil)
         if kind == .codex {
             var params: [String: JSONValue] = [
                 "cwd": .string(directory.path), "approvalPolicy": .string("never"), "sandbox": .string("read-only"),
@@ -77,13 +78,12 @@ actor RPCProviderWorker: ProviderWorker {
             var turn: [String: JSONValue] = [
                 "threadId": .string(contextID), "input": .array([.object(["type": .string("text"), "text": .string(prompt)])]),
             ]
-            let schema = CodexOutputSchema.make(definition.outputSchema)
             if let schema { turn["outputSchema"] = schema }
             if let effort = settings.reasoning_effort { turn["effort"] = .string(effort) }
             _ = try await rpc.request("turn/start", .object(turn))
             let result = try await waitForCompletion()
             await onPhase("generation_seconds", Date().timeIntervalSince(generated))
-            return schema == nil ? result : CodexOutputSchema.normalize(result, schema: definition.outputSchema)
+            return schema == nil ? result : try CodexOutputSchema.executionResult(result, schema: definition.outputSchema)
         } else {
             let result = try await rpc.request("session/new", .object(["cwd": .string(directory.path), "mcpServers": .array([])]))
             contextID = result["sessionId"]?.string
@@ -130,6 +130,11 @@ actor RPCProviderWorker: ProviderWorker {
         } else {
             guard let contextID, params["sessionId"]?.string == contextID, method == "session/update" else { return }
             let update = params["update"] ?? .object([:])
+            // ACP streams the assistant's pre-tool commentary as ordinary
+            // message chunks. Tool activity ends that provisional segment;
+            // only the final segment after the last tool is a result candidate.
+            // Do not search arbitrary text for an embedded JSON object.
+            if ["tool_call", "tool_call_update"].contains(update["sessionUpdate"]?.string ?? "") { text = "" }
             if update["sessionUpdate"]?.string == "agent_message_chunk", let delta = update["content"]?["text"]?.string {
                 text += delta
                 await onOutput?(delta)

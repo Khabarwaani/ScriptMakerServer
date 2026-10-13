@@ -75,3 +75,9 @@ or unverified processes are preserved. No separate watchdog is launched.
 
 See [run instructions](../../Documentation/docs/RUN.md#global-provider-worker-pool)
 for lifecycle limitations and the opt-in `AgentTools benchmark PROVIDER` command.
+
+Native structured output preserves the master feasibility protocol: supported
+Codex/Antigravity transports use a private result/error envelope, removed before
+domain validation and public responses. Feasibility errors retain HTTP 422 and
+retire their worker. Input defaults remain JSON Schema annotations; these adapter
+fixes do not change published agent definitions or their version numbers.

@@ -296,3 +296,11 @@ are never stripped. Shapes not representable in native strict output use the sam
 JSON prompt and authoritative server-side validation without a native schema.
 Fresh CLI startup ends at the observed initialization frame when available;
 otherwise only OS launch is observable and initialization overlaps generation.
+
+The master feasibility protocol is preserved for all adapters. Codex and
+Antigravity use a private native `output`/`error` envelope for their supported
+strict schemas, then remove it before returning the domain result or feasibility
+error. Feasibility errors keep develop's direct HTTP 422 behavior and retire the
+worker. Grok discards provisional pre-tool message segments at explicit ACP tool
+boundaries; the complete final segment must still parse as JSON. See
+[measured checks and limitations](PROVIDER_BENCHMARKS.md).

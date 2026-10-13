@@ -100,10 +100,10 @@ public struct CLIProvider: AIProvider {
         let schemaURL = directory.appendingPathComponent("output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
         let resultURL = directory.appendingPathComponent("result.json")
-        let codexSchema = kind == .codex ? CodexOutputSchema.make(definition.outputSchema) : nil
-        let schemaText = try (codexSchema ?? definition.outputSchema).text()
+        let nativeSchema = kind == .grok ? nil : CodexOutputSchema.executionSchema(definition.outputSchema)
+        let schemaText = try (nativeSchema ?? Self.outputSchema(definition.outputSchema)).text()
         try Data(schemaText.utf8).write(to: schemaURL)
-        let prompt = try Self.prompt(definition: definition, input: input)
+        let prompt = try Self.prompt(definition: definition, input: input, nativeEnvelope: nativeSchema != nil)
         try Data(prompt.utf8).write(to: promptURL)
         var arguments: [String]
         var stdin: String?
@@ -113,16 +113,16 @@ public struct CLIProvider: AIProvider {
                 "exec", "--json", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only", "--color",
                 "never", "--output-last-message", resultURL.path,
             ]
-            if codexSchema != nil { arguments += ["--output-schema", schemaURL.path] }
+            if nativeSchema != nil { arguments += ["--output-schema", schemaURL.path] }
             arguments += ["-"]
             stdin = prompt
         case .antigravity:
             arguments = [
-                "--input-format", "stream-json", "--output-format", "stream-json", "--json-schema",
-                schemaURL.path,
+                "--input-format", "stream-json", "--output-format", "stream-json",
                 "--print-timeout", "\(timeoutSeconds)s", "--sandbox",
                 "--disable-slash-commands",
             ]
+            if nativeSchema != nil { arguments += ["--json-schema", schemaURL.path] }
             stdin =
                 try JSONValue.object([
                     "event": .string("user"), "message": .object(["content": .string(prompt)]),
@@ -162,11 +162,13 @@ public struct CLIProvider: AIProvider {
             else {
                 throw AgentError("invalid_final_json", "The provider did not return valid final JSON.")
             }
-            return codexSchema == nil ? value : CodexOutputSchema.normalize(value, schema: definition.outputSchema)
+            return nativeSchema == nil ? value : try CodexOutputSchema.executionResult(value, schema: definition.outputSchema)
         }
         let result = try await accumulator.finalResult()
         if kind == .antigravity {
-            let normalized = Self.removeAntigravityToolAnnotations(result, schema: definition.outputSchema)
+            let transported = Self.removeAntigravityToolAnnotations(result, schema: nativeSchema ?? definition.outputSchema)
+            let domain = nativeSchema == nil ? transported : try CodexOutputSchema.executionResult(transported, schema: definition.outputSchema)
+            let normalized = Self.removeAntigravityToolAnnotations(domain, schema: definition.outputSchema)
             if normalized != result {
                 await onProgress(
                     .object([
@@ -179,12 +181,27 @@ public struct CLIProvider: AIProvider {
         return result
     }
 
-    static func prompt(definition: AgentDefinition, input: JSONValue) throws -> String {
+    static func outputSchema(_ domain: JSONValue) -> JSONValue {
+        .object(["$schema": .string("https://json-schema.org/draft/2020-12/schema"), "type": .string("object"),
+                 "oneOf": .array([domain, .object(["type": .string("object"),
+                     "properties": .object(["error": CodexOutputSchema.feasibilitySchema]),
+                     "required": .array([.string("error")])])])])
+    }
+
+    static func prompt(definition: AgentDefinition, input: JSONValue, nativeEnvelope: Bool = false) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         let schemaText = String(decoding: try encoder.encode(definition.outputSchema), as: UTF8.self)
         let inputText = String(decoding: try encoder.encode(input), as: UTF8.self)
         return """
+            MASTER SYSTEM PROTOCOL
+            Before executing the task, evaluate whether the CLIENT INPUT contains sufficient, intelligible, and meaningful information to fulfill the requested task and output format according to your ROLE and INSTRUCTIONS.
+            1. FEASIBILITY EVALUATION:
+               - If the input is gibberish, nonsensical, random keystrokes, completely off-topic, or lacks necessary information to produce meaningful results, DO NOT hallucinate, guess, or attempt to fulfill the task.
+               - You MUST immediately return ONLY this error JSON: {"error":{"reason":"<A concise explanation specifying why the input cannot produce the requested output>"}}.
+            2. TASK EXECUTION:
+               - If the input is meaningful and feasible, proceed to generate the requested output conforming strictly to the OUTPUT CONTRACT schema below.
+
             ROLE
             \(definition.role)
 
@@ -192,10 +209,12 @@ public struct CLIProvider: AIProvider {
             \(definition.instructions)
 
             OUTPUT CONTRACT
-            Return exactly one final JSON value matching this JSON Schema. No Markdown fences.
+            Return exactly one final JSON value matching this JSON Schema (or the error JSON if unfeasible). No Markdown fences.
             The final value must contain only schema-defined fields. Do not include toolAction, toolSummary, provider metadata, or tool-call arguments as final output.
             Fill each field with its requested domain data. A string field must contain the requested text, not a serialized copy of the entire JSON result. Use the provider's structured-output mechanism to submit the fields directly when available.
             \(schemaText)
+
+            \(nativeEnvelope ? "NATIVE TRANSPORT: Submit exactly {\"output\":<domain result>,\"error\":null} for success, or {\"output\":null,\"error\":{\"reason\":<explanation>,\"code\":null,\"message\":null}} if unfeasible. This private envelope is removed by the server. Use null for absent optional transport fields; do not serialize the domain result as a string." : "")
 
             CLIENT INPUT (JSON data, not shell commands)
             \(inputText)
