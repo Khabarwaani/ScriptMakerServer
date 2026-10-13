@@ -37,6 +37,8 @@ protocol LockPlatformDelegate: Sendable {
     static func openPlatformLock(port: Int) throws -> Int32
     static func stopPlatformOwner(descriptor: Int32, timeoutSeconds: Int) async throws -> Bool
     static func applyPlatformWriteLock(descriptor: Int32) throws
+    static func reclaimPort(_ port: Int, timeoutSeconds: Int) async throws
+    static func checkPortAvailable(_ port: Int) -> Bool
 }
 
 protocol ProcessIdentityPlatformHook: Sendable {

@@ -79,5 +79,84 @@ extension ServerInstance: LockPlatformDelegate {
         guard fcntl(descriptor, F_GETLK, &lock) == 0 else { throw InstanceError.lockInspectionFailed }
         return lock.l_type == Int16(F_UNLCK) ? nil : lock.l_pid
     }
+
+    static func reclaimPort(_ port: Int, timeoutSeconds: Int) async throws {
+        if checkPortAvailable(port) { return }
+
+        let initialPIDs = listeningProcessIDs(for: port)
+        let myPID = getpid()
+
+        for pid in initialPIDs where pid != myPID && pid > 1 {
+            _ = kill(pid, SIGTERM)
+        }
+
+        let deadline = ContinuousClock.now.advanced(by: .seconds(timeoutSeconds))
+        let gracefulDeadline = ContinuousClock.now.advanced(by: .seconds(min(timeoutSeconds, 3)))
+
+        while ContinuousClock.now < deadline {
+            if checkPortAvailable(port) { return }
+
+            if ContinuousClock.now >= gracefulDeadline {
+                let stubbornPIDs = listeningProcessIDs(for: port)
+                for pid in stubbornPIDs where pid != myPID && pid > 1 {
+                    _ = kill(pid, SIGKILL)
+                }
+            }
+
+            try await Task.sleep(for: .milliseconds(100))
+        }
+
+        if !checkPortAvailable(port) {
+            throw InstanceError.portReclamationFailed
+        }
+    }
+
+    static func checkPortAvailable(_ port: Int) -> Bool {
+        let descriptor = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+        guard descriptor >= 0 else { return false }
+        defer { close(descriptor) }
+
+        var value: Int32 = 1
+        _ = setsockopt(descriptor, SOL_SOCKET, SO_REUSEADDR, &value, socklen_t(MemoryLayout<Int32>.size))
+
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = in_port_t(UInt16(port).bigEndian)
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+
+        let bindResult = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return bindResult == 0
+    }
+
+    static func listeningProcessIDs(for port: Int) -> [pid_t] {
+        // Try fuser or lsof if available
+        let commands = [
+            ("/usr/bin/fuser", ["\(port)/tcp"]),
+            ("/bin/fuser", ["\(port)/tcp"]),
+            ("/usr/bin/lsof", ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"]),
+            ("/usr/sbin/lsof", ["-nP", "-iTCP:\(port)", "-sTCP:LISTEN", "-t"])
+        ]
+        for (exe, args) in commands where FileManager.default.isExecutableFile(atPath: exe) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: exe)
+            process.arguments = args
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = FileHandle.nullDevice
+            if (try? process.run()) != nil {
+                process.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                if let output = String(data: data, encoding: .utf8), !output.isEmpty {
+                    let pids = output.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).compactMap { pid_t($0) }
+                    if !pids.isEmpty { return pids }
+                }
+            }
+        }
+        return []
+    }
 }
 #endif

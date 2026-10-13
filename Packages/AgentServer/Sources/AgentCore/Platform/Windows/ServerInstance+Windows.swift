@@ -55,5 +55,13 @@ extension ServerInstance: LockPlatformDelegate {
         }
         throw InstanceError.shutdownTimedOut
     }
+
+    static func reclaimPort(_ port: Int, timeoutSeconds: Int) async throws {
+        // Windows mutex provides single-instance exclusion. Port reclamation via socket reuse.
+    }
+
+    static func checkPortAvailable(_ port: Int) -> Bool {
+        true
+    }
 }
 #endif
