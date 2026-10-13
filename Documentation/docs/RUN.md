@@ -67,7 +67,11 @@ defaults. The server reads the built copy, not the source file at runtime.
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `host` | `127.0.0.1` | Loopback only; remote binding is unavailable |
-| `port` | `8080` | TCP port, from 1 through 65535 |
+| `environment` | `development` | `development`, `production`, or `testing` |
+| `ports.development` | `8080` | Fixed development TCP port |
+| `ports.production` | `8081` | Fixed production TCP port |
+| `ports.testing.min` / `max` | `9000` / `9999` | Inclusive automatic testing port range |
+| `ports.testing.max_attempts` | `30` | Maximum distinct candidates; configurable from 1 through 30 |
 | `agents_directory` | `Agents` | Relative to built asset root, or an absolute runtime root |
 | `shutdown_timeout_seconds` | `900` | Fifteen-minute graceful shutdown allowance |
 | `execution_timeout_seconds` | `1800` | Running execution deadline |
@@ -81,12 +85,37 @@ Scratch files default to `~/Library/Application Support/Khabarwaani/AgentServer/
 and are removed after execution termination. Credentials remain managed by the CLIs.
 
 Environment overrides: `AGENT_SERVER_CONFIG` selects an explicit settings file;
-`AGENT_SERVER_PORT` overrides its port; `AGENT_SERVER_AGENTS_DIR` overrides its agent
-root. Agent paths remain relative to the built asset root unless absolute.
+`AGENT_SERVER_ENV` overrides the environment; `AGENT_SERVER_PORT` overrides the fixed
+port or supplies the first testing candidate (which must lie within the test range).
+`AGENT_SERVER_AGENTS_DIR` overrides its agent root. Agent paths remain relative to
+the built asset root unless absolute. Legacy `port` settings remain supported as
+a development default when `ports.development` is absent. Fixed ports and their
+overrides must stay outside the testing range and cannot use the other fixed
+environment's configured port.
 
 ```sh
-AGENT_SERVER_PORT=9090 swift run --package-path Packages/AgentServer AgentServer
+AGENT_SERVER_ENV=development swift run --package-path Packages/AgentServer AgentServer
+AGENT_SERVER_ENV=production swift run --package-path Packages/AgentServer AgentServer
+AGENT_SERVER_ENV=testing swift run --package-path Packages/AgentServer AgentServer
 ```
+
+Production and development use distinct fixed ports outside the configured test
+range. Xcode Run and Stop schemes explicitly select development. Testing checks
+availability by binding/listening on the configured loopback address before
+selection, skips occupied candidates, and retries collisions during startup. It
+tries at most 30 distinct candidates (or stops sooner if the range is exhausted).
+Unrelated startup failures are reported immediately. The selected address is
+printed only after the server has bound successfully, including when output is
+captured by a test launcher.
+
+Testing never replaces an existing managed server. All HTTP test callers must
+use the selected address and terminate only their own process handle/PID. The
+`AgentServer stop` command is rejected in testing mode, even with a port override.
+Swift launchers can share `TestingPortAllocator.withAvailablePort` and
+`ServerConfiguration.testingPorts`; the operation must retain the listener or
+server instance until cleanup and report startup collisions as `portInUse`.
+In-process `.router` tests need no listener. No AI-provider settings or HTTP
+contracts change with the selected environment.
 
 Accepted work drains for up to 900 seconds during shutdown. The service exits sooner
 when cleanup finishes. Remaining jobs are cancelled at the deadline, with a bounded

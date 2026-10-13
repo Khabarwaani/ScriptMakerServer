@@ -29,6 +29,11 @@ unmerged work, and verify the merged PR head before deleting a squash-merged bra
 - Preserve loopback defaults; implement authentication before allowing remote binding.
 - Never log secrets or full input/prompts by default. Use sanitized structured errors.
 - Use deterministic mock providers for unit tests. Live CLI integration tests must be separate and opt-in.
+- Real test/smoke servers must use `AGENT_SERVER_ENV=testing`; automatic selection
+  reads the configured range (default 9000–9999) and tries at most 30 distinct
+  candidates. Swift launchers use `TestingPortAllocator.withAvailablePort` and
+  configured `testingPorts`. Use the selected address and clean up only the owned
+  process. Never use development/production ports or port-wide stop for tests.
 - Run `swift build` and `swift test` for code changes. Keep README implementation status accurate.
 - Commit `Package.resolved`; exclude build output, IDE state, local configuration and logs.
 - Do not claim Version 1 complete until every acceptance criterion has evidence.

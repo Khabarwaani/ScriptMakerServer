@@ -74,6 +74,11 @@
             value = "$(BUILT_PRODUCTS_DIR)/config/server.json"
             isEnabled = "YES">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "AGENT_SERVER_ENV"
+            value = "development"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction

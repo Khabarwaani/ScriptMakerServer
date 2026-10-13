@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Separate configurable development (8080), production (8081), and automatic
+  testing ports (9000–9999). Tests check availability, retry up to 30 distinct
+  candidates, and never replace or stop existing servers (#52).
+
 - Deterministically populate declared schema defaults into agent execution inputs
   prior to validation and provider execution, and remove invalid static JSON placeholder
   in web UI.

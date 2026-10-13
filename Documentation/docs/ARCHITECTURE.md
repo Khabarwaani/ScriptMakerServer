@@ -77,7 +77,9 @@ validation metadata and rejects unvalidated or changed resources.
 ## Operational decisions
 
 - Hummingbird 2; final JSON responses by default, optional `status=true` SSE; Swift 6, macOS 14+; loopback only.
-- Central JSON settings, default port 8080, 900-second shutdown allowance.
+- Central JSON environment settings: development port 8080, production port 8081,
+  random available testing ports 9000–9999 with at most 30 distinct attempts;
+  900-second shutdown allowance. Tests never replace an existing server.
 - Kernel-owned per-user/per-port instance locks identify managed previous servers;
   stale PID files cannot accidentally target unrelated processes.
 - Startup requests SIGTERM and waits for lock release before replacing a managed server.
