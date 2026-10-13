@@ -1,0 +1,343 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AgentServer · Try Agent</title><style>
+:root{--ink:#182438;--muted:#637189;--blue:#255cd9;--bg:#f4f6fa;--card:#ffffff;--border:#dce2ec}*{box-sizing:border-box}body{font:16px system-ui,-apple-system,sans-serif;line-height:1.6;color:var(--ink);background:var(--bg);margin:0}main{max-width:1040px;margin:32px auto;padding:24px}nav{display:flex;gap:24px;align-items:center}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}h1{font-size:36px;line-height:1.2;margin:12px 0 6px;letter-spacing:-0.5px}h2{font-size:22px;margin:20px 0 10px}.muted{color:var(--muted)}.breadcrumb{font-size:14px;color:var(--muted);margin:16px 0 8px}.breadcrumb a{color:var(--muted)}.breadcrumb a:hover{color:var(--blue)}
+section,.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin:20px 0}
+.header-card{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+label{display:block;font-weight:600;margin:14px 0 6px}
+select,input,textarea{width:100%;padding:12px;border:1px solid #acb9cc;border-radius:8px;font:inherit;background:white}
+textarea,pre{font:14px ui-monospace,monospace;line-height:1.6}
+textarea{min-height:180px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:480px;overflow:auto}
+button{background:var(--blue);color:white;border:0;border-radius:8px;padding:12px 20px;font:inherit;font-weight:500;cursor:pointer;margin:16px 8px 0 0}
+button:hover{background:#1d4bb8}
+button.secondary{color:var(--blue);background:#e8edfb}
+button.secondary:hover{background:#d5e1f8}
+button.danger{background:#a92f43}button.danger:hover{background:#8a2436}
+button:disabled{opacity:.45;cursor:default}
+.badge{display:inline-block;background:#eaf0fc;color:var(--blue);padding:4px 12px;border-radius:16px;font-size:13px;font-weight:500}
+.badge.green{background:#e7f4ed;color:#176c47}
+.error{color:#a92f43}
+summary{cursor:pointer;font-weight:600}
+details{margin-top:18px}[hidden]{display:none!important}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:700px){.row{grid-template-columns:1fr}main{padding:16px}.header-card{flex-direction:column;align-items:stretch}}
+.copy-button{font-size:13px;padding:6px 12px;margin:8px 8px 4px 0}
+input[type=checkbox]{width:auto;margin-right:8px}
+.schema-field{border:1px solid var(--border);border-radius:8px;padding:14px;margin:12px 0;background:#fafbfc}
+.schema-label{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-weight:600;margin:0 0 6px}
+.schema-name{color:var(--ink)}
+.schema-badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:2px 8px;border-radius:12px}
+.schema-badge-required{background:#fde8e8;color:#9b1c1c}
+.schema-badge-optional{background:#eef1f6;color:var(--muted)}
+.schema-badge-default{background:#edf2ff;color:var(--blue);text-transform:none;font-family:ui-monospace,monospace}
+.schema-desc{display:block;margin:4px 0 8px;color:var(--muted)}
+.schema-field textarea{min-height:76px;background:white}
+.schema-include{font-weight:400;margin:8px 0;display:flex;align-items:center}
+.schema-children{padding-left:16px;border-left:2px solid var(--border);margin-top:8px}
+.schema-array-item{border-left:2px solid #acb9cc;padding-left:12px;margin:8px 0}
+#input-warning,#progress{white-space:pre-wrap}
+#result{background:#eff7f2;border:1px solid #cce4d6;border-radius:8px;padding:16px}
+#result:empty{display:none}
+</style></head><body><main>
+<nav><strong>AgentServer</strong><a href="/help">HTTP API reference</a><a href="/">Run an agent</a><a href="/try">Try an API</a></nav>
+<div class="breadcrumb"><a href="/help">API Reference</a> &rsaquo; <a href="/help#agents">Agents</a> &rsaquo; <a id="doc-breadcrumb" href="#">Agent</a> &rsaquo; <span>Try</span></div>
+
+<div id="not-found" class="card" hidden><h1 class="muted">Agent not found</h1><p id="not-found-msg">The requested agent could not be found.</p><p><a href="/help" style="font-weight:600">&larr; Return to API reference</a></p></div>
+
+<div id="try-view">
+  <div class="card header-card">
+    <div>
+      <div style="margin-top:0"><span id="agent-badge" class="badge">agent-id</span></div>
+      <h1 id="title">Try <span id="agent-display-name">Agent</span></h1>
+      <p id="description" class="muted" style="margin:4px 0 0">Configure inputs, send a real execution request, and inspect validated results.</p>
+    </div>
+    <div>
+      <a id="view-doc-btn" class="button secondary" style="display:inline-block;background:#e8edfb;color:var(--blue);padding:10px 18px;border-radius:8px;font-weight:500" href="#">Read documentation &nearr;</a>
+    </div>
+  </div>
+
+  <section>
+    <div class="row">
+      <div>
+        <label for="version">Agent version</label>
+        <select id="version"></select>
+      </div>
+      <div>
+        <label for="provider">Provider</label>
+        <select id="provider"></select>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <label class="schema-include"><input id="include-status" type="checkbox">Show status updates (streaming)</label>
+      <small class="muted" style="display:block;margin-left:24px">Off by default: receive only the final validated JSON or an error. When enabled, streams progress and heartbeat SSE events.</small>
+    </div>
+
+    <div id="agent-input-fields" style="margin-top:24px">
+      <h2>Agent input fields</h2>
+      <p class="muted">Fields are dynamically populated from the agent's input schema. Required and optional fields and schema default values are indicated.</p>
+      <div id="schema-fields"></div>
+    </div>
+
+    <div id="request-body" style="margin-top:20px">
+      <label for="body">Request JSON (editable)</label>
+      <textarea id="body" spellcheck="false"></textarea>
+      <small class="muted">This is the JSON payload sent to POST /execute. You can edit this directly; field inputs stay synchronized.</small>
+      <p id="input-warning" class="error" role="alert"></p>
+    </div>
+
+    <div>
+      <button id="send" disabled>Run agent</button>
+      <button id="preview" class="secondary">Preview request</button>
+      <button id="cancel" class="danger" disabled hidden>Cancel this execution</button>
+    </div>
+
+    <details><summary>Request and response contracts for this agent</summary><pre id="contract"></pre></details>
+  </section>
+
+  <section aria-live="polite">
+    <h2>HTTP response and execution status</h2>
+    <p><span id="state" class="badge">Ready</span> <code id="execution" data-copy></code></p>
+    <p id="timing" class="muted">No execution timing yet.</p>
+    <p id="heartbeat" class="muted" hidden>Waiting for events.</p>
+    <p id="progress" class="muted"></p>
+    <pre id="response"></pre>
+  </section>
+
+  <section id="result-section">
+    <h2>Validated result</h2>
+    <pre id="result"></pre>
+  </section>
+
+  <section>
+    <details><summary>Raw request, response headers and events</summary><pre id="raw"></pre></details>
+  </section>
+</div>
+</main>
+<script src="/assets/copy.js"></script>
+<script src="/assets/errors.js"></script>
+<script src="/assets/schema-form.js"></script>
+<script>
+const $=id=>document.getElementById(id),params=new URLSearchParams(location.search);
+let spec=null,currentAgent=null,currentID=null,busy=false;
+let inputForm=null,draftKey=null;
+const drafts=new Map(),terminal=new Set(['completed','failed','cancelled']);
+const pretty=value=>JSON.stringify(value,null,2);
+let currentTiming=null,timingObservedAt=0;
+
+function duration(seconds){seconds=Math.floor(Math.max(0,seconds));const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return `${hours?hours+'h ':''}${minutes?minutes+'m ':''}${seconds%60}s`;}
+function timingText(record,observedAt){const active=['running','cancelling'].includes(record.status)&&record.running_at&&!record.ended_at;const elapsed=(record.elapsed_seconds||0)+(active?(Date.now()-observedAt)/1000:0);const started=record.running_at?`Started ${new Date(record.running_at).toLocaleString()}`:'Not started';return `Accepted ${new Date(record.started_at).toLocaleString()} · ${started} · ${active?'Running for':'Duration'} ${duration(elapsed)}`;}
+function updateTiming(record){if(!record.started_at)return;currentTiming={started_at:record.started_at,running_at:record.running_at,ended_at:record.ended_at,elapsed_seconds:record.elapsed_seconds,status:record.status};timingObservedAt=Date.now();renderTiming();}
+function renderTiming(){if(currentTiming)$('timing').textContent=timingText(currentTiming,timingObservedAt);}
+setInterval(renderTiming,1000);
+
+function example(schema){return schema?.examples?.[0] ?? schemaInitial(schema||{type:'object'}, schema||{type:'object'});}
+function getRequestedAgentId(){
+  const pathParts=location.pathname.split('/').filter(Boolean);
+  if(pathParts[0]==='agents'&&pathParts[1]){
+    if(pathParts[2]==='try')return decodeURIComponent(pathParts[1]);
+    return decodeURIComponent(pathParts[1]);
+  }
+  if(pathParts[0]==='try'&&pathParts[1]==='agents'&&pathParts[2])return decodeURIComponent(pathParts[2]);
+  return params.get('id')||params.get('agent')||'';
+}
+function currentDefinition(){const version=$('version').value||currentAgent?.latest;return currentAgent?.definitions?.find(d=>d.version===version);}
+function saveDraft(){if(draftKey)drafts.set(draftKey,$('body').value);}
+function showInputWarning(message=''){$('input-warning').textContent=message;}
+
+function renderInputFields(){
+  const schema=currentDefinition()?.input_schema||{type:'object'};
+  inputForm=new SchemaInputForm($('schema-fields'),schema,input=>{
+    let body;try{body=JSON.parse($('body').value);}catch{showInputWarning('Request JSON is invalid. Fix it before changing a field. Your JSON was not changed.');return false;}
+    if(!body||typeof body!=='object'||Array.isArray(body)){showInputWarning('Request JSON must be an object. Your JSON was not changed.');return false;}
+    body.input=input;$('body').value=pretty(body);saveDraft();showInputWarning();return true;
+  });
+  try{const body=JSON.parse($('body').value);inputForm.render(body.input);}catch{inputForm.render({});}
+}
+
+function patchMetadata(){
+  let body;try{body=JSON.parse($('body').value);}catch{showInputWarning('Request JSON is invalid. Fix it before changing selectors. Your JSON was not changed.');return;}
+  if(!body||typeof body!=='object'||Array.isArray(body)){showInputWarning('Request JSON must be an object.');return;}
+  body.agent_id=currentAgent.id;body.provider=$('provider').value;
+  if($('version').value)body.version=$('version').value;else delete body.version;
+  $('body').value=pretty(body);saveDraft();showInputWarning();
+}
+
+function buildAgentRequest(){
+  if(!currentAgent)return;
+  const version=$('version').value||currentAgent?.latest;
+  const nextKey=`${currentAgent.id}@${version||''}`;
+  if(draftKey&&draftKey!==nextKey)saveDraft();
+  if(draftKey!==nextKey){
+    const definition=currentDefinition(),body={agent_id:currentAgent.id,provider:$('provider').value,input:example(definition?.input_schema)};
+    if($('version').value)body.version=$('version').value;
+    $('body').value=drafts.get(nextKey)||pretty(body);
+  }
+  draftKey=nextKey;patchMetadata();renderInputFields();
+  const def=currentDefinition();
+  if(def)$('contract').textContent=pretty({agent_id:currentAgent.id,version:def.version,role:def.role,input_schema:def.input_schema,output_schema:def.output_schema});
+}
+
+function state(text,error=false){$('state').textContent=text;$('state').classList.toggle('error',error);}
+function raw(text){$('raw').textContent=($('raw').textContent+text).slice(-200000);}
+
+function event(block){
+  raw(block+'\n\n');let name='message',lines=[];
+  for(const line of block.split('\n')){if(line.startsWith('event:'))name=line.slice(6).trim();if(line.startsWith('data:'))lines.push(line.slice(5).trimStart());}
+  if(!lines.length)return;
+  let value;try{value=JSON.parse(lines.join('\n'));}catch{return;}
+  if(value.execution_id){currentID=value.execution_id;$('execution').textContent=currentID;}
+  if(value.started_at)updateTiming({...value,status:value.status||(terminal.has(name)?name:$('state').textContent)});
+  if(name==='started'){state(value.status||'queued');$('cancel').disabled=false;}
+  if(name==='status'){if(value.status)state(value.status);if(value.progress)$('progress').textContent=value.progress.message;else $('heartbeat').textContent=`Heartbeat · ${new Date().toLocaleTimeString()} · ${value.status}`;}
+  if(name==='result')$('result').textContent=pretty(value.result);
+  if(terminal.has(name)){state(name,name==='failed');$('cancel').disabled=true;$('progress').textContent=name==='failed'?formatAgentError(value.error):name==='completed'?'Final output passed schema validation.':'Provider termination confirmed.';}
+}
+
+function request(){
+  if(!currentAgent)throw Error('Agent unavailable.');
+  const stream=$('include-status').checked;
+  const path=stream?'/execute?status=true':'/execute';
+  const options={method:'POST',headers:{Accept:stream?'text/event-stream':'application/json'}};
+  const body=JSON.parse($('body').value);
+  options.headers['Content-Type']='application/json';
+  options.body=JSON.stringify(body);
+  return{path,options,execute:true};
+}
+
+async function load(){
+  try{
+    const res=await serverFetch('/openapi.json');
+    if(!res.ok)throw Error(`Failed to load API specification (HTTP ${res.status}).`);
+    spec=await res.json();
+    const targetId=getRequestedAgentId();
+    currentAgent=spec['x-agents']?.find(a=>a.id.toLowerCase()===targetId.toLowerCase());
+
+    if(!currentAgent){
+      $('try-view').hidden=true;
+      $('not-found').hidden=false;
+      $('not-found-msg').textContent=targetId?`Agent "${targetId}" was not found.`:'No agent ID was specified in the URL.';
+      return;
+    }
+
+    const docUrl=`/agents/${encodeURIComponent(currentAgent.id)}`;
+    document.title=`AgentServer · Try ${currentAgent.name||currentAgent.id}`;
+    $('agent-badge').textContent=currentAgent.id;
+    $('agent-display-name').textContent=currentAgent.name||currentAgent.id;
+    $('doc-breadcrumb').textContent=currentAgent.name||currentAgent.id;
+    $('doc-breadcrumb').href=docUrl;
+    $('view-doc-btn').href=docUrl;
+
+    $('version').replaceChildren();
+    $('version').add(new Option(currentAgent.latest?`Latest stable (${currentAgent.latest})`:'Select explicit version',''));
+    for(const v of currentAgent.versions)$('version').add(new Option(v,v));
+    const reqVersion=params.get('version');
+    if(reqVersion&&currentAgent.versions.includes(reqVersion))$('version').value=reqVersion;
+
+    $('provider').replaceChildren();
+    for(const p of spec['x-providers']||[]){
+      const opt=new Option(p.id+(p.available?'':' (unavailable)'),p.id);
+      opt.disabled=!p.available;
+      $('provider').add(opt);
+    }
+    if(params.get('status')==='true')$('include-status').checked=true;
+
+    buildAgentRequest();
+    $('send').disabled=false;
+  }catch(err){
+    $('try-view').hidden=true;
+    $('not-found').hidden=false;
+    $('not-found-msg').textContent=err.message;
+  }
+}
+
+$('version').onchange=buildAgentRequest;
+$('provider').onchange=patchMetadata;
+$('include-status').onchange=()=>{
+  const stream=$('include-status').checked;
+  $('heartbeat').hidden=!stream;
+  $('cancel').hidden=!stream;
+};
+$('body').oninput=()=>{
+  saveDraft();
+  try{
+    const body=JSON.parse($('body').value);
+    if(!body||typeof body!=='object'||Array.isArray(body))throw Error();
+    inputForm?.render(body.input);
+    showInputWarning();
+  }catch{
+    showInputWarning('Request JSON is incomplete. Field controls will update when it becomes valid; your text is preserved.');
+  }
+};
+$('preview').onclick=()=>{
+  try{
+    const {path,options}=request();
+    $('raw').textContent=`${options.method} ${location.origin}${path}\n${options.body||''}`;
+    $('raw').parentElement.open=true;
+  }catch(error){
+    state('Invalid request',true);
+    $('progress').textContent=error.message;
+  }
+};
+$('send').onclick=async()=>{
+  try{
+    const {path,options}=request();
+    busy=true;$('include-status').disabled=true;$('send').disabled=true;
+    currentID=null;currentTiming=null;
+    $('timing').textContent='No execution timing yet.';
+    $('result').textContent='';$('response').textContent='';$('progress').textContent='';
+    $('heartbeat').textContent='Waiting for events.';
+    $('raw').textContent=`${options.method} ${path}\n${options.body||''}\n\n`;
+    state('Sending');
+    const response=await serverFetch(path,options);
+    raw([...response.headers].map(([name,value])=>`${name}: ${value}`).join('\n')+'\n\n');
+    state(`HTTP ${response.status}`,!response.ok);
+    currentID=response.headers.get('X-Execution-ID');
+    $('execution').textContent=currentID||'';
+    if(response.ok&&response.headers.get('Content-Type')?.includes('text/event-stream')){
+      $('cancel').disabled=!currentID;
+      const reader=response.body.getReader(),decoder=new TextDecoder();
+      let buffer='';
+      for(;;){
+        const{done,value}=await reader.read();
+        if(done){buffer+=decoder.decode();break;}
+        buffer+=decoder.decode(value,{stream:true});
+        buffer=buffer.replace(/\r\n/g,'\n');
+        let index;
+        while((index=buffer.indexOf('\n\n'))>=0){
+          event(buffer.slice(0,index));
+          buffer=buffer.slice(index+2);
+        }
+      }
+      if(buffer.trim())event(buffer);
+      if(!terminal.has($('state').textContent))$('progress').textContent='Stream closed; monitor the execution using GET /status.';
+    }else{
+      const text=await response.text();
+      let display=text,value;
+      try{value=JSON.parse(text);display=pretty(value);}catch{}
+      if(response.ok){
+        $('result').textContent=display;state('completed');$('progress').textContent='Final JSON passed schema validation.';
+      }else{
+        $('response').textContent=display;
+        if(value?.error)$('progress').textContent=formatAgentError(value.error);
+      }
+      raw(text);
+    }
+  }catch(error){
+    state('Request failed',true);$('progress').textContent=error.message;
+  }finally{
+    busy=false;$('include-status').disabled=false;$('send').disabled=false;
+  }
+};
+$('cancel').onclick=async()=>{
+  try{
+    $('cancel').disabled=true;
+    const response=await serverFetch(`/executions/${encodeURIComponent(currentID)}/cancel`,{method:'POST'}),value=await response.json();
+    if(!response.ok)throw Error(value.error?.message||'Cancellation failed.');
+    state(value.status);
+  }catch(error){
+    $('progress').textContent=error.message;$('cancel').disabled=false;
+  }
+};
+installCopyButtons();
+load();
+</script></body></html>

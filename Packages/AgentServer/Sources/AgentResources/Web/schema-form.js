@@ -83,16 +83,32 @@ class SchemaInputForm {
     const value = schemaValueAt(this.input, path);
     const present = value !== undefined;
     const group = document.createElement('div'); group.className = 'schema-field';
-    const label = document.createElement('label'); label.textContent = name + (required ? ' (required)' : ' (optional)');
+    const label = document.createElement('label'); label.className = 'schema-label';
+    const nameSpan = document.createElement('span'); nameSpan.className = 'schema-name'; nameSpan.textContent = name;
+    label.append(nameSpan);
+    const badge = document.createElement('span');
+    badge.className = 'schema-badge ' + (required ? 'schema-badge-required' : 'schema-badge-optional');
+    badge.textContent = required ? 'required' : 'optional';
+    label.append(badge);
+    if (Object.hasOwn(schema, 'default')) {
+      const defaultBadge = document.createElement('span');
+      defaultBadge.className = 'schema-badge schema-badge-default';
+      defaultBadge.textContent = 'default: ' + JSON.stringify(schema.default);
+      label.append(defaultBadge);
+    }
     group.append(label);
     if (schema.description) {
-      const hint = document.createElement('small'); hint.className = 'muted'; hint.textContent = schema.description; group.append(hint);
+      const hint = document.createElement('small'); hint.className = 'muted schema-desc'; hint.textContent = schema.description; group.append(hint);
     }
     if (!required) {
       const toggle = document.createElement('label'); toggle.className = 'schema-include';
       const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = present;
       checkbox.onchange = () => this.change(path, schemaInitial(schema, this.schema), !checkbox.checked, true);
-      toggle.append(checkbox, document.createTextNode('Include in request')); group.append(toggle);
+      let toggleText = 'Include in request';
+      if (Object.hasOwn(schema, 'default')) {
+        toggleText += ` (default if omitted: ${JSON.stringify(schema.default)})`;
+      }
+      toggle.append(checkbox, document.createTextNode(toggleText)); group.append(toggle);
     }
     if (!present && !required) return group;
     if (depth > 24) return this.rawField(group, value, path);
