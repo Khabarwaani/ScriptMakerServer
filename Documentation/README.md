@@ -294,3 +294,22 @@ The authoritative contributor rules and required folder structure are in
 - [Antigravity headless execution](https://www.antigravity.google/docs/cli/headless/)
 
 Repository: [Khabarwaani/ScriptMakerServer](https://github.com/Khabarwaani/ScriptMakerServer).
+
+### Automatic input contract tests
+
+`swift test --package-path Packages/AgentServer --filter registeredInputContracts`
+discovers all registered agent versions and derives cases from their input schemas.
+It tests every optional-field omission, all optional fields omitted together,
+required omissions and default merging, including nested objects and array items.
+The runner exercises `ExecutionManager` directly with a deterministic capturing
+provider: no HTTP requests, server startup or LLM calls are needed. Assertions use
+schema declarations rather than agent IDs or field names. Full `swift test` also
+runs the existing server and provider unit tests.
+
+New schemas need valid declarative input examples. Defaults, enums, examples and
+simple type constraints supply additional fixture values; constraints that cannot
+be synthesized produce an explicit coverage-gap failure asking for a schema
+example. Output fixtures are derived similarly and validated before execution.
+No agent-specific test code is required. Agents without input schemas have no
+field contract to enumerate. These checks prove input handling and output
+validation with mocks, not live model behavior.

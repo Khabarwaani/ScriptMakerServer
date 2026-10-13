@@ -42,6 +42,9 @@ struct ServerRoutes {
                 })
             } catch { return errorResponse(error) }
         }
+        router.get("/assets/errors.js") { _, _ in
+            try webAsset("errors.js", contentType: "text/javascript; charset=utf-8")
+        }
         router.get("/assets/copy.js") { _, _ in
             try webAsset("copy.js", contentType: "text/javascript; charset=utf-8")
         }

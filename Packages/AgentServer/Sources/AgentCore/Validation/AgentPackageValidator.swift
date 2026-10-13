@@ -205,7 +205,7 @@ public enum AgentPackageValidator {
                 if let examples = inputSchemaJSON["examples"]?.array {
                     for (idx, example) in examples.enumerated() {
                         do {
-                            try OutputValidator.validate(example, schema: inputSchemaJSON)
+                            _ = try InputValidator.prepare(example, schema: inputSchemaJSON, agentID: agentId, version: versionStr)
                         } catch {
                             throw ValidationError(
                                 agent: agentId,

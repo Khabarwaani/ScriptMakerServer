@@ -81,7 +81,14 @@ may be split across multiple Markdown files with an explicitly defined load orde
 
 The client supplies a JSON object per execution. Structures may differ by agent;
 the server passes input without assuming domain-specific fields. An optional
-agent-specific input schema may be used for validation.
+agent-specific input schema may be used for validation. Before executing any
+provider, the server recursively merges declared defaults into missing fields.
+Supplied values, including explicit nulls, are preserved and validated. Required
+fields with defaults may be omitted; required fields without defaults fail.
+Optional fields without defaults remain absent. Object defaults fill missing
+members of supplied partial objects. Arrays and local references use the same
+rules. Defaults must satisfy their schemas; conflicting or ambiguous defaults
+are invalid agent definitions.
 
 ### 4.4 Output schema
 
@@ -363,6 +370,16 @@ Recommended common envelope, including inside streamed `failed` events:
 ```json
 {"error":{"code":"output_schema_validation_failed","message":"The final result does not match the agent output schema.","execution_id":"exec_001"}}
 ```
+
+Invalid agent input returns `input_schema_validation_failed` (HTTP 400) with
+`details.agent_id`, `details.version`, `details.violations` and `details.truncated`.
+Each violation includes the exact JSON Pointer `path`, decoded `field`, failed
+`keyword`, explanatory `message`, `expected` constraint and `actual` type (or
+`missing`). Independent violations are reported together in stable path order,
+up to 50; supplied input values are never echoed. A missing parent object is
+reported at its own path, without invented child errors. These details survive
+JSON encoding and SSE error transport. Help/Try pages display structured errors
+and report unreachable servers explicitly.
 
 Before streaming, use appropriate HTTP error status; after streaming begins,
 use the error event rather than attempting to replace the HTTP response status.

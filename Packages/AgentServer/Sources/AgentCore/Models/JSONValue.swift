@@ -72,10 +72,12 @@ public struct AgentError: Error, Codable, Sendable, Equatable {
     public let code: String
     public let message: String
     public var execution_id: String?
-    public init(_ code: String, _ message: String, executionID: String? = nil) {
+    public let details: JSONValue?
+    public init(_ code: String, _ message: String, executionID: String? = nil, details: JSONValue? = nil) {
         self.code = code
         self.message = message
         self.execution_id = executionID
+        self.details = details
     }
     public var httpStatus: Int {
         switch code {

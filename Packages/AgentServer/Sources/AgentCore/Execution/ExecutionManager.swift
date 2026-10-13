@@ -66,11 +66,8 @@ public actor ExecutionManager {
         let definition = try await registry.resolve(id: request.agent_id, version: request.version)
         var effectiveInput = request.input
         if let schema = definition.inputSchema {
-            effectiveInput = OutputValidator.applyDefaults(to: effectiveInput, schema: schema)
-            do { try OutputValidator.validate(effectiveInput, schema: schema) } catch {
-                throw AgentError(
-                    "input_schema_validation_failed", "Input does not match the selected agent input schema.")
-            }
+            effectiveInput = try InputValidator.prepare(
+                effectiveInput, schema: schema, agentID: definition.id, version: definition.version)
         }
         let readinessBegan = Date()
         let provider = try await providers.resolve(request.provider)
