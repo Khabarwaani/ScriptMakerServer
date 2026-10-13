@@ -148,6 +148,15 @@ class SchemaInputForm {
       input.oninput = () => this.change(path, input.value === '' ? '' : Number(input.value));
       group.append(input); return group;
     }
+    if (type === 'string' && schema.examples?.length && schema.examples.every(item => typeof item === 'string')) {
+      const input = document.createElement('input'); input.type = 'text'; input.value = value ?? '';
+      const suggestions = document.createElement('datalist');
+      suggestions.id = `schema-suggestions-${path.map(part => String(part).replace(/[^a-zA-Z0-9_-]/g, '_')).join('-')}`;
+      for (const suggestion of schema.examples) suggestions.append(new Option(suggestion, suggestion));
+      input.setAttribute('list', suggestions.id);
+      input.oninput = () => this.change(path, input.value);
+      group.append(input, suggestions); return group;
+    }
     const textarea = document.createElement('textarea'); textarea.rows = 3; textarea.value = value ?? '';
     textarea.oninput = () => this.change(path, textarea.value);
     group.append(textarea); return group;

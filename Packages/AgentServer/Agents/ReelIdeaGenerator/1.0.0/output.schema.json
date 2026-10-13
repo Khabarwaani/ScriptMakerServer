@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["ideas"],
+  "properties": {
+    "ideas": {
+      "type": "array", "minItems": 1, "maxItems": 5,
+      "description": "Distinct script-ready reel premises, matching the requested output_count.",
+      "items": {
+        "type": "object",
+        "required": ["variation_index", "theme", "core_message"],
+        "properties": {
+          "variation_index": { "type": "integer", "minimum": 1 },
+          "theme": { "type": "string", "minLength": 1, "description": "Specific dramatic premise and angle from which a script can be written." },
+          "core_message": { "type": "string", "minLength": 1, "description": "Minimum accurate news fact or facts the premise conveys." }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "ideas": [
+        {
+          "variation_index": 1,
+          "theme": "A late-shift worker faces a choice between a costly ride and waiting alone, then spots the new night bus as a possible way home.",
+          "core_message": "The city has opened a night bus route linking the railway station and hospital after midnight."
+        }
+      ]
+    }
+  ]
+}
