@@ -18,12 +18,13 @@ cleanup. Each cell is one request, not an average or a controlled speedup estima
 | Codex | ScriptRefiner | 36.976 | 28.439 | 27.626 | Yes |
 | Grok | NewsResearcher | 28.978 | 17.162 | 18.614 | Yes |
 | Grok | ScriptRefiner | 14.487 | 13.497 | 16.563 | Yes |
-| Antigravity | NewsResearcher | 34.602 | 29.277 | 30.689 | No |
-| Antigravity | ScriptRefiner | 15.611 | 15.911 | 43.574 | No |
+| Antigravity | NewsResearcher | 32.015 | 35.352 | 30.504 | No |
+| Antigravity | ScriptRefiner | 18.939 | 35.221 | 16.193 | No |
 
 The initial 18 executions completed with validated results. The Codex rows above
 are a second six-request check after latest develop integration, also successful.
-The Grok and Antigravity rows show the initial checkpoint; further checks below
+Antigravity also passed six checks with the final native envelope; its rows above
+show that checkpoint. The Grok rows show the initial checkpoint; further checks below
 record compatibility fixes and provider limitations. Native Codex request threads
 were deleted and verified unloaded; Grok advertised and confirmed session close.
 Antigravity has no verified context reset and remains fresh. Grok explicit
@@ -41,6 +42,9 @@ avoided launch rejection but failed final-result framing. Codex and Antigravity
 now use an explicit private native `output`/`error` envelope, removed before public
 responses and original domain validation. This supports either a domain result or
 a direct feasibility error without exposing transport fields or changing schemas.
+Real HTTP checks with unfeasible public synthetic input confirmed Codex and
+Antigravity return HTTP 422, keep `X-Execution-ID`, expose no `output` transport
+field, and retain zero workers after those error results.
 
 Grok native research emits provisional assistant commentary before tool activity
 and final JSON afterward (#48). The adapter now resets the result candidate at
