@@ -329,3 +329,8 @@ Enum values appear as choices, nested object fields and array items can be edite
 and optional keys can be included or omitted. The separate Request JSON box stays
 editable and is the body sent to the server. Invalid handwritten JSON is preserved
 until corrected. Connection errors identify the HTTP method and path.
+
+Every registered agent also provides dedicated shareable pages:
+- **Agent documentation** (`/agents/{agent_id}` or `/help/agents/{agent_id}`): Inspect role, instructions, package README, version history, input/output schemas, and example payloads in a focused view.
+- **Dedicated Try page** (`/agents/{agent_id}/try` or `/try/agents/{agent_id}`): Run the agent directly with schema-driven input controls, visible default values, required/optional indicators, and real-time streaming execution results.
+- **Central API reference** (`/help`) and **Central API tester** (`/try`): Continue to list all available agents and provide multi-operation testing across the server.

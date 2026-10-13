@@ -16,6 +16,12 @@ struct ServerRoutes {
         router.get("/help") { _, _ in try webPage("help") }
         router.get("/try") { _, _ in try webPage("try") }
         router.get("/logs") { _, _ in try webPage("logs") }
+        router.get("/agent") { _, _ in try webPage("agent") }
+        router.get("/agent/try") { _, _ in try webPage("agent-try") }
+        router.get(RouterPath("/agents/{agent_id}")) { _, _ in try webPage("agent") }
+        router.get(RouterPath("/agents/{agent_id}/try")) { _, _ in try webPage("agent-try") }
+        router.get(RouterPath("/help/agents/{agent_id}")) { _, _ in try webPage("agent") }
+        router.get(RouterPath("/try/agents/{agent_id}")) { _, _ in try webPage("agent-try") }
         router.get(RouterPath(APIOperation.getExecutionLogs.path)) { _, _ in
             do { return try jsonResponse(["entries": await manager.recentExecutionLogs()]) }
             catch { return errorResponse(error) }
@@ -66,7 +72,7 @@ struct ServerRoutes {
             let snapshot = await manager.snapshot()
             return try await jsonResponse(StatusResponse(
                 status: snapshot.accepting ? "healthy" : "shutting_down",
-                server: .init(version: "1.1.0", uptime_seconds: Int(Date().timeIntervalSince(startedAt))),
+                server: .init(version: "2.0.0", uptime_seconds: Int(Date().timeIntervalSince(startedAt))),
                 active_executions: snapshot.activeCount, queued_executions: snapshot.queuedCount,
                 system_resources: SystemResources.sample(),
                 provider_resident_memory_bytes: snapshot.residentMemoryBytes,

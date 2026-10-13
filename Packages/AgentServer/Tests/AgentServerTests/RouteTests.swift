@@ -146,7 +146,7 @@ private enum RouteEchoPackage: AgentPackageContract {
         try await client.execute(uri: "/status", method: .get) { response in
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["status"] == .string("healthy"))
-            #expect(value["server"]?["version"] == .string("1.1.0"))
+            #expect(value["server"]?["version"] == .string("2.0.0"))
             #expect(value["executions"]?.array?.first?["status"] == .string("completed"))
             let record = try #require(value["executions"]?.array?.first)
             let startedAt = try #require(record["started_at"]?.string)
@@ -180,7 +180,7 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(response.status == .ok)
             let document = try JSONValue.parse(String(buffer: response.body))
             #expect(document["openapi"] == .string("3.1.0"))
-            #expect(document["info"]?["version"] == .string("1.1.0"))
+            #expect(document["info"]?["version"] == .string("2.0.0"))
             let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
                 .deletingLastPathComponent().deletingLastPathComponent()
             let readme = try String(contentsOf: packageRoot.appendingPathComponent("README.md"), encoding: .utf8)
@@ -210,10 +210,60 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(String(buffer: response.body).contains("Send request"))
             #expect(String(buffer: response.body).contains("include-status"))
         }
+        try await client.execute(uri: "/agents/Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/html; charset=utf-8")
+            let body = String(buffer: response.body)
+            #expect(body.contains("Agent details"))
+            #expect(body.contains("Input JSON Schema"))
+            #expect(body.contains("Try this agent"))
+            #expect(body.contains("Supported providers"))
+        }
+        try await client.execute(uri: "/help/agents/Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(String(buffer: response.body).contains("Agent details"))
+        }
+        try await client.execute(uri: "/agent?id=Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(String(buffer: response.body).contains("Agent details"))
+        }
+        try await client.execute(uri: "/agents/Echo/try", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/html; charset=utf-8")
+            let body = String(buffer: response.body)
+            #expect(body.contains("Try"))
+            #expect(body.contains("Agent input fields"))
+            #expect(body.contains("Show status updates"))
+            #expect(body.contains("schema-form.js"))
+        }
+        try await client.execute(uri: "/try/agents/Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(String(buffer: response.body).contains("Agent input fields"))
+        }
+        try await client.execute(uri: "/agent/try?id=Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(String(buffer: response.body).contains("Agent input fields"))
+        }
+        try await client.execute(uri: "/help", method: .get) { response in
+            #expect(response.status == .ok)
+            let body = String(buffer: response.body)
+            #expect(body.contains("HTTP API reference"))
+            #expect(body.contains("Read agent docs"))
+            #expect(body.contains("Try this agent"))
+        }
+        try await client.execute(uri: "/try", method: .get) { response in
+            #expect(response.status == .ok)
+            let body = String(buffer: response.body)
+            #expect(body.contains("dedicated-try-link"))
+        }
         try await client.execute(uri: "/assets/schema-form.js", method: .get) { response in
             #expect(response.status == .ok)
             #expect(response.headers[.contentType] == "text/javascript; charset=utf-8")
-            #expect(String(buffer: response.body).contains("class SchemaInputForm"))
+            let body = String(buffer: response.body)
+            #expect(body.contains("class SchemaInputForm"))
+            #expect(body.contains("schema-badge-required"))
+            #expect(body.contains("schema-badge-optional"))
+            #expect(body.contains("schema-badge-default"))
         }
         try await client.execute(uri: "/assets/copy.js", method: .get) { response in
             #expect(response.status == .ok)
