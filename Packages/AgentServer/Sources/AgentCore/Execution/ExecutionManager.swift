@@ -13,11 +13,16 @@ public actor ExecutionManager {
         var task: Task<Void, Never>?
         var timer: Task<Void, Never>?
         var timedOut = false
+        var lease: ProviderWorkerPool.Lease?
+        var requestBegan = Date()
     }
     private let registry: AgentRegistry
     private let providers: ProviderCatalog
     private let runtimeRoot: URL
     private let sessionLog: ExecutionSessionLog?
+    private let ownership: WorkerOwnershipStore?
+    private var pool: ProviderWorkerPool
+    private var pumping = false
     private let maxProcesses: Int
     private let maxQueued: Int
     private let timeoutSeconds: Int
@@ -33,12 +38,15 @@ public actor ExecutionManager {
         registry: AgentRegistry, providers: ProviderCatalog, runtimeRoot: URL,
         maxProcesses: Int = 8, maxQueued: Int = 64, timeoutSeconds: Int = 1800, retentionSeconds: Int = 3600,
         sessionLog: ExecutionSessionLog? = nil,
+        providerPoolSize: Int = 5, ownership: WorkerOwnershipStore? = nil,
         resourceSample: @escaping @Sendable () -> SystemResources = { SystemResources.sample() }
     ) {
         self.registry = registry
         self.providers = providers
         self.runtimeRoot = runtimeRoot
         self.sessionLog = sessionLog
+        self.ownership = ownership
+        self.pool = ProviderWorkerPool(capacity: providerPoolSize, maxProcesses: maxProcesses)
         self.maxProcesses = maxProcesses
         self.maxQueued = maxQueued
         self.timeoutSeconds = timeoutSeconds
@@ -47,6 +55,7 @@ public actor ExecutionManager {
     }
 
     public func execute(_ request: ExecuteRequest, streaming: Bool = true) async throws -> AcceptedExecution {
+        let requestBegan = Date()
         guard accepting else {
             throw AgentError(
                 "server_shutting_down", "The server is shutting down and cannot accept new executions.")
@@ -61,7 +70,9 @@ public actor ExecutionManager {
                     "input_schema_validation_failed", "Input does not match the selected agent input schema.")
             }
         }
+        let readinessBegan = Date()
         let provider = try await providers.resolve(request.provider)
+        let readinessDuration = Date().timeIntervalSince(readinessBegan)
         guard accepting else { throw AgentError("server_shutting_down", "The server is shutting down.") }
         prune()
         guard queue.count < maxQueued, entries.count < 10000 else {
@@ -71,11 +82,15 @@ public actor ExecutionManager {
         let id = "exec_" + UUID().uuidString.lowercased()
         let (stream, continuation) = AsyncStream<StreamEvent>.makeStream(
             bufferingPolicy: .bufferingOldest(128))
-        let record = ExecutionRecord(
+        var record = ExecutionRecord(
             execution_id: id, agent_id: definition.id, version: definition.version,
             provider: provider.id, status: "queued", streaming: streaming, started_at: Date(),
             resident_memory_bytes: 0)
-        entries[id] = Entry(record: record, continuation: continuation, runner: ProcessRunner())
+        record.phase_timings = [
+            "readiness_seconds": readinessDuration,
+            "preparation_seconds": max(0, Date().timeIntervalSince(requestBegan) - readinessDuration),
+        ]
+        entries[id] = Entry(record: record, continuation: continuation, requestBegan: requestBegan)
         pending[id] = Work(definition: definition, input: request.input, provider: provider)
         queue.append(id)
         logState(id)
@@ -110,7 +125,7 @@ public actor ExecutionManager {
             entries[id]?.record.status = "cancelling"
             logState(id)
             emit(id, "status", ["status": .string("cancelling")])
-            entry.runner?.cancel()
+            (entry.lease?.worker.runner ?? entry.runner)?.cancel()
             entry.task?.cancel()
         }
         return entries[id]!.record
@@ -122,7 +137,7 @@ public actor ExecutionManager {
         let records = entries.values.map { entry in
             var record = entry.record
             record.updateElapsed()
-            if let runner = entry.runner {
+            if let runner = entry.lease?.worker.runner ?? entry.runner {
                 record.process_id = runner.processID
                 record.resident_memory_bytes = runner.residentMemoryBytes
             }
@@ -132,7 +147,8 @@ public actor ExecutionManager {
             records: records,
             activeCount: records.filter { ["running", "cancelling"].contains($0.status) }.count,
             queuedCount: queue.count,
-            residentMemoryBytes: records.reduce(0) { $0 + ($1.resident_memory_bytes ?? 0) }, accepting: accepting)
+            residentMemoryBytes: pool.snapshot.resident_memory_bytes, accepting: accepting,
+            worker_pool: pool.snapshot)
     }
 
     public func recentExecutionLogs() throws -> [ExecutionRecord] {
@@ -152,6 +168,7 @@ public actor ExecutionManager {
     }
 
     public func maintenance() {
+        reapIdleWorkers()
         prune()
         pump()
         if Date().timeIntervalSince(lastHeartbeat) >= 10 {
@@ -182,6 +199,11 @@ public actor ExecutionManager {
         entries.removeAll()
         pending.removeAll()
         queue.removeAll()
+        for (id, worker) in pool.allWorkers {
+            pool.beginRetiring(id)
+            await worker.shutdown()
+            pool.removed(id)
+        }
     }
 
     private func terminal(_ state: String) -> Bool { ["completed", "failed", "cancelled"].contains(state) }
@@ -190,31 +212,93 @@ public actor ExecutionManager {
         entries = entries.filter { _, value in !(value.record.ended_at.map { $0 < cutoff } ?? false) }
     }
     private func pump() {
-        let active = entries.values.filter { $0.task != nil }.count
-        let memory = entries.values.reduce(UInt64(0)) { $0 + ($1.runner?.residentMemoryBytes ?? 0) }
+        reapIdleWorkers()
+        guard !pumping, !queue.isEmpty else { return }
+        pumping = true
+        defer { pumping = false }
+        let memory = pool.snapshot.resident_memory_bytes
         let resources = resourceSample()
-        guard memory < resources.physical_memory_bytes * 65 / 100 else { return }
+        guard memory < resources.physical_memory_bytes * 65 / 100 else { queueBlocked("provider_memory"); return }
         if let available = resources.available_memory_bytes,
             available < max(256 * 1_048_576, resources.physical_memory_bytes / 20)
         {
+            queueBlocked("available_memory")
             return
         }
-        if let load = resources.load_average, load > Double(resources.cpu_count * 2) { return }
-        for _ in 0..<max(0, maxProcesses - active) {
-            guard !queue.isEmpty else { break }
-            let id = queue.removeFirst()
-            guard let work = pending.removeValue(forKey: id), let runner = entries[id]?.runner else {
+        if let load = resources.load_average, load > Double(resources.cpu_count * 2) { queueBlocked("cpu_load"); return }
+        for _ in 0..<maxProcesses {
+            guard let id = queue.first, let work = pending[id] else { break }
+            let lease: ProviderWorkerPool.Lease
+            do {
+                guard let acquired = try pool.acquire(
+                    key: .init(provider: work.provider.id, agent: work.definition.id, version: work.definition.version),
+                    make: { try work.provider.makeWorker(ownership: ownership) })
+                else { queueBlocked("process_limit"); break }
+                lease = acquired
+            } catch {
+                queue.removeFirst()
+                pending[id] = nil
+                finish(id, state: "failed", event: "failed",
+                       error: error as? AgentError ?? AgentError("provider_unavailable", "A provider worker could not be created."))
                 continue
             }
+            queue.removeFirst()
+            pending[id] = nil
+            entries[id]?.lease = lease
+            entries[id]?.runner = lease.worker.runner
+            entries[id]?.record.worker_reused = lease.reused
             entries[id]?.record.status = "running"
             entries[id]?.record.running_at = Date()
+            recordPhase(id, "queue_seconds", Date().timeIntervalSince(entries[id]!.record.started_at))
             logState(id)
             emit(id, "status", ["status": .string("running")])
-            entries[id]?.task = Task { await self.perform(id, work: work, runner: runner) }
+            entries[id]?.task = Task { await self.perform(id, work: work, lease: lease) }
             entries[id]?.timer = Task {
                 do { try await Task.sleep(for: .seconds(self.timeoutSeconds)) } catch { return }
                 self.timeout(id)
             }
+        }
+    }
+    private func reapIdleWorkers() {
+        for (id, worker) in pool.idleWorkers where !worker.healthy || !worker.reusable {
+            pool.beginRetiring(id)
+            Task {
+                await worker.shutdown()
+                self.pool.removed(id)
+                self.pump()
+            }
+        }
+    }
+    private func queueBlocked(_ reason: String) {
+        for id in queue {
+            var reasons = entries[id]?.record.queue_reasons ?? []
+            if !reasons.contains(reason) {
+                reasons.append(reason)
+                entries[id]?.record.queue_reasons = reasons
+                logState(id)
+            }
+        }
+        // Free an idle cached process before allowing pressure to starve queued
+        // work. Busy processes remain protected; cache size is an upper bound.
+        if reason != "process_limit", let (id, worker) = pool.oldestIdle {
+            pool.beginRetiring(id)
+            Task {
+                await worker.shutdown()
+                self.pool.removed(id)
+                self.pump()
+            }
+        }
+    }
+    private func recordPhase(_ id: String, _ name: String, _ seconds: Double) {
+        guard seconds.isFinite, ["readiness_seconds", "preparation_seconds", "queue_seconds", "worker_checkout_seconds",
+            "provider_startup_seconds", "generation_seconds", "validation_seconds", "cleanup_seconds", "total_seconds"].contains(name) else { return }
+        if entries[id]?.record.phase_timings == nil { entries[id]?.record.phase_timings = [:] }
+        entries[id]?.record.phase_timings?[name] = max(0, seconds)
+    }
+    private func release(_ lease: ProviderWorkerPool.Lease, healthy: Bool) async {
+        if let worker = pool.release(lease.id, healthy: healthy) {
+            await worker.shutdown()
+            pool.removed(lease.id)
         }
     }
     private func timeout(_ id: String) {
@@ -222,30 +306,58 @@ public actor ExecutionManager {
         entries[id]?.timedOut = true
         _ = try? cancel(id)
     }
-    private func perform(_ id: String, work: Work, runner: ProcessRunner) async {
+    private func perform(_ id: String, work: Work, lease: ProviderWorkerPool.Lease) async {
         let directory = runtimeRoot.appendingPathComponent(id, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         do {
+            let checkout = Date()
+            await lease.evicted?.shutdown()
+            pool.evictionFinished(lease.id)
+            recordPhase(id, "worker_checkout_seconds", Date().timeIntervalSince(checkout))
             try Task.checkCancellation()
             try FileManager.default.createDirectory(
                 at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            let result = try await work.provider.execute(
-                definition: work.definition, input: work.input, runner: runner, directory: directory,
+            let result = try await lease.worker.execute(
+                definition: work.definition, input: work.input, directory: directory,
                 timeoutSeconds: timeoutSeconds,
                 onOutput: { text in await self.providerOutput(id, text: text) },
-                onProgress: { progress in await self.providerProgress(id, progress: progress) })
+                onProgress: { progress in await self.providerProgress(id, progress: progress) },
+                onPhase: { name, seconds in await self.recordPhase(id, name, seconds) })
             guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
+            let validation = Date()
             if result["error"] != nil {
                 entries[id]?.record.schema_validated = false
+                recordPhase(id, "validation_seconds", Date().timeIntervalSince(validation))
+                let cleanup = Date()
+                await release(lease, healthy: false)
+                guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
+                recordPhase(id, "cleanup_seconds", Date().timeIntervalSince(cleanup))
+                // Preserve develop's direct feasibility error / HTTP 422 flow,
+                // while retiring the request's worker on an error result.
                 emit(id, "result", ["result": result])
                 finish(id, state: "completed", event: "completed")
                 return
             }
             try OutputValidator.validate(result, schema: work.definition.outputSchema)
+            recordPhase(id, "validation_seconds", Date().timeIntervalSince(validation))
             entries[id]?.record.schema_validated = true
+            let cleanup = Date()
+            try await lease.worker.reset()
+            guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
+            if let retired = pool.release(lease.id, healthy: true) {
+                await retired.shutdown()
+                pool.removed(lease.id)
+                guard entries[id]?.record.status != "cancelling" else { throw CancellationError() }
+            }
+            let existingCleanup = entries[id]?.record.phase_timings?["cleanup_seconds"] ?? 0
+            recordPhase(id, "cleanup_seconds", existingCleanup + Date().timeIntervalSince(cleanup))
             emit(id, "result", ["result": result])
             finish(id, state: "completed", event: "completed")
         } catch {
+            let cleanup = Date()
+            await release(lease, healthy: false)
+            let existingCleanup = entries[id]?.record.phase_timings?["cleanup_seconds"] ?? 0
+            recordPhase(id, "cleanup_seconds", existingCleanup + Date().timeIntervalSince(cleanup))
             if entries[id]?.timedOut == true {
                 finish(
                     id, state: "failed", event: "failed",
@@ -298,6 +410,7 @@ public actor ExecutionManager {
         entries[id]?.record.ended_at = Date()
         entries[id]?.record.updateElapsed()
         entries[id]?.record.error = failure
+        if let began = entries[id]?.requestBegan { recordPhase(id, "total_seconds", Date().timeIntervalSince(began)) }
         if let failure, let data = try? JSONEncoder().encode(failure),
             let json = try? JSONDecoder().decode(JSONValue.self, from: data)
         {
@@ -305,14 +418,15 @@ public actor ExecutionManager {
         } else {
             emit(id, event, ["status": .string(state)])
         }
-        entries[id]?.continuation?.finish()
-        entries[id]?.continuation = nil
         entries[id]?.record.retainOnlyStateTimingAndError()
         logState(id)
         entries[id]?.runner = nil
+        entries[id]?.lease = nil
         entries[id]?.timer?.cancel()
         entries[id]?.timer = nil
         entries[id]?.task = nil
+        entries[id]?.continuation?.finish()
+        entries[id]?.continuation = nil
         print("execution=\(id) state=\(state) code=\(failure?.code ?? "none")")
         pump()
     }

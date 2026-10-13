@@ -154,6 +154,11 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(record["running_at"]?.string != nil)
             #expect(record["ended_at"]?.string != nil)
             #expect(record["elapsed_seconds"] != nil)
+            #expect(record["phase_timings"]?["total_seconds"] != nil)
+            #expect(record["phase_timings"]?["queue_seconds"] != nil)
+            #expect(record["worker_reused"] == .bool(false))
+            #expect(value["worker_pool"]?["capacity"] == .number(5))
+            #expect(value["worker_pool"]?["retained"] == .number(0))
             #expect(record["agent_id"] == nil && record["provider"] == nil && record["error"] == nil)
         }
         try await client.execute(uri: "/executions/missing/cancel", method: .post) { response in

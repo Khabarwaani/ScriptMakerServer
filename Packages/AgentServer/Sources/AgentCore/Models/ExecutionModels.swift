@@ -30,6 +30,9 @@ public struct ExecutionRecord: Codable, Sendable {
     public var running_at: Date?
     public var ended_at: Date?
     public var elapsed_seconds: Double = 0
+    public var phase_timings: [String: Double]?
+    public var queue_reasons: [String]?
+    public var worker_reused: Bool?
     public var error: AgentError?
     public var schema_validated: Bool?
     public var process_id: Int32?
@@ -67,4 +70,5 @@ public struct ExecutionSnapshot: Sendable {
     public let queuedCount: Int
     public let residentMemoryBytes: UInt64
     public let accepting: Bool
+    public var worker_pool: WorkerPoolSnapshot? = nil
 }

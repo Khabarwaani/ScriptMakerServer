@@ -15,6 +15,8 @@ struct AgentTools {
             .deletingLastPathComponent().deletingLastPathComponent()
         let configuration = try ServerConfiguration(workingDirectory: packageRoot)
         switch args.first {
+        case "benchmark" where args.count == 2:
+            try await ProviderBenchmark.run(providerID: args[1])
         case "add" where args.count == 2 || args.count == 3:
             try AgentPackageTools.create(
                 id: args[1], version: args.count == 3 ? args[2] : "1.0.0", root: configuration.agentsDirectory
@@ -61,7 +63,7 @@ struct AgentTools {
             print(checkOnly ? "All package READMEs match their versioned resources." : "Updated \(changed.count) package README(s).")
         default:
             print(
-                "Usage: swift run AgentTools add AGENT [VERSION]\n       swift run AgentTools version AGENT NEW_VERSION SOURCE_VERSION\n       swift run AgentTools check [--build]\n       swift run AgentTools docs [--check]"
+                "Usage: swift run AgentTools add AGENT [VERSION]\n       swift run AgentTools version AGENT NEW_VERSION SOURCE_VERSION\n       swift run AgentTools check [--build]\n       swift run AgentTools docs [--check]\n       swift run AgentTools benchmark PROVIDER (opt-in real model requests)"
             )
             exit(2)
         }
