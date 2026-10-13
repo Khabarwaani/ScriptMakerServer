@@ -44,7 +44,9 @@ swift test --package-path Packages/AgentServer
 swift run --package-path Packages/AgentServer AgentServer
 ```
 
-Configuration is in [config/server.json](../Packages/AgentServer/config/server.json): loopback, port 8080,
+Configuration is in [config/server.json](../Packages/AgentServer/config/server.json): loopback,
+fixed development port 8080, fixed production port 8081, automatic testing range
+9000–9999 with at most 30 distinct attempts,
 15-minute graceful shutdown allowance, execution timeout, process/queue budgets,
 status retention, `provider_pool_size` and provider executable/model settings. Built configuration, agent
 definitions and web assets are served from the build output. Execution scratch
@@ -56,12 +58,17 @@ Gracefully stop a running instance:
 swift run --package-path Packages/AgentServer AgentServer stop
 ```
 
-In Xcode, run the **AgentServer-Stop** scheme for the same behavior. A new server
+In Xcode, run the **AgentServer-Stop** scheme for the same development behavior. A new development/production server
 instance gracefully stops the previous managed instance on its configured port
 before starting. If shutdown does not finish within the allowance, startup fails
 rather than force-killing the server. Unrelated port owners are left untouched.
 Xcode's debugger Stop button may terminate abruptly; use the stop command for
 cleanup that must be graceful.
+
+For real server tests, use `AGENT_SERVER_ENV=testing`; port selection is automatic
+and configuration-driven. Read the listening address from startup output and
+terminate only the process started by that test run. Testing does not replace
+other servers, and rejects port-wide stop. See [environment configuration](docs/RUN.md#central-configuration).
 
 ## Standard project layout
 

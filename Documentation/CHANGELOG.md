@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Separate configurable development (8080), production (8081), and automatic
+  testing ports (9000–9999). Tests check availability, retry up to 30 distinct
+  candidates, and never replace or stop existing servers (#52).
+
 - Add configurable lazy global `provider_pool_size` (default five), idle LRU,
   bounded burst workers, verified native context reset and error retirement.
 - Add private process-identity journaling and safe restart cleanup after forced

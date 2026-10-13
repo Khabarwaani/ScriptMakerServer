@@ -386,6 +386,12 @@ credentials. `/status` exposes operational state without confidential data.
 
 ## 14. Testing requirements
 
+Production and development use configurable fixed ports, defaulting to 8081 and
+8080 respectively. Real test servers automatically check and select a random
+available port in the configurable inclusive range 9000–9999. Occupied candidates
+and startup bind collisions count toward at most 30 distinct attempts; exhaustion
+fails clearly. Test startup and cleanup must not stop other server instances.
+
 Use deterministic mock providers; not every unit test may require live provider
 calls. Provide a separate integration path for real CLI execution.
 

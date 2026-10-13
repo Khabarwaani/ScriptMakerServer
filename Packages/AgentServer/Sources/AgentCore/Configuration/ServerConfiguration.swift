@@ -4,7 +4,10 @@ import Foundation
 /// authentication is implemented.
 public struct ServerConfiguration: Sendable {
     public let host: String
-    public let port: Int
+    public let serverEnvironment: ServerEnvironment
+    /// Nil in automatic testing mode; the allocator supplies the bound port.
+    public let port: Int?
+    public let testingPorts: TestingPortConfiguration
     public let agentsDirectory: URL
     public let shutdownTimeoutSeconds: Int
     public let executionTimeoutSeconds: Int
@@ -37,11 +40,39 @@ public struct ServerConfiguration: Sendable {
         let host = settings.host ?? "127.0.0.1"
         guard host == "127.0.0.1" else { throw ConfigurationError.remoteBindingUnavailable }
         self.host = host
-        let portValue = environment["AGENT_SERVER_PORT"] ?? String(settings.port ?? 8080)
-        guard let port = Int(portValue), (1...65535).contains(port) else {
-            throw ConfigurationError.invalidPort
+        guard let selectedEnvironment = ServerEnvironment(
+            rawValue: environment["AGENT_SERVER_ENV"] ?? settings.environment ?? "development") else {
+            throw ConfigurationError.invalidEnvironment
         }
-        self.port = port
+        self.serverEnvironment = selectedEnvironment
+        let productionPort = settings.ports?.production ?? 8081
+        // Preserve old custom config files while migrating packaged defaults.
+        let developmentPort = settings.ports?.development ?? settings.port ?? 8080
+        let testingPorts = try settings.ports?.testing ?? TestingPortConfiguration()
+        guard (1...65535).contains(productionPort), (1...65535).contains(developmentPort),
+            productionPort != developmentPort,
+            !testingPorts.range.contains(productionPort), !testingPorts.range.contains(developmentPort) else {
+            throw ConfigurationError.invalidPortConfiguration
+        }
+        self.testingPorts = testingPorts
+        if let portValue = environment["AGENT_SERVER_PORT"] {
+            guard let port = Int(portValue), (1...65535).contains(port) else {
+                throw ConfigurationError.invalidPort
+            }
+            let isolated = switch selectedEnvironment {
+            case .testing: testingPorts.range.contains(port)
+            case .production: port != developmentPort && !testingPorts.range.contains(port)
+            case .development: port != productionPort && !testingPorts.range.contains(port)
+            }
+            guard isolated else { throw ConfigurationError.invalidPortConfiguration }
+            self.port = port
+        } else {
+            self.port = switch selectedEnvironment {
+            case .production: productionPort
+            case .development: developmentPort
+            case .testing: nil
+            }
+        }
         self.agentsDirectory =
             URL(
                 fileURLWithPath: environment["AGENT_SERVER_AGENTS_DIR"] ?? settings.agents_directory
@@ -89,6 +120,8 @@ public struct ServerConfiguration: Sendable {
 
     private struct Settings: Decodable {
         var host: String?
+        var environment: String?
+        var ports: PortConfiguration?
         var port: Int?
         var agents_directory: String?
         var shutdown_timeout_seconds: Int?
@@ -103,6 +136,8 @@ public struct ServerConfiguration: Sendable {
 
     public enum ConfigurationError: Error, CustomStringConvertible {
         case invalidPort
+        case invalidEnvironment
+        case invalidPortConfiguration
         case invalidConfigurationFile
         case configurationFileNotFound
         case remoteBindingUnavailable
@@ -111,6 +146,9 @@ public struct ServerConfiguration: Sendable {
         public var description: String {
             switch self {
             case .invalidPort: "Server port must be between 1 and 65535."
+            case .invalidEnvironment: "Server environment must be production, development or testing."
+            case .invalidPortConfiguration:
+                "Production and development ports must be distinct valid ports outside the testing range; testing requires a valid range and 1 through 30 attempts."
             case .invalidConfigurationFile: "Server configuration must contain valid settings JSON."
             case .configurationFileNotFound: "The specified server configuration file does not exist."
             case .remoteBindingUnavailable:

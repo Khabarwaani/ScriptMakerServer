@@ -8,10 +8,14 @@ public final class ServerInstance: Sendable {
     private init(descriptor: Int32) { self.descriptor = descriptor }
     deinit { Self.closePlatformDescriptor(descriptor) }
 
-    public static func start(port: Int, timeoutSeconds: Int) async throws -> ServerInstance {
+    public static func start(
+        port: Int, timeoutSeconds: Int, replaceExisting: Bool = true
+    ) async throws -> ServerInstance {
         let descriptor = try openPlatformLock(port: port)
         do {
-            _ = try await stopPlatformOwner(descriptor: descriptor, timeoutSeconds: timeoutSeconds)
+            if replaceExisting {
+                _ = try await stopPlatformOwner(descriptor: descriptor, timeoutSeconds: timeoutSeconds)
+            }
             try applyPlatformWriteLock(descriptor: descriptor)
             return ServerInstance(descriptor: descriptor)
         } catch {

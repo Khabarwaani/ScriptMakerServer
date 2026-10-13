@@ -41,3 +41,18 @@ Before starting any implementation or making any edits:
    - Once verified merged on `origin/develop`, pull `develop` in the primary checkout, remove the clean worktree (`git worktree remove .worktrees/<agent>`), and delete the task branch (`git branch -d <branch>`).
 
 See [Documentation/README.md](file:///Users/abhiraj/Documents/Khabarwaani/ScriptMakerServer/Documentation/README.md#L155-L252) and [Documentation/AGENTS.md](file:///Users/abhiraj/Documents/Khabarwaani/ScriptMakerServer/Documentation/AGENTS.md) for complete details.
+
+## Test-server isolation
+
+- Every real server launched for tests or smoke checks must use `AGENT_SERVER_ENV=testing`.
+- Read the testing port range and attempt limit from `Packages/AgentServer/config/server.json`.
+  The executable automatically checks random distinct candidates, defaulting to
+  9000–9999 and at most 30 attempts, and retries startup port collisions.
+- Swift test launchers should use `TestingPortAllocator.withAvailablePort` with
+  `ServerConfiguration.testingPorts`; report startup bind collisions as
+  `TestingPortAllocator.AllocationError.portInUse` and keep ownership until cleanup.
+- Use the selected listening address printed after startup for all test requests.
+  Never test against development (8080) or production (8081), or choose an ad hoc port.
+- Retain the process handle/PID for the test server you launch. Shut down only that
+  process; never run a port-wide `AgentServer stop` for tests or stop another server
+  to obtain a port. In-process router tests do not listen and need no port allocation.
