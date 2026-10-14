@@ -3,7 +3,7 @@ public struct JSONSchema: Sendable, Equatable {
 
     public init?(_ value: String) {
         do {
-            try SchemaValidator.validate(value)
+            try Self.validate(value)
         } catch {
             return nil
         }
@@ -11,7 +11,7 @@ public struct JSONSchema: Sendable, Equatable {
     }
 
     public init?<T: Decodable>(_ type: T.Type) {
-        guard let value = try? SchemaDeriver.derive(type) else { return nil }
+        guard let value = try? Self.derive(type) else { return nil }
         self.init(value)
     }
 }

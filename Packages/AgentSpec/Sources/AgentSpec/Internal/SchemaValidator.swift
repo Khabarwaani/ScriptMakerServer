@@ -1,6 +1,6 @@
 internal import JSONSchema
 
-enum SchemaValidator {
+extension JSONSchema {
     static func validate(_ text: String) throws {
         let value: JSONValue
         do {

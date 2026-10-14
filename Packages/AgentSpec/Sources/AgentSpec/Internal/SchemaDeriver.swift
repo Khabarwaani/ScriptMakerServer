@@ -1,7 +1,7 @@
 import Foundation
 
 /// Observes ordinary synthesized decoding. It does not inspect Swift ABI layouts.
-enum SchemaDeriver {
+extension JSONSchema {
     static func derive<T: Decodable>(_ type: T.Type) throws -> String {
         let session = DerivationSession()
         let node = SchemaNode()
