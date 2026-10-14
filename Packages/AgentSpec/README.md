@@ -4,12 +4,6 @@ A standalone Swift package for provider-independent agent specifications. Copy t
 directory into a separate repository without changing its source or dependency
 paths. It has no dependency on AgentServer or the other packages in this repository.
 
-## Requirements
-
-Swift 6.1 or later, using Swift 6 language mode. The schema validator dependency
-requires Swift 6.1. Supported Apple deployment targets are declared in Package.swift;
-the package also uses cross-platform Foundation APIs.
-
 ## Public contract
 
 `Spec` exposes static `Identity` (id, name, version), instance role and instructions,
