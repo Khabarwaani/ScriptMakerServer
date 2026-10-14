@@ -14,7 +14,13 @@ let package = Package(
             dependencies: [
                 .product(name: "TypeDecoder", package: "TypeDecoder")
             ]
-        )
+        ),
+        .executableTarget(
+            name: "FailureProbe",
+            dependencies: ["AgentSpec"],
+            path: "Tests/FailureProbe"
+        ),
+        .testTarget(name: "AgentSpecTests", dependencies: ["AgentSpec", "FailureProbe"])
     ],
     swiftLanguageModes: [.v6]
 )

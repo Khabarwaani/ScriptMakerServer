@@ -56,6 +56,8 @@ execute providers or add a decoding method to Spec.
 
 JSONString's failable string initializer uses Foundation JSONSerialization,
 preserves the original text, and accepts JSON objects, arrays, scalars, and null.
+Acceptance follows Foundation's parser, which can accept extensions such as
+trailing commas on Apple platforms. It is not a separate strict JSON grammar check.
 JSONString also supports string literals; an invalid literal is a programming
 error and terminates execution.
 
@@ -92,6 +94,7 @@ Ordinary model shapes include primitive fields, nested models, CodingKeys, array
 string-keyed dictionaries, and optionals. Optional fields can be absent or null;
 non-optional fields are required. Generated object schemas permit additional keys,
 matching JSONDecoder's ordinary behavior.
+Empty structs are supported through a guarded empty-object decoding fallback.
 
 Foundation Date, Data, UUID, URL, and Decimal representations follow JSONDecoder's
 default strategies. Derivation does not infer domain validation rules, enum cases,
@@ -106,12 +109,29 @@ model annotations or added metadata; they are not imposed on the Decodable-only 
 
 This package generates model schemas; it does not validate arbitrary external
 schemas or responses. Provider-specific compatibility belongs in adapters.
+No provider integration is tested here. Adapters must check their provider's
+supported keywords and object restrictions, including nullable `anyOf`, formats,
+`contentEncoding`, and additional keys, before submitting a generated schema.
 
-## Build and phases
+## Readability guidance
 
-Run `swift build` from this directory. Phase 1 contains implementation and
-documentation only. Automated tests and broader conformance verification are
-tracked in [Phase 2, issue #76](https://github.com/Khabarwaani/ScriptMakerServer/issues/76).
+Use names that explain a type's responsibility and a value's meaning. Keep control
+flow explicit, format branches consistently, and scope implementation helpers to
+their owning type or file. Group protocol implementations in separate extensions.
+Keep comments short; add them for a behavior boundary or useful example rather
+than narrating the code. Prefer Foundation APIs over duplicate infrastructure.
 
 Third-party imports are internal; implementation helpers are private or fileprivate.
 Access control defines these boundaries without an Internal folder.
+
+## Build and validation
+
+Run `swift build` and `swift test` from this directory. Tests cover public contracts,
+ordinary model derivation, the 64-level conversion limit, unsupported models,
+Foundation representations, and formatting. On macOS and Linux, a test-only
+`FailureProbe` executable checks invalid literals and failing default conversions
+in separate processes. No real server or AI provider is started.
+
+The tests use the public library import, including Encodable-only inputs and
+Decodable-only outputs. Schema assertions check generated keyword structures;
+they do not constitute meta-schema validation or prove arbitrary custom decoding.
