@@ -58,22 +58,25 @@ consumer can decode its received response into `Summariser.Output` using JSONDec
 ## Validated values
 
 `JSONString` accepts objects, arrays, strings, numbers, booleans, and null. Its
-throwing initializer preserves the original text. Its encoding initializer uses
-JSONEncoder's default strategies, compact output, and sorted keys.
+failable initializer uses Foundation's JSONSerialization and preserves the original
+text. Invalid text returns nil. ModelledSpec uses Foundation's JSONEncoder directly,
+with default strategies, compact output, and sorted keys.
 
 ```swift
 let literal: JSONString = #"{"message":"Hello"}"#
-let dynamic = try JSONString(receivedText)
-let encoded = try JSONString(encoding: SummaryInput(article: "Article text"))
+let dynamic = JSONString(receivedText) // JSONString?
+let data = try JSONEncoder().encode(SummaryInput(article: "Article text"))
+let encoded = String(data: data, encoding: .utf8).flatMap { JSONString($0) }
 
-let explicit = try JSONSchema(
+let explicit = JSONSchema(
     #"{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}"#
 )
-let derived = try JSONSchema(SummaryOutput.self)
+let derived = JSONSchema(SummaryOutput.self) // JSONSchema?
 ```
 
-An invalid JSON literal terminates with preconditionFailure. Throwing initializers
-are available for dynamic text and recoverable encoding/derivation failures.
+An invalid JSON literal terminates with preconditionFailure. Dynamic JSON and schema
+initializers return nil on validation or derivation failure. Foundation's JSONEncoder
+throws encoding errors directly; no separate encoding initializer is provided.
 Default ModelledSpec getters also terminate on conversion failure, because the
 contract permits neither an error nor an absent value. Their failure messages do
 not include input or prompt text.
@@ -84,8 +87,8 @@ JSONSchema validates against the Draft 2020-12 meta-schema using the pinned
 swift-json-schema validator. Its bundled meta-schema resources are loaded locally;
 validation performs no network requests. An absent root `$schema` means Draft
 2020-12; other explicit root dialects are rejected. Valid JSON syntax alone is
-insufficient. Public validation errors describe schema paths and keywords without
-exposing dependency types.
+insufficient. Validation errors and dependency diagnostics remain internal;
+failable construction returns nil for an invalid or unsupported schema.
 
 Schema validity does not imply compatibility with every AI provider. Keep provider
 adaptation outside this package. Schema validation also does not validate an agent
@@ -121,11 +124,10 @@ with a custom-decoded output can supply a validated schema without changing its 
 ```swift
 // Inside a ModelledSpec conformance:
 var outputSchema: JSONSchema {
-    do {
-        return try JSONSchema(#"{"type":"string","enum":["accepted","rejected"]}"#)
-    } catch {
+    guard let schema = JSONSchema(#"{"type":"string","enum":["accepted","rejected"]}"#) else {
         preconditionFailure("Invalid declared output schema")
     }
+    return schema
 }
 ```
 
@@ -135,5 +137,10 @@ Run `swift build` from this directory. Phase 1 contains the library implementati
 and documentation only. Tests and broader conformance verification are tracked in
 [Phase 2, issue #76](https://github.com/Khabarwaani/ScriptMakerServer/issues/76).
 
-The validator is imported internally. Parsing, derivation, resources, and dependency
-diagnostics are not part of the public API.
+Foundation supplies JSON text validation, input encoding, schema serialization, and
+the Decoder interfaces used for derivation. The external validator is used internally
+for Draft 2020-12 meta-schema validation and its schema representation. Apple's
+Foundation Models generation schemas require Generable conformance; they do not
+replace this package's Decodable-only model contract or standard schema validation.
+
+Parsing, derivation, resources, and dependency diagnostics are not part of the public API.
