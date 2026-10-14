@@ -55,17 +55,20 @@ public struct SchemaDefinition: Sendable {
     public let description: String?
     public let properties: [SchemaProperty]
     public let additionalProperties: Bool
+    public let examples: [JSONValue]?
 
     public init(
         title: String? = nil,
         description: String? = nil,
         properties: [SchemaProperty] = [],
-        additionalProperties: Bool = false
+        additionalProperties: Bool = false,
+        examples: [JSONValue]? = nil
     ) {
         self.title = title
         self.description = description
         self.properties = properties
         self.additionalProperties = additionalProperties
+        self.examples = examples
     }
 
     /// Converts this schema definition into a Draft 2020-12 JSONValue.
@@ -133,6 +136,9 @@ public struct SchemaDefinition: Sendable {
         }
         if !requiredList.isEmpty {
             schemaObj["required"] = .array(requiredList)
+        }
+        if let examples = examples {
+            schemaObj["examples"] = .array(examples)
         }
 
         return .object(schemaObj)

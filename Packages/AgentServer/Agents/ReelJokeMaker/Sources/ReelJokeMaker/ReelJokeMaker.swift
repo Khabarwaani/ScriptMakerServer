@@ -238,7 +238,15 @@ public struct ReelJokeMakerInput: Codable, Sendable, Equatable, JSONSchemaConver
                 SchemaProperty(name: "output_count", type: "integer", description: "Number of comedic reel variations to generate. Defaults to 3.", defaultValue: .number(3), minimum: 1, maximum: 5),
                 SchemaProperty(name: "format", type: "string", description: "Target video presentation format. Defaults to mobile vertical reel (9:16).", defaultValue: .string("mobile_vertical_9_16"))
             ],
-            additionalProperties: false
+            additionalProperties: false,
+            examples: [
+                .object([
+                    "news": .string("City municipal corporation announces free high-speed Wi-Fi in public parks, but routers are installed on top of 50-foot coconut trees."),
+                    "language": .string("hi-IN"),
+                    "duration_seconds": .number(10.0),
+                    "output_count": .number(3)
+                ])
+            ]
         )
     }
 }

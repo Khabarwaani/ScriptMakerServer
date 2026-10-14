@@ -1,0 +1,151 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AgentServer · Input and Output Formats</title><style>
+:root{--ink:#182438;--muted:#637189;--blue:#255cd9;--bg:#f4f6fa;--card:#ffffff;--border:#dce2ec}*{box-sizing:border-box}body{font:16px system-ui,-apple-system,sans-serif;line-height:1.6;color:var(--ink);background:var(--bg);margin:0}main{max-width:1080px;margin:32px auto;padding:24px}nav{display:flex;gap:24px;align-items:center}a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}h1{font-size:36px;line-height:1.2;margin:12px 0 6px;letter-spacing:-0.5px}h2{font-size:22px;margin:24px 0 12px}.muted{color:var(--muted)}.breadcrumb{font-size:14px;color:var(--muted);margin:16px 0 8px}.breadcrumb a{color:var(--muted)}.breadcrumb a:hover{color:var(--blue)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin:20px 0}
+.header-card{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.btn{display:inline-block;background:var(--blue);color:white;border:0;border-radius:8px;padding:10px 18px;font:inherit;font-weight:500;cursor:pointer;text-decoration:none}
+.btn:hover{background:#1d4bb8;text-decoration:none}
+.btn.secondary{background:#e8edfb;color:var(--blue)}
+.btn.secondary:hover{background:#d5e1f8}
+.badge{display:inline-block;background:#eaf0fc;color:var(--blue);padding:4px 12px;border-radius:16px;font-size:13px;font-weight:500}
+.badge.green{background:#e7f4ed;color:#176c47}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.row{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:12px 0}
+select{padding:10px 14px;border:1px solid #acb9cc;border-radius:8px;font:inherit;background:white}
+pre{background:#f0f3f8;border:1px solid #e3e8f0;border-radius:8px;padding:16px;white-space:pre-wrap;overflow-wrap:anywhere;font:14px ui-monospace,monospace;line-height:1.6;max-height:480px;overflow:auto}
+details.topic{background:white;border:1px solid var(--border);border-radius:12px;margin:14px 0;overflow:hidden}
+details.topic summary{cursor:pointer;font-weight:600;padding:14px 20px;background:#fafbfc}
+details.topic[open] summary{border-bottom:1px solid #e4e8f0}
+details.topic .content{padding:16px 20px}
+.copy-button{font-size:13px;padding:6px 12px;margin:8px 8px 4px 0}
+.agent-banner{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:14px 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:20px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.header-card{flex-direction:column;align-items:stretch}}
+</style></head><body><main>
+<nav><strong>AgentServer</strong><a href="/help">HTTP API reference</a><a href="/">Run an agent</a><a href="/try">Try an API</a></nav>
+<div class="breadcrumb"><a href="/help">API Reference</a> &rsaquo; <a href="/help#agents">Agents</a> &rsaquo; <a id="doc-breadcrumb" href="#">Agent</a> &rsaquo; <span>Input &amp; Output Formats</span></div>
+
+<div id="not-found" class="card" hidden><h1 class="muted">Agent not found</h1><p id="not-found-msg">The requested agent could not be found.</p><p><a href="/help" class="btn">&larr; Return to API reference</a></p></div>
+
+<div id="format-view">
+  <div class="card header-card">
+    <div>
+      <div class="row" style="margin-top:0">
+        <span id="agent-badge" class="badge">agent-id</span>
+        <span class="badge green">Schema Specification</span>
+      </div>
+      <h1 id="title"><span id="agent-display-name">Agent</span> Formats</h1>
+      <p id="description" class="muted" style="margin:4px 0 0">Dedicated schema specification, validation constraints, and example payloads for input and output contracts.</p>
+    </div>
+    <div class="header-actions">
+      <a id="doc-btn" class="btn secondary" href="#">View Agent Docs &nearr;</a>
+      <a id="try-btn" class="btn" href="#">Try this Agent &nearr;</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label for="version-select" style="font-weight:600">Select version:</label>
+      <select id="version-select"></select>
+      <span id="version-count" class="muted" style="font-size:14px"></span>
+    </div>
+  </div>
+
+  <h2>Input format specification</h2>
+  <div class="grid">
+    <div>
+      <details class="topic" open><summary>Input JSON Schema (draft 2020-12)</summary><div class="content"><pre id="input-schema" data-copy></pre></div></details>
+    </div>
+    <div>
+      <details class="topic" open><summary>Example input payload</summary><div class="content"><pre id="input-example" data-copy></pre><div style="margin-top:12px"><a id="try-with-input-btn" href="#" class="btn secondary" style="font-size:14px">Test this input in Try page &nearr;</a></div></div></details>
+    </div>
+  </div>
+
+  <h2>Output format specification</h2>
+  <div class="grid">
+    <div>
+      <details class="topic" open><summary>Output JSON Schema (draft 2020-12)</summary><div class="content"><pre id="output-schema" data-copy></pre></div></details>
+    </div>
+    <div>
+      <details class="topic" open><summary>Example output shape (illustrative)</summary><div class="content"><pre id="output-example" data-copy></pre></div></details>
+    </div>
+  </div>
+</div>
+</main>
+<script src="/assets/copy.js"></script>
+<script src="/assets/errors.js"></script>
+<script>
+const $=id=>document.getElementById(id),params=new URLSearchParams(location.search);
+let spec=null,currentAgent=null;
+const pretty=value=>JSON.stringify(value,null,2);
+function example(schema,depth=0){if(depth>5||!schema||typeof schema!=='object')return {};if(schema.examples?.length)return schema.examples[0];if('const'in schema)return schema.const;if('default'in schema)return schema.default;if(schema.enum?.length)return schema.enum[0];const type=Array.isArray(schema.type)?schema.type[0]:schema.type;if(type==='object'||schema.properties){const value={};for(const key of schema.required||Object.keys(schema.properties||{}))value[key]=example(schema.properties?.[key],depth+1);return value;}if(type==='array')return schema.minItems?[example(schema.items,depth+1)]:[];if(type==='integer'||type==='number')return schema.minimum??0;if(type==='boolean')return false;if(type==='null')return null;return 'example';}
+
+function getRequestedAgentId(){
+  const pathParts=location.pathname.split('/').filter(Boolean);
+  if(pathParts[0]==='agents'&&pathParts[1]){
+    if(pathParts[2]==='format'||pathParts[2]==='formats'||pathParts[2]==='schema')return decodeURIComponent(pathParts[1]);
+    return decodeURIComponent(pathParts[1]);
+  }
+  return params.get('id')||params.get('agent')||'';
+}
+
+function updateVersionView(){
+  if(!currentAgent)return;
+  const version=$('version-select').value;
+  const def=currentAgent.definitions.find(d=>d.version===version)||currentAgent.definitions[0];
+  if(!def)return;
+  const inputSchema=def.input_schema||{type:'object',description:'Any JSON object; no agent-specific input schema.'};
+  $('input-schema').textContent=pretty(inputSchema);
+  const inputEx=example(inputSchema);
+  $('input-example').textContent=pretty(inputEx);
+  $('output-schema').textContent=pretty(def.output_schema||{});
+  $('output-example').textContent=pretty(example(def.output_schema));
+
+  const docUrl=`/agents/${encodeURIComponent(currentAgent.id)}?version=${encodeURIComponent(version)}`;
+  const tryUrl=`/agents/${encodeURIComponent(currentAgent.id)}/try?version=${encodeURIComponent(version)}`;
+  $('doc-breadcrumb').href=docUrl;
+  $('doc-btn').href=docUrl;
+  $('try-btn').href=tryUrl;
+  $('try-with-input-btn').href=tryUrl;
+}
+
+async function load(){
+  try{
+    const res=await serverFetch('/openapi.json');
+    if(!res.ok)throw Error(`Failed to load API specification (HTTP ${res.status}).`);
+    spec=await res.json();
+    const targetId=getRequestedAgentId();
+    currentAgent=spec['x-agents']?.find(a=>a.id.toLowerCase()===targetId.toLowerCase());
+
+    if(!currentAgent){
+      $('format-view').hidden=true;
+      $('not-found').hidden=false;
+      $('not-found-msg').textContent=targetId?`Agent "${targetId}" was not found.`:'No agent ID was specified in the URL.';
+      return;
+    }
+
+    const docUrl=`/agents/${encodeURIComponent(currentAgent.id)}`;
+    document.title=`AgentServer · ${currentAgent.name||currentAgent.id} Formats`;
+    $('doc-breadcrumb').textContent=currentAgent.name||currentAgent.id;
+    $('agent-badge').textContent=currentAgent.id;
+    $('agent-display-name').textContent=currentAgent.name||currentAgent.id;
+
+    $('version-select').replaceChildren();
+    for(const v of currentAgent.versions){
+      $('version-select').add(new Option(v,v));
+    }
+    const reqVersion=params.get('version');
+    $('version-select').value=(reqVersion&&currentAgent.versions.includes(reqVersion))?reqVersion:(currentAgent.latest||currentAgent.versions[0]||'');
+    $('version-count').textContent=`${currentAgent.versions.length} version(s) available`;
+
+    $('version-select').onchange=updateVersionView;
+    updateVersionView();
+  }catch(err){
+    $('format-view').hidden=true;
+    $('not-found').hidden=false;
+    $('not-found-msg').textContent=err.message;
+  }
+}
+
+installCopyButtons();
+load();
+</script></body></html>

@@ -18,9 +18,13 @@ struct ServerRoutes {
         router.get("/logs") { _, _ in try webPage("logs") }
         router.get("/agent") { _, _ in try webPage("agent") }
         router.get("/agent/try") { _, _ in try webPage("agent-try") }
+        router.get("/agent/format") { _, _ in try webPage("agent-format") }
         router.get(RouterPath("/agents/{agent_id}")) { _, _ in try webPage("agent") }
         router.get(RouterPath("/agents/{agent_id}/try")) { _, _ in try webPage("agent-try") }
+        router.get(RouterPath("/agents/{agent_id}/format")) { _, _ in try webPage("agent-format") }
+        router.get(RouterPath("/agents/{agent_id}/schema")) { _, _ in try webPage("agent-format") }
         router.get(RouterPath("/help/agents/{agent_id}")) { _, _ in try webPage("agent") }
+        router.get(RouterPath("/help/agents/{agent_id}/format")) { _, _ in try webPage("agent-format") }
         router.get(RouterPath("/try/agents/{agent_id}")) { _, _ in try webPage("agent-try") }
         router.get(RouterPath(APIOperation.getExecutionLogs.path)) { _, _ in
             do { return try jsonResponse(["entries": await manager.recentExecutionLogs()]) }

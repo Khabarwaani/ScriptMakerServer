@@ -19,7 +19,19 @@ let trackedTiming=[];function renderTiming(){for(const item of trackedTiming)ite
 setInterval(renderTiming,1000);
 function setState(text,error=false){$('state').textContent=text;$('state').classList.toggle('error',error);}
 function request(){const input=JSON.parse($('input').value);if(!input||Array.isArray(input)||typeof input!=='object')throw Error('Input must be a JSON object.');if(!$('agent').value)throw Error('Choose an available agent.');const body={agent_id:$('agent').value,provider:$('provider').value,input};if($('version').value)body.version=$('version').value;return body;}
-function updateVersions(){const agent=catalog.find(a=>a.id===$('agent').value);$('version').replaceChildren(new Option(agent?.latest?`Latest stable (${agent.latest})`:'No stable default — select a version',''));for(const version of agent?.versions||[])$('version').add(new Option(version,version));if(agent&&!agent.latest)$('version').value=agent.versions[0]||'';$('selection').textContent=agent?`${agent.versions.length} available version(s). Omit a version to use the latest stable definition.`:'No valid agents were found.';}
+function updateVersions(){
+  const agent=catalog.find(a=>a.id===$('agent').value);
+  $('version').replaceChildren(new Option(agent?.latest?`Latest stable (${agent.latest})`:'No stable default — select a version',''));
+  for(const version of agent?.versions||[])$('version').add(new Option(version,version));
+  if(agent&&!agent.latest)$('version').value=agent.versions[0]||'';
+  if(agent){
+    const v=$('version').value||agent.latest||'';
+    const vQuery=v?`?version=${encodeURIComponent(v)}`:'';
+    $('selection').innerHTML=`${agent.versions.length} available version(s). <a href="/agents/${encodeURIComponent(agent.id)}${vQuery}">Agent Details &nearr;</a> · <a href="/agents/${encodeURIComponent(agent.id)}/format${vQuery}">Input/Output Formats &nearr;</a> · <a href="/agents/${encodeURIComponent(agent.id)}/try${vQuery}">Dedicated Try Page &nearr;</a>`;
+  }else{
+    $('selection').textContent='No valid agents were found.';
+  }
+}
 function inputExample(){const agent=catalog.find(a=>a.id===$('agent').value);const version=$('version').value||agent?.latest;const schema=agent?.definitions?.find(d=>d.version===version)?.input_schema;$('input').value=JSON.stringify(schema?.examples?.[0]||{},null,2);}
 async function loadAgents(){try{const response=await serverFetch('/openapi.json');if(!response.ok)throw Error(`Agent discovery failed (HTTP ${response.status}).`);const data=await response.json(),previous=$('agent').value;catalog=data['x-agents'];$('agent').replaceChildren();for(const agent of catalog)$('agent').add(new Option(agent.name||agent.id,agent.id));if(catalog.some(a=>a.id===previous))$('agent').value=previous;updateVersions();inputExample();$('submit').disabled=!catalog.length||receiving;for(const option of $('provider').options){option.disabled=!(data['x-providers']||[]).some(p=>p.id===option.value&&p.available);option.textContent=({codex:'Codex',antigravity:'Antigravity',grok:'Grok'})[option.value]+(option.disabled?' (unavailable)':'');}}catch(error){$('selection').textContent=error.message;$('submit').disabled=true;}}
 $('agent').onchange=()=>{updateVersions();inputExample();};$('version').onchange=inputExample;$('refresh').onclick=loadAgents;$('preview').onclick=()=>{try{$('raw').textContent=JSON.stringify(request(),null,2);$('raw').parentElement.open=true;}catch(error){$('progress').textContent=error.message;setState('Invalid input',true);}};

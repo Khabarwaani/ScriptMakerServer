@@ -244,6 +244,24 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(response.status == .ok)
             #expect(String(buffer: response.body).contains("Agent input fields"))
         }
+        try await client.execute(uri: "/agents/Echo/format", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/html; charset=utf-8")
+            let body = String(buffer: response.body)
+            #expect(body.contains("Input &amp; Output Formats"))
+            #expect(body.contains("Input format specification"))
+            #expect(body.contains("Output format specification"))
+        }
+        try await client.execute(uri: "/agents/Echo/schema", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/html; charset=utf-8")
+            let body = String(buffer: response.body)
+            #expect(body.contains("Input &amp; Output Formats"))
+        }
+        try await client.execute(uri: "/agent/format?id=Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(String(buffer: response.body).contains("Input &amp; Output Formats"))
+        }
         try await client.execute(uri: "/help", method: .get) { response in
             #expect(response.status == .ok)
             let body = String(buffer: response.body)
