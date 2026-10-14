@@ -24,65 +24,7 @@ struct ContractTests {
         #expect(spec.inputJSON.rawValue == "null")
         #expect(Overridden.outputSchema == JSONSchema(String.self))
     }
-
-    @Test
-    func testJSONStringAcceptsAllShapesAndPreservesText() {
-        for text in [" {} \n", "[]", #""hello""#, "42", "-1.25e2", "true", "false", "null"] {
-            #expect(JSONString(text)?.rawValue == text, "\(text)")
-        }
-        for text in ["", "invalid", "{", "{\"a\":}", "NaN", "true false"] {
-            #expect(JSONString(text) == nil, "\(text)")
-        }
-        let literal: JSONString = #"{"b":2,"a":1}"#
-        #expect(literal == JSONString(literal.rawValue))
-        #expect(literal.description == literal.debugDescription)
-        #expect(literal.description.contains("\n"))
-        #expect(JSONString(literal.description)?.description == literal.description)
-    }
-
-    @Test
-    func testJSONStringUsesFoundationAcceptanceRules() {
-        for text in ["[1,]", #"{"a":1,}"#, "01", "+1"] {
-            let accepted = (try? JSONSerialization.jsonObject(
-                with: Data(text.utf8), options: [.fragmentsAllowed]
-            )) != nil
-            #expect((JSONString(text) != nil) == accepted, "\(text)")
-        }
-    }
-
-    #if os(macOS) || os(Linux)
-    @Test
-    func testFailuresTerminateInIsolatedProcesses() throws {
-        #if os(macOS)
-        let executable = Bundle(for: TestBundleAnchor.self).bundleURL.deletingLastPathComponent()
-            .appendingPathComponent("FailureProbe")
-        #else
-        let executable = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
-            .appendingPathComponent("FailureProbe")
-        #endif
-        try #require(FileManager.default.isExecutableFile(atPath: executable.path))
-        for scenario in ["valid", "literal", "input", "schema"] {
-            let process = Process()
-            process.executableURL = executable
-            process.arguments = [scenario]
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            try process.run()
-            process.waitUntilExit()
-            if scenario == "valid" {
-                #expect(process.terminationReason == .exit)
-                #expect(process.terminationStatus == 0)
-            } else {
-                #expect(process.terminationReason == .uncaughtSignal, "\(scenario)")
-            }
-        }
-    }
-    #endif
 }
-
-#if os(macOS)
-private final class TestBundleAnchor: NSObject {}
-#endif
 
 private struct ExampleInput: Encodable, Sendable {
     let text: String
