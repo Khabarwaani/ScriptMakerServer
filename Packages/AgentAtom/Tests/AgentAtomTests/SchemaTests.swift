@@ -1,8 +1,9 @@
-import AgentSpec
+@testable import AgentAtom
 import Foundation
-import XCTest
+import Testing
 
-final class SchemaTests: XCTestCase {
+struct SchemaTests {
+    @Test
     func testPrimitiveAndFoundationRepresentations() throws {
         try assertSchema(String.self, equals: #"{"type":"string"}"#)
         try assertSchema(Bool.self, equals: #"{"type":"boolean"}"#)
@@ -17,29 +18,31 @@ final class SchemaTests: XCTestCase {
         try assertSchema(URL.self, equals: #"{"type":"string","format":"uri-reference"}"#)
     }
 
+    @Test
     func testNestedModelsCodingKeysAndOptionalFields() throws {
-        let schema = try XCTUnwrap(JSONSchema(Response.self))
+        let schema = try #require(JSONSchema(Response.self))
         let root = try object(schema.rawValue)
-        XCTAssertEqual(root["type"] as? String, "object")
-        XCTAssertEqual(Set(root["required"] as? [String] ?? []), ["display_name", "children", "metadata"])
-        XCTAssertNil(root["additionalProperties"])
-        let properties = try XCTUnwrap(root["properties"] as? [String: Any])
-        XCTAssertNil(properties["name"])
-        XCTAssertEqual(try objectValue(properties["display_name"])["type"] as? String, "string")
+        #expect(root["type"] as? String == "object")
+        #expect(Set(root["required"] as? [String] ?? []) == ["display_name", "children", "metadata"])
+        #expect(root["additionalProperties"] == nil)
+        let properties = try #require(root["properties"] as? [String: Any])
+        #expect(properties["name"] == nil)
+        #expect(try objectValue(properties["display_name"])["type"] as? String == "string")
         let children = try objectValue(properties["children"])
-        XCTAssertEqual(children["type"] as? String, "array")
+        #expect(children["type"] as? String == "array")
         let child = try objectValue(children["items"])
-        XCTAssertEqual(child["required"] as? [String], ["value"])
+        #expect(child["required"] as? [String] == ["value"])
         let metadata = try objectValue(properties["metadata"])
-        XCTAssertEqual(metadata["type"] as? String, "object")
-        XCTAssertEqual(try objectValue(metadata["additionalProperties"])["type"] as? String, "integer")
+        #expect(metadata["type"] as? String == "object")
+        #expect(try objectValue(metadata["additionalProperties"])["type"] as? String == "integer")
         let note = try objectValue(properties["note"])
-        let alternatives = try XCTUnwrap(note["anyOf"] as? [[String: Any]])
-        XCTAssertEqual(alternatives.compactMap { $0["type"] as? String }, ["string", "null"])
-        XCTAssertEqual(schema.description, schema.debugDescription)
-        XCTAssertNotNil(JSONString(schema.description))
+        let alternatives = try #require(note["anyOf"] as? [[String: Any]])
+        #expect(alternatives.compactMap { $0["type"] as? String } == ["string", "null"])
+        #expect(schema.description == schema.debugDescription)
+        #expect(JSONString(schema.description) != nil)
     }
 
+    @Test
     func testCollectionsAndEmptyModel() throws {
         try assertSchema([String].self, equals: #"{"type":"array","items":{"type":"string"}}"#)
         try assertSchema([String: Bool].self, equals: #"{"type":"object","additionalProperties":{"type":"boolean"}}"#)
@@ -47,25 +50,28 @@ final class SchemaTests: XCTestCase {
         try assertSchema(Empty.self, equals: #"{"type":"object","properties":{}}"#)
     }
 
+    @Test
     func testUnsupportedModelsDoNotProducePermissiveSchemas() {
-        XCTAssertNil(JSONSchema([Int: String].self))
-        XCTAssertNil(JSONSchema([UUID: String].self))
-        XCTAssertNil(JSONSchema(Recursive.self))
-        XCTAssertNil(JSONSchema(Rejecting.self))
-        XCTAssertNil(JSONSchema(Opaque.self))
-        XCTAssertNil(JSONSchema(Choice.self))
+        #expect(JSONSchema([Int: String].self) == nil)
+        #expect(JSONSchema([UUID: String].self) == nil)
+        #expect(JSONSchema(Recursive.self) == nil)
+        #expect(JSONSchema(Rejecting.self) == nil)
+        #expect(JSONSchema(Opaque.self) == nil)
+        #expect(JSONSchema(Choice.self) == nil)
     }
 
+    @Test
     func testDepthLimitRejectsExcessiveNesting() {
         var model: any Decodable.Type = String.self
         for _ in 0..<63 {
             model = layer(around: model)
         }
-        XCTAssertNotNil(JSONSchema(model))
+        #expect(JSONSchema(model) != nil)
         model = layer(around: model)
-        XCTAssertNil(JSONSchema(model))
+        #expect(JSONSchema(model) == nil)
     }
 
+    @Test
     func testDefaultFoundationEncodingMatchesDerivedRepresentations() throws {
         let values = SpecialValues(
             date: Date(timeIntervalSinceReferenceDate: 42),
@@ -75,14 +81,14 @@ final class SchemaTests: XCTestCase {
             decimal: Decimal(string: "12.5")!
         )
         let encoded = try JSONEncoder().encode(values)
-        XCTAssertEqual(try JSONDecoder().decode(SpecialValues.self, from: encoded), values)
+        #expect(try JSONDecoder().decode(SpecialValues.self, from: encoded) == values)
         let json = try objectValue(JSONSerialization.jsonObject(with: encoded))
-        XCTAssertEqual(json["date"] as? Double, 42)
-        XCTAssertEqual(json["decimal"] as? Double, 12.5)
-        XCTAssertEqual(json["data"] as? String, "AQI=")
-        XCTAssertEqual(json["uuid"] as? String, values.uuid.uuidString)
-        XCTAssertEqual(json["url"] as? String, values.url.absoluteString)
-        XCTAssertNotNil(JSONSchema(SpecialValues.self))
+        #expect(json["date"] as? Double == 42)
+        #expect(json["decimal"] as? Double == 12.5)
+        #expect(json["data"] as? String == "AQI=")
+        #expect(json["uuid"] as? String == values.uuid.uuidString)
+        #expect(json["url"] as? String == values.url.absoluteString)
+        #expect(JSONSchema(SpecialValues.self) != nil)
     }
 
     private func layer<T: Decodable>(around type: T.Type) -> any Decodable.Type {
@@ -92,12 +98,12 @@ final class SchemaTests: XCTestCase {
     private func assertSchema<T: Decodable>(
         _ type: T.Type,
         equals expected: String,
-        file: StaticString = #filePath,
-        line: UInt = #line
+        sourceLocation: SourceLocation = #_sourceLocation
     ) throws {
-        let schema = try XCTUnwrap(JSONSchema(type), file: file, line: line)
-        XCTAssertEqual(try object(schema.rawValue) as NSDictionary,
-                       try object(expected) as NSDictionary, file: file, line: line)
+        let schema = try #require(JSONSchema(type), sourceLocation: sourceLocation)
+        let actualObject = try object(schema.rawValue) as NSDictionary
+        let expectedObject = try object(expected) as NSDictionary
+        #expect(actualObject == expectedObject, sourceLocation: sourceLocation)
     }
 
     private func object(_ text: String) throws -> [String: Any] {
@@ -105,7 +111,7 @@ final class SchemaTests: XCTestCase {
     }
 
     private func objectValue(_ value: Any?) throws -> [String: Any] {
-        try XCTUnwrap(value as? [String: Any])
+        try #require(value as? [String: Any])
     }
 }
 

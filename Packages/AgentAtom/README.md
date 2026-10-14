@@ -1,4 +1,4 @@
-# AgentSpec
+# AgentAtom
 
 A standalone Swift package for provider-independent agent specifications. This
 directory can move to a separate repository without changing its source or dependency
@@ -16,7 +16,7 @@ Output models need no additional schema protocol, annotation, or Encodable confo
 Conformers own a mutable optional output property, initially nil, to retain a decoded result.
 
 ```swift
-import AgentSpec
+import AgentAtom
 
 struct SummaryInput: Encodable, Sendable {
     let article: String
@@ -126,12 +126,12 @@ Access control defines these boundaries without an Internal folder.
 
 ## Build and validation
 
-Run `swift build` and `swift test` from this directory. Tests cover public contracts,
+Run `swift build` and `swift test` from this directory. Swift Testing suites cover public contracts,
 ordinary model derivation, the 64-level conversion limit, unsupported models,
 Foundation representations, and formatting. On macOS and Linux, a test-only
 `FailureProbe` executable checks invalid literals and failing default conversions
 in separate processes. No real server or AI provider is started.
 
-The tests use the public library import, including Encodable-only inputs and
+The tests use `@testable import AgentAtom`, including Encodable-only inputs and
 Decodable-only outputs. Schema assertions check generated keyword structures;
 they do not constitute meta-schema validation or prove arbitrary custom decoding.

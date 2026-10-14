@@ -1,4 +1,4 @@
-import AgentSpec
+import AgentAtom
 import Foundation
 
 struct FailingInput: Encodable, Sendable {

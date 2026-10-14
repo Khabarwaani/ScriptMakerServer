@@ -1,61 +1,66 @@
-import AgentSpec
+@testable import AgentAtom
 import Foundation
-import XCTest
+import Testing
 
-final class ContractTests: XCTestCase {
+struct ContractTests {
+    @Test
     func testModelledSpecDefaultsAndOutputStorage() throws {
         var spec = Example(input: .init(text: "hello", count: 2))
-        XCTAssertEqual(Example.identity, Identity(id: "example", name: "Example", version: "1"))
-        XCTAssertEqual(Example.role, "Summarise")
-        XCTAssertEqual(spec.instructions, "Be concise")
-        XCTAssertEqual(spec.inputJSON.rawValue, #"{"count":2,"text":"hello"}"#)
-        XCTAssertNil(spec.output)
+        #expect(Example.identity == Identity(id: "example", name: "Example", version: "1"))
+        #expect(Example.role == "Summarise")
+        #expect(spec.instructions == "Be concise")
+        #expect(spec.inputJSON.rawValue == #"{"count":2,"text":"hello"}"#)
+        #expect(spec.output == nil)
         spec.output = try JSONDecoder().decode(ExampleOutput.self, from: Data(#"{"result":"done"}"#.utf8))
-        XCTAssertEqual(spec.output?.result, "done")
-        XCTAssertNotNil(JSONString(Example.outputSchema.rawValue))
+        #expect(spec.output?.result == "done")
+        #expect(JSONString(Example.outputSchema.rawValue) != nil)
         spec.output = nil
-        XCTAssertNil(spec.output)
+        #expect(spec.output == nil)
     }
 
+    @Test
     func testExplicitPropertiesReplaceDefaults() {
         let spec = Overridden()
-        XCTAssertEqual(spec.inputJSON.rawValue, "null")
-        XCTAssertEqual(Overridden.outputSchema, JSONSchema(String.self))
+        #expect(spec.inputJSON.rawValue == "null")
+        #expect(Overridden.outputSchema == JSONSchema(String.self))
     }
 
+    @Test
     func testJSONStringAcceptsAllShapesAndPreservesText() {
         for text in [" {} \n", "[]", #""hello""#, "42", "-1.25e2", "true", "false", "null"] {
-            XCTAssertEqual(JSONString(text)?.rawValue, text, text)
+            #expect(JSONString(text)?.rawValue == text, "\(text)")
         }
         for text in ["", "invalid", "{", "{\"a\":}", "NaN", "true false"] {
-            XCTAssertNil(JSONString(text), text)
+            #expect(JSONString(text) == nil, "\(text)")
         }
         let literal: JSONString = #"{"b":2,"a":1}"#
-        XCTAssertEqual(literal, JSONString(literal.rawValue))
-        XCTAssertEqual(literal.description, literal.debugDescription)
-        XCTAssertTrue(literal.description.contains("\n"))
-        XCTAssertEqual(JSONString(literal.description)?.description, literal.description)
+        #expect(literal == JSONString(literal.rawValue))
+        #expect(literal.description == literal.debugDescription)
+        #expect(literal.description.contains("\n"))
+        #expect(JSONString(literal.description)?.description == literal.description)
     }
 
+    @Test
     func testJSONStringUsesFoundationAcceptanceRules() {
         for text in ["[1,]", #"{"a":1,}"#, "01", "+1"] {
             let accepted = (try? JSONSerialization.jsonObject(
                 with: Data(text.utf8), options: [.fragmentsAllowed]
             )) != nil
-            XCTAssertEqual(JSONString(text) != nil, accepted, text)
+            #expect((JSONString(text) != nil) == accepted, "\(text)")
         }
     }
 
     #if os(macOS) || os(Linux)
+    @Test
     func testFailuresTerminateInIsolatedProcesses() throws {
         #if os(macOS)
-        let executable = Bundle(for: ContractTests.self).bundleURL.deletingLastPathComponent()
+        let executable = Bundle(for: TestBundleAnchor.self).bundleURL.deletingLastPathComponent()
             .appendingPathComponent("FailureProbe")
         #else
         let executable = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
             .appendingPathComponent("FailureProbe")
         #endif
-        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: executable.path))
+        try #require(FileManager.default.isExecutableFile(atPath: executable.path))
         for scenario in ["valid", "literal", "input", "schema"] {
             let process = Process()
             process.executableURL = executable
@@ -65,15 +70,19 @@ final class ContractTests: XCTestCase {
             try process.run()
             process.waitUntilExit()
             if scenario == "valid" {
-                XCTAssertEqual(process.terminationReason, .exit)
-                XCTAssertEqual(process.terminationStatus, 0)
+                #expect(process.terminationReason == .exit)
+                #expect(process.terminationStatus == 0)
             } else {
-                XCTAssertEqual(process.terminationReason, .uncaughtSignal, scenario)
+                #expect(process.terminationReason == .uncaughtSignal, "\(scenario)")
             }
         }
     }
     #endif
 }
+
+#if os(macOS)
+private final class TestBundleAnchor: NSObject {}
+#endif
 
 private struct ExampleInput: Encodable, Sendable {
     let text: String
