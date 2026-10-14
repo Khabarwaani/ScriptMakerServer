@@ -5,6 +5,7 @@ import DialogueRefiner
 import ReelIdeaGenerator
 import DialogueGenerator
 import ThemeMixer
+import ReelJokeMaker
 
 public protocol AgentPackageContract: Sendable {
     static var id: String { get }

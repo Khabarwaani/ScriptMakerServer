@@ -107,13 +107,14 @@ final class AgentFixture: Sendable {
 @Test func registeredLinkedPackagesAreAvailableByDefault() async throws {
     let registry = AgentRegistry()
     let agents = await registry.list()
-    #expect(agents.count == 6)
+    #expect(agents.count == 7)
     #expect(agents.map(\.id).contains("NewsResearcher"))
     #expect(agents.map(\.id).contains("ScriptRefiner"))
     #expect(agents.map(\.id).contains("DialogueRefiner"))
     #expect(agents.map(\.id).contains("ReelIdeaGenerator"))
     #expect(agents.map(\.id).contains("DialogueGenerator"))
     #expect(agents.map(\.id).contains("ThemeMixer"))
+    #expect(agents.map(\.id).contains("ReelJokeMaker"))
     #expect(try await registry.resolve(id: "NewsResearcher", version: nil).version == "1.1.0")
     #expect(try await registry.resolve(id: "ScriptRefiner", version: nil).version == "1.2.0")
     #expect(try await registry.resolve(id: "DialogueRefiner", version: nil).version == "1.0.0")
@@ -121,6 +122,7 @@ final class AgentFixture: Sendable {
     #expect(try await registry.resolve(id: "DialogueGenerator", version: nil).version == "1.0.0")
     #expect(try await registry.resolve(id: "ThemeMixer", version: nil).version == "1.1.0")
     #expect(try await registry.resolve(id: "ThemeMixer", version: "1.0.0").version == "1.0.0")
+    #expect(try await registry.resolve(id: "ReelJokeMaker", version: nil).version == "1.0.0")
     #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.1.0").version == "1.1.0")
     #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.0.0").version == "1.0.0")
 }
