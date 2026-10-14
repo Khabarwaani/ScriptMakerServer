@@ -30,6 +30,13 @@ Use `arch=x86_64` on an Intel Mac. If resolution fails, inspect its first error
 for network or dependency diagnostics before changing package references or
 deleting caches.
 
+`GeneratedAgentValidationCatalog.swift` must remain in the AgentServer target's
+**Compile Sources**. The **Validate Agents** build phase creates it in the derived
+sources directory before compilation. Removing its project reference causes
+missing `GeneratedAgentDocumentationRegistry` and `GeneratedAgentValidationCatalog`
+errors; subsequent `.seconds` errors can be cascading diagnostics. Restore the
+reference or regenerate the project from the configuration below, then rebuild.
+
 The generated project lives at the repository root. To regenerate it:
 
 ```sh
