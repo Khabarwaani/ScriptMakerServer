@@ -201,6 +201,10 @@ public struct CLIProvider: AIProvider {
                - You MUST immediately return ONLY this error JSON: {"error":{"reason":"<A concise explanation specifying why the input cannot produce the requested output>"}}.
             2. TASK EXECUTION:
                - If the input is meaningful and feasible, proceed to generate the requested output conforming strictly to the OUTPUT CONTRACT schema below.
+            3. NATURAL CONNECTION & COMMON SENSE:
+               - Exercise real-world common sense and human plausibility in all character behaviors, choices, physical actions, and reactions. Characters must react like authentic, situationally aware human beings, never synthetic automatons.
+               - Ensure all dialogue, scenes, and transitions exhibit natural connection: conversational turns must build organically on preceding lines with authentic connective tissue, emotional reciprocity, and tight cause-and-effect flow.
+
 
             ROLE
             \(definition.role)
