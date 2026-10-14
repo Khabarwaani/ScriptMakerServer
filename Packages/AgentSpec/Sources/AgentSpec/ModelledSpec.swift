@@ -1,18 +1,14 @@
 import Foundation
 
-/// An agent specification backed by an encodable input and a decodable output.
-///
-/// Ordinary synthesized output models receive a default schema. Implement
-/// `outputSchema` explicitly when the model uses unsupported custom decoding.
-/// Conversion failures in the defaults are programming errors and terminate
-/// execution. The failable JSONString/JSONSchema initializers return nil instead.
 public protocol ModelledSpec<Input, Output>: Spec {
     associatedtype Input: Encodable & Sendable
     associatedtype Output: Decodable & Sendable
 
     var input: Input { get }
+    var output: Output? { get set }
 }
 
+/// Default conversion failures terminate execution.
 extension ModelledSpec {
     public var inputJSON: JSONString {
         let encoder = JSONEncoder()
@@ -27,7 +23,7 @@ extension ModelledSpec {
 
     public var outputSchema: JSONSchema {
         guard let schema = JSONSchema(Output.self) else {
-            preconditionFailure("Failed to derive agent output schema; provide outputSchema explicitly")
+            preconditionFailure("Failed to derive agent output schema")
         }
         return schema
     }

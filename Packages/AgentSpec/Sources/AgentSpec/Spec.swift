@@ -1,4 +1,3 @@
-/// A provider-independent agent request and its expected JSON output contract.
 public protocol Spec: Sendable {
     static var identity: Identity { get }
 

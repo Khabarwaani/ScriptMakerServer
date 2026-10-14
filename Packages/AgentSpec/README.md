@@ -1,18 +1,19 @@
 # AgentSpec
 
-A standalone Swift package for provider-independent agent specifications. Copy this
-directory into a separate repository without changing its source or dependency
-paths. It has no dependency on AgentServer or the other packages in this repository.
+A standalone Swift package for provider-independent agent specifications. This
+directory can move to a separate repository without changing its source or dependency
+paths. It has no dependency on AgentServer or sibling packages.
 
 ## Public contract
 
 `Spec` exposes static `Identity` (id, name, version), instance role and instructions,
-validated input JSON, and a validated output schema. Both JSON properties are
-non-optional and non-throwing.
+validated input JSON, and an output schema. Both JSON properties are non-optional
+and non-throwing.
 
 `ModelledSpec<Input, Output>` adds an `Encodable & Sendable` input and a
-`Decodable & Sendable` output. It supplies both JSON properties by default. Output
-models need no schema protocol, sample instance, or Encodable conformance.
+`Decodable & Sendable` output and supplies both JSON properties by default.
+Output models need no additional schema protocol, annotation, or Encodable conformance.
+Conformers own a mutable optional output property, initially nil, to retain a decoded result.
 
 ```swift
 import AgentSpec
@@ -37,6 +38,7 @@ struct Summariser: ModelledSpec {
     )
 
     let input: SummaryInput
+    var output: SummaryOutput? = nil
     let role = "You summarise articles."
     let instructions = "Produce a concise, factual summary."
 }
@@ -46,95 +48,70 @@ let inputText = spec.inputJSON.rawValue
 let schemaText = spec.outputSchema.rawValue
 ```
 
-There is no provider execution or response-decoding method in the protocol. A
-consumer can decode its received response into `Summariser.Output` using JSONDecoder.
+Consumers can decode the response into `Summariser.Output` using Foundation's
+JSONDecoder and assign it to a mutable spec's output property. The package does not
+execute providers or add a decoding method to Spec.
 
-## Validated values
+## JSON construction
 
-`JSONString` accepts objects, arrays, strings, numbers, booleans, and null. Its
-failable initializer uses Foundation's JSONSerialization and preserves the original
-text. Invalid text returns nil. ModelledSpec uses Foundation's JSONEncoder directly,
-with default strategies, compact output, and sorted keys.
+JSONString's failable string initializer uses Foundation JSONSerialization,
+preserves the original text, and accepts JSON objects, arrays, scalars, and null.
+JSONString also supports string literals; an invalid literal is a programming
+error and terminates execution.
+
+JSONSchema has a failable model-type initializer. It derives the model's structure
+and validates it against the Draft 2020-12 meta-schema. There is no public schema
+initializer from raw text.
 
 ```swift
 let literal: JSONString = #"{"message":"Hello"}"#
 let dynamic = JSONString(receivedText) // JSONString?
-let data = try JSONEncoder().encode(SummaryInput(article: "Article text"))
-let encoded = String(data: data, encoding: .utf8).flatMap { JSONString($0) }
-
-let explicit = JSONSchema(
-    #"{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}"#
-)
-let derived = JSONSchema(SummaryOutput.self) // JSONSchema?
+let schema = JSONSchema(SummaryOutput.self) // JSONSchema?
 ```
 
-An invalid JSON literal terminates with preconditionFailure. Dynamic JSON and schema
-initializers return nil on validation or derivation failure. Foundation's JSONEncoder
-throws encoding errors directly; no separate encoding initializer is provided.
-Default ModelledSpec getters also terminate on conversion failure, because the
-contract permits neither an error nor an absent value. Their failure messages do
-not include input or prompt text.
+Both types conform to CustomStringConvertible and CustomDebugStringConvertible.
+Print and debugger inspection use Foundation's pretty-printed JSON formatting;
+rawValue retains the compact provider representation (or original input text).
 
-## Output schemas
+ModelledSpec uses Foundation JSONEncoder directly, with default strategies,
+compact output, and sorted keys. Default getters terminate with preconditionFailure
+when conversion or derivation fails. They do not return empty or permissive JSON,
+and failure messages do not include input or prompt text. Conformers can replace
+either inherited property with their own implementation.
 
-JSONSchema validates against the Draft 2020-12 meta-schema using the pinned
-swift-json-schema validator. Its bundled meta-schema resources are loaded locally;
-validation performs no network requests. An absent root `$schema` means Draft
-2020-12; other explicit root dialects are rejected. Valid JSON syntax alone is
-insufficient. Validation errors and dependency diagnostics remain internal;
-failable construction returns nil for an invalid or unsupported schema.
+## Schema derivation
 
-Schema validity does not imply compatibility with every AI provider. Keep provider
-adaptation outside this package. Schema validation also does not validate an agent
-response against that schema.
+The package delegates model inspection to the pinned open-source
+[TypeDecoder](https://github.com/Kitura/TypeDecoder) library and maps its type
+information into a small Encodable schema representation. Foundation JSONEncoder
+serializes the result. Draft 2020-12 meta-schema validation uses the pinned
+[swift-json-schema](https://github.com/ajevans99/swift-json-schema) library and its
+locally bundled resources.
 
-Type-based initialization observes decoding through an internal Decoder. Supported
-ordinary synthesized models include:
+Ordinary model shapes include primitive fields, nested models, CodingKeys, arrays,
+string-keyed dictionaries, and optionals. Optional fields can be absent or null;
+non-optional fields are required. Generated object schemas permit additional keys,
+matching JSONDecoder's ordinary behavior.
 
-- String, Bool, integer types, Float, and Double.
-- Nested models and custom CodingKeys.
-- Arrays and string-keyed dictionaries.
-- Optional values, represented as nullable schemas; optional keyed fields may also
-  be absent, while non-optional fields are required.
-- Foundation Date (numeric seconds since the reference date), Data (base64 string),
-  UUID, URL, and Decimal, matching JSONDecoder's default representations.
+Foundation Date, Data, UUID, URL, and Decimal representations follow JSONDecoder's
+default strategies. Derivation does not infer domain validation rules, enum cases,
+or integer-width bounds. Unsupported, opaque, and recursive type information fails
+construction. Schema conversion is limited to 64 levels; model inspection behavior
+is delegated to TypeDecoder.
 
-Generated object schemas permit additional keys, matching JSONDecoder's ordinary
-behavior. Generated schemas describe JSON structure; they do not express Swift
-integer-width bounds or infer domain constraints such as ranges and descriptions.
+TypeDecoder probes Decodable initializers using dummy values. Custom decoding can
+fail or describe only one execution path, so inferred schemas are not proof of
+equivalence to arbitrary custom decoding. Property wrappers and macros would require
+model annotations or added metadata; they are not imposed on the Decodable-only API.
 
-Enums, recursive models, non-string dictionary keys, custom containers, inherited
-decoding, and detectable conditional decoding require an explicit schema. Derivation
-is bounded to 64 levels and 1,024 model visits.
-
-Decodable exposes executable decoding behavior, not complete type metadata. Arbitrary
-custom decoding can impose value-dependent rules that cannot be inferred exactly;
-use an explicit schema for such models even if a probe succeeds. Inferred schema
-validity is not proof of exact equivalence to custom decoding semantics.
-
-Implement either inherited property to replace its default. For example, an agent
-with a custom-decoded output can supply a validated schema without changing its model:
-
-```swift
-// Inside a ModelledSpec conformance:
-var outputSchema: JSONSchema {
-    guard let schema = JSONSchema(#"{"type":"string","enum":["accepted","rejected"]}"#) else {
-        preconditionFailure("Invalid declared output schema")
-    }
-    return schema
-}
-```
+Schema validity is independent of provider compatibility and does not validate an
+agent response. Provider adapters belong outside this package.
 
 ## Build and phases
 
-Run `swift build` from this directory. Phase 1 contains the library implementation
-and documentation only. Tests and broader conformance verification are tracked in
-[Phase 2, issue #76](https://github.com/Khabarwaani/ScriptMakerServer/issues/76).
+Run `swift build` from this directory. Phase 1 contains implementation and
+documentation only. Automated tests and broader conformance verification are
+tracked in [Phase 2, issue #76](https://github.com/Khabarwaani/ScriptMakerServer/issues/76).
 
-Foundation supplies JSON text validation, input encoding, schema serialization, and
-the Decoder interfaces used for derivation. The external validator is used internally
-for Draft 2020-12 meta-schema validation and its schema representation. Apple's
-Foundation Models generation schemas require Generable conformance; they do not
-replace this package's Decodable-only model contract or standard schema validation.
-
-Parsing, derivation, resources, and dependency diagnostics are not part of the public API.
+Third-party imports and helper methods are internal; implementation-only types
+are private. Access control defines these boundaries without an Internal folder.

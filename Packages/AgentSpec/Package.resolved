@@ -1,5 +1,5 @@
 {
-  "originHash" : "8e389f914a7df2ec4a998c7471069011650f23de442b08d9b70bc8a255eae22e",
+  "originHash" : "8ee865f1777b2749aba07ee158346f6b2a4485c74b1e9bad88beb4ce53b21bf9",
   "pins" : [
     {
       "identity" : "swift-collections",
@@ -26,6 +26,15 @@
       "state" : {
         "revision" : "050f1a346fbbac0ca2cfb15a95274f7bd1cf0ccf",
         "version" : "604.0.0"
+      }
+    },
+    {
+      "identity" : "typedecoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kitura/TypeDecoder.git",
+      "state" : {
+        "revision" : "fd1e4909a065e9ca083c9dd01048d8070c9cefdd",
+        "version" : "2.0.0"
       }
     }
   ],
