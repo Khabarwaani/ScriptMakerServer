@@ -9,9 +9,9 @@ extension JSONSchema {
         encoder.outputFormatting = [.sortedKeys]
         guard let schema = try? DerivedSchema(type),
               let data = try? encoder.encode(schema),
-              let text = String(data: data, encoding: .utf8) else { return nil }
-        self.init(rawValue: text)
-        guard isValid else { return nil }
+              let text = String(data: data, encoding: .utf8),
+              let json = JSONString(text) else { return nil }
+        self.init(rawValue: json.rawValue)
     }
 }
 

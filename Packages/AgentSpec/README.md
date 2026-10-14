@@ -59,9 +59,9 @@ preserves the original text, and accepts JSON objects, arrays, scalars, and null
 JSONString also supports string literals; an invalid literal is a programming
 error and terminates execution.
 
-JSONSchema has a failable model-type initializer. It derives the model's structure
-and validates it against the Draft 2020-12 meta-schema. There is no public schema
-initializer from raw text.
+JSONSchema has a failable model-type initializer. It constructs standard schema
+keywords from supported model shapes and uses Foundation to check the serialized
+JSON. There is no public schema initializer from raw text or dialect selection.
 
 ```swift
 let literal: JSONString = #"{"message":"Hello"}"#
@@ -84,9 +84,9 @@ either inherited property with their own implementation.
 The package delegates model inspection to the pinned open-source
 [TypeDecoder](https://github.com/Kitura/TypeDecoder) library and maps its type
 information into a small Encodable schema representation. Foundation JSONEncoder
-serializes the result. Draft 2020-12 meta-schema validation uses the pinned
-[swift-json-schema](https://github.com/ajevans99/swift-json-schema) library and its
-locally bundled resources.
+serializes it; JSONString checks the emitted JSON syntax. Schema structure is
+constructed from known shapes: type, properties, required, items,
+additionalProperties, and nullable alternatives. There is no meta-schema engine.
 
 Ordinary model shapes include primitive fields, nested models, CodingKeys, arrays,
 string-keyed dictionaries, and optionals. Optional fields can be absent or null;
@@ -104,8 +104,8 @@ fail or describe only one execution path, so inferred schemas are not proof of
 equivalence to arbitrary custom decoding. Property wrappers and macros would require
 model annotations or added metadata; they are not imposed on the Decodable-only API.
 
-Schema validity is independent of provider compatibility and does not validate an
-agent response. Provider adapters belong outside this package.
+This package generates model schemas; it does not validate arbitrary external
+schemas or responses. Provider-specific compatibility belongs in adapters.
 
 ## Build and phases
 
