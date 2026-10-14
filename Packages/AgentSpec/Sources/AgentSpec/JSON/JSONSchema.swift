@@ -28,8 +28,10 @@ extension JSONSchema: CustomDebugStringConvertible {
     public var debugDescription: String { description }
 }
 
+// Keeps schema-generation helpers private to JSONSchema.
 extension JSONSchema {
     private struct Constants {
+        // Bounds recursive schema conversion.
         static let maximumDepth = 64
         static let emptyObject = Data("{}".utf8)
 
