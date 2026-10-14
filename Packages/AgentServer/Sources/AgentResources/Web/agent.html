@@ -41,6 +41,7 @@ details.topic .content{padding:16px 20px}
       <p id="agent-role" class="muted" style="font-size:18px;margin:6px 0 0">Role description</p>
     </div>
     <div class="header-actions">
+      <a id="top-format-btn" href="#" class="btn secondary">View schema &amp; formats &nearr;</a>
       <a id="top-try-btn" href="#" class="btn">Try this agent &nearr;</a>
       <button id="share-btn" class="btn secondary">Copy link</button>
     </div>
@@ -58,7 +59,10 @@ details.topic .content{padding:16px 20px}
     <div id="readme-panel" hidden><details class="topic"><summary>Package README</summary><div class="content"><pre id="readme" data-copy></pre></div></details></div>
   </div>
 
-  <h2>Input and output formats</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin:24px 0 12px">
+    <h2 style="margin:0">Input and output formats</h2>
+    <a id="dedicated-format-link" href="#" class="btn secondary" style="font-size:14px">Dedicated formats page &nearr;</a>
+  </div>
   <div class="grid">
     <div>
       <details class="topic" open><summary>Input JSON Schema</summary><div class="content"><pre id="input-schema" data-copy></pre></div></details>
@@ -116,6 +120,9 @@ function updateVersionView(){
   $('output-example').textContent=pretty(example(def.output_schema));
   
   const tryUrl=`/agents/${encodeURIComponent(currentAgent.id)}/try?version=${encodeURIComponent(version)}`;
+  const formatUrl=`/agents/${encodeURIComponent(currentAgent.id)}/format?version=${encodeURIComponent(version)}`;
+  $('top-format-btn').href=formatUrl;
+  $('dedicated-format-link').href=formatUrl;
   $('top-try-btn').href=tryUrl;
   $('bottom-try-btn').href=tryUrl;
   $('try-with-input-btn').href=tryUrl;

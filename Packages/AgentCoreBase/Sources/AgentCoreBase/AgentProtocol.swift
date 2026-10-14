@@ -83,25 +83,31 @@ extension AgentProtocol {
     }
 
     public static func outputSchema(version: String) throws -> String {
+        let dir = try? directory(version: version)
+        if let dir {
+            let file = dir.appendingPathComponent("output.schema.json")
+            if FileManager.default.fileExists(atPath: file.path) {
+                return try String(contentsOf: file, encoding: .utf8)
+            }
+        }
         if let convertible = Output.self as? any JSONSchemaConvertible.Type {
             return try convertible.schema().toJSONString()
         }
-        let dir = try directory(version: version)
-        let file = dir.appendingPathComponent("output.schema.json")
-        guard FileManager.default.fileExists(atPath: file.path) else {
-            throw DefinitionError.missingResource("output.schema.json")
-        }
-        return try String(contentsOf: file, encoding: .utf8)
+        throw DefinitionError.missingResource("output.schema.json")
     }
 
     public static func inputSchema(version: String) throws -> String? {
+        let dir = try? directory(version: version)
+        if let dir {
+            let file = dir.appendingPathComponent("input.schema.json")
+            if FileManager.default.fileExists(atPath: file.path) {
+                return try String(contentsOf: file, encoding: .utf8)
+            }
+        }
         if let convertible = Input.self as? any JSONSchemaConvertible.Type {
             return try convertible.schema().toJSONString()
         }
-        let dir = try directory(version: version)
-        let file = dir.appendingPathComponent("input.schema.json")
-        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
-        return try String(contentsOf: file, encoding: .utf8)
+        return nil
     }
 
     /// Default prompt synthesis given a typed input instance and version.
