@@ -1,7 +1,6 @@
 import Foundation
 
-public struct JSONString: Sendable, Equatable, ExpressibleByStringLiteral,
-    CustomStringConvertible, CustomDebugStringConvertible {
+public struct JSONString: Sendable, Equatable {
     public let rawValue: String
 
     public init?(_ value: String) {
@@ -11,7 +10,9 @@ public struct JSONString: Sendable, Equatable, ExpressibleByStringLiteral,
         )) != nil else { return nil }
         rawValue = value
     }
+}
 
+extension JSONString: ExpressibleByStringLiteral, CustomStringConvertible, CustomDebugStringConvertible {
     /// Invalid literals terminate execution.
     public init(stringLiteral value: String) {
         guard let json = Self(value) else {
