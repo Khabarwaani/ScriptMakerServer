@@ -49,6 +49,10 @@ targets:
     sources:
       - path: Packages/AgentServer/Sources/AgentServer
       - path: "${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift"
+        # Created by Validate Agents; it must remain in Compile Sources even before it exists.
+        type: file
+        group: Generated Sources
+        buildPhase: sources
         optional: true
     dependencies:
       - target: AgentValidator
