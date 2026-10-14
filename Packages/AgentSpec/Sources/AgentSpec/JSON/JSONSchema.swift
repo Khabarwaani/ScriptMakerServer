@@ -20,13 +20,18 @@ public struct JSONSchema: Sendable, Equatable {
     }
 }
 
-extension JSONSchema: CustomStringConvertible, CustomDebugStringConvertible {
+extension JSONSchema: CustomStringConvertible {
     public var description: String { JSONString(rawValue)?.description ?? rawValue }
+}
 
+extension JSONSchema: CustomDebugStringConvertible {
     public var debugDescription: String { description }
+}
 
+extension JSONSchema {
     private struct Constants {
         static let maximumDepth = 64
+        static let emptyObject = Data("{}".utf8)
 
         // Derivation fails for unsupported models or excessive nesting.
         enum DerivationFailure: Error {
@@ -76,8 +81,8 @@ extension JSONSchema: CustomStringConvertible, CustomDebugStringConvertible {
                     self = .object(properties, required: required)
 
                 case .dynamicKeyed(_, let key, let value):
-                    guard case .single(_, let representation) = key,
-                          representation == String.self else {
+                    guard case .single(let originalKeyType, _) = key,
+                          originalKeyType == String.self else {
                         throw DerivationFailure.unsupportedType
                     }
                     self = .dictionary(try Self(value, depth: depth + 1))
@@ -92,9 +97,25 @@ extension JSONSchema: CustomStringConvertible, CustomDebugStringConvertible {
                 case .optional(let wrapped):
                     self = .nullable(try Self(wrapped, depth: depth + 1))
 
-                case .cyclic, .opaque:
+                case .cyclic:
+                    throw DerivationFailure.unsupportedType
+
+                case .opaque(let type):
+                    guard let modelType = type as? any Decodable.Type else {
+                        throw DerivationFailure.unsupportedType
+                    }
+                    self = try Self(emptyModel: modelType)
+                }
+            }
+
+            private init<T: Decodable>(emptyModel type: T.Type) throws {
+                let model = try JSONDecoder().decode(type, from: Constants.emptyObject)
+                let fields = Mirror(reflecting: model)
+                // Accept empty structs, not arbitrary opaque decoding.
+                guard fields.displayStyle == .struct, fields.children.isEmpty else {
                     throw DerivationFailure.unsupportedType
                 }
+                self = .object([:], required: [])
             }
 
             private init?(primitive type: Any.Type) {

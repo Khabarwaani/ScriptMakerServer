@@ -14,9 +14,7 @@ public struct JSONString: Sendable, Equatable {
     }
 }
 
-extension JSONString: ExpressibleByStringLiteral,
-    CustomStringConvertible,
-    CustomDebugStringConvertible {
+extension JSONString: ExpressibleByStringLiteral {
     /// Invalid literals terminate execution.
     public init(stringLiteral value: String) {
         guard let json = Self(value) else {
@@ -24,7 +22,9 @@ extension JSONString: ExpressibleByStringLiteral,
         }
         self = json
     }
+}
 
+extension JSONString: CustomStringConvertible {
     public var description: String {
         do {
             let object = try JSONSerialization.jsonObject(
@@ -40,6 +40,8 @@ extension JSONString: ExpressibleByStringLiteral,
             return rawValue
         }
     }
+}
 
+extension JSONString: CustomDebugStringConvertible {
     public var debugDescription: String { description }
 }
