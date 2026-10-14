@@ -124,7 +124,7 @@ final class AgentFixture: Sendable {
     #expect(try await registry.resolve(id: "ThemeMixer", version: "1.0.0").version == "1.0.0")
     #expect(try await registry.resolve(id: "ReelJokeMaker", version: nil).version == "1.0.0")
     #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.1.0").version == "1.1.0")
-    #expect(try await registry.resolve(id: "ScriptRefiner", version: "1.0.0").version == "1.0.0")
+    await #expect(throws: AgentError.self) { try await registry.resolve(id: "ScriptRefiner", version: "1.0.0") }
 }
 
 @Test func invalidDefinitionsAndTraversalAreUnavailable() async throws {

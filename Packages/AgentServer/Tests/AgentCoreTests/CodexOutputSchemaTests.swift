@@ -54,7 +54,7 @@ import Testing
 
 @Test func codexSchemaConvertsScriptRefinerVersions() async throws {
     let registry = AgentRegistry()
-    for version in ["1.0.0", "1.1.0", "1.2.0"] {
+    for version in ["1.1.0", "1.2.0"] {
         let definition = try await registry.resolve(id: "ScriptRefiner", version: version)
         _ = try #require(CodexOutputSchema.make(definition.outputSchema))
         let native = try #require(CodexOutputSchema.executionSchema(definition.outputSchema))
