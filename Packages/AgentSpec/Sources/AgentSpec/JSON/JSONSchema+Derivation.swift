@@ -1,15 +1,16 @@
 import Foundation
 internal import TypeDecoder
 
-extension JSONSchema {
-    static func derive<T: Decodable>(_ type: T.Type) throws -> String {
+struct SchemaDerivation {
+    /// A model with `name: String` becomes an object requiring a string `name`.
+    func derive<T: Decodable>(_ type: T.Type) throws -> String {
         let schema = try definition(from: TypeDecoder.decode(type))
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return String(decoding: try encoder.encode(schema), as: UTF8.self)
     }
 
-    private static func definition(from info: TypeInfo, depth: Int = 0) throws -> DerivedSchema {
+    private func definition(from info: TypeInfo, depth: Int = 0) throws -> DerivedSchema {
         guard depth < 64 else { throw DerivationFailure.depthLimit }
 
         switch info {
@@ -48,7 +49,7 @@ extension JSONSchema {
         }
     }
 
-    private static func primitive(_ type: Any.Type) -> DerivedSchema? {
+    private func primitive(_ type: Any.Type) -> DerivedSchema? {
         if type == String.self { return .scalar("string") }
         if type == Bool.self { return .scalar("boolean") }
         if type is any BinaryInteger.Type { return .scalar("integer") }
