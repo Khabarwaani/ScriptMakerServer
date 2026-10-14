@@ -143,3 +143,16 @@ actor LineCollector {
     #expect(pathLine.contains("/usr/bin"))
 }
 
+@Test func processRunnerCapturesStderrDiagnosticsOnFailure() async throws {
+    let runner = ProcessRunner()
+    await #expect(throws: AgentError.self) {
+        try await runner.run(
+            executable: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "echo 'critical provider diagnostic' >&2; exit 2"],
+            timeoutSeconds: 5
+        )
+    }
+}
+
+
+

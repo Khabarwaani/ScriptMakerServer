@@ -125,9 +125,27 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
                         "provider_output_limit", "Provider output exceeded the streaming buffer limit."))
             }
         }
-        // Drain diagnostics without copying potentially sensitive stderr to clients.
+        final class StderrCollector: @unchecked Sendable {
+            private let lock = NSLock()
+            private var data = Data()
+            func append(_ chunk: Data) {
+                lock.withLock {
+                    data.append(chunk)
+                    if data.count > 65536 { data = data.suffix(65536) }
+                }
+            }
+            var text: String {
+                lock.withLock { String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) }
+            }
+        }
+        let stderrCollector = StderrCollector()
         stderr.fileHandleForReading.readabilityHandler = { handle in
-            if handle.availableData.isEmpty { handle.readabilityHandler = nil }
+            let data = handle.availableData
+            if data.isEmpty {
+                handle.readabilityHandler = nil
+            } else {
+                stderrCollector.append(data)
+            }
         }
         defer {
             clearProcess()
@@ -195,6 +213,10 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
             try await inputTask.value
             guard !wasCancelled() else { throw CancellationError() }
             guard exitCode == 0 else {
+                let errString = stderrCollector.text
+                if !errString.isEmpty {
+                    FileHandle.standardError.write(Data("[ProcessRunner] \(executable.lastPathComponent) exited with code \(exitCode): \(errString)\n".utf8))
+                }
                 throw AgentError(
                     "provider_execution_failed",
                     "Provider execution failed. Check provider authentication and local configuration.")
