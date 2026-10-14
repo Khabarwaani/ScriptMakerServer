@@ -6,9 +6,9 @@ paths. It has no dependency on AgentServer or sibling packages.
 
 ## Public contract
 
-`Spec` exposes static `Identity` (id, name, version), instance role and instructions,
-validated input JSON, and an output schema. Both JSON properties are non-optional
-and non-throwing.
+`Spec` exposes static `Identity` (id, name, version), role, and output schema.
+Each instance supplies instructions and validated input JSON. Both JSON properties
+are non-optional and non-throwing.
 
 `ModelledSpec<Input, Output>` adds an `Encodable & Sendable` input and a
 `Decodable & Sendable` output and supplies both JSON properties by default.
@@ -39,13 +39,13 @@ struct Summariser: ModelledSpec {
 
     let input: SummaryInput
     var output: SummaryOutput? = nil
-    let role = "You summarise articles."
+    static let role = "You summarise articles."
     let instructions = "Produce a concise, factual summary."
 }
 
 let spec = Summariser(input: SummaryInput(article: "Article text"))
 let inputText = spec.inputJSON.rawValue
-let schemaText = spec.outputSchema.rawValue
+let schemaText = Summariser.outputSchema.rawValue
 ```
 
 Consumers can decode the response into `Summariser.Output` using Foundation's
@@ -113,5 +113,5 @@ Run `swift build` from this directory. Phase 1 contains implementation and
 documentation only. Automated tests and broader conformance verification are
 tracked in [Phase 2, issue #76](https://github.com/Khabarwaani/ScriptMakerServer/issues/76).
 
-Third-party imports and helper methods are internal; implementation-only types
-are private. Access control defines these boundaries without an Internal folder.
+Third-party imports are internal; implementation helpers are private or fileprivate.
+Access control defines these boundaries without an Internal folder.

@@ -28,9 +28,9 @@ extension JSONSchema: CustomDebugStringConvertible {
     public var debugDescription: String { description }
 }
 
-// Keeps schema-generation helpers private to JSONSchema.
+// Keeps schema-generation helpers scoped to this file.
 extension JSONSchema {
-    private struct Constants {
+    fileprivate struct Constants {
         // Bounds recursive schema conversion.
         static let maximumDepth = 64
         static let emptyObject = Data("{}".utf8)
@@ -120,27 +120,6 @@ extension JSONSchema {
                 self = .object([:], required: [])
             }
 
-            private init?(primitive type: Any.Type) {
-                switch type {
-                case is String.Type:
-                    self = .scalar("string")
-                case is Bool.Type:
-                    self = .scalar("boolean")
-                case is any BinaryInteger.Type:
-                    self = .scalar("integer")
-                case is Float.Type, is Double.Type, is Decimal.Type, is Date.Type:
-                    self = .scalar("number")
-                case is Data.Type:
-                    self = .scalar("string", contentEncoding: "base64")
-                case is UUID.Type:
-                    self = .scalar("string", format: "uuid")
-                case is URL.Type:
-                    self = .scalar("string", format: "uri-reference")
-                default:
-                    return nil
-                }
-            }
-
             private enum CodingKeys: String, CodingKey {
                 case type, format, contentEncoding
                 case properties, required, additionalProperties
@@ -170,6 +149,29 @@ extension JSONSchema {
                     try container.encode([wrapped, .scalar("null")], forKey: .anyOf)
                 }
             }
+        }
+    }
+}
+
+private extension JSONSchema.Constants.DerivedSchema {
+    init?(primitive type: Any.Type) {
+        switch type {
+        case is String.Type:
+            self = .scalar("string")
+        case is Bool.Type:
+            self = .scalar("boolean")
+        case is any BinaryInteger.Type:
+            self = .scalar("integer")
+        case is Float.Type, is Double.Type, is Decimal.Type, is Date.Type:
+            self = .scalar("number")
+        case is Data.Type:
+            self = .scalar("string", contentEncoding: "base64")
+        case is UUID.Type:
+            self = .scalar("string", format: "uuid")
+        case is URL.Type:
+            self = .scalar("string", format: "uri-reference")
+        default:
+            return nil
         }
     }
 }

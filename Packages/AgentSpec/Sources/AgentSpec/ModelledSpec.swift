@@ -21,7 +21,7 @@ extension ModelledSpec {
         return json
     }
 
-    public var outputSchema: JSONSchema {
+    public static var outputSchema: JSONSchema {
         guard let schema = JSONSchema(Output.self) else {
             preconditionFailure("Failed to derive agent output schema")
         }
