@@ -152,7 +152,7 @@ Do not expose private configuration, credentials or environment variables.
 {
   "agents": [
     {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.1.0"]},
-    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.0.0", "1.1.0", "1.2.0"]}
+    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.1.0", "1.2.0"]}
   ]
 }
 ```

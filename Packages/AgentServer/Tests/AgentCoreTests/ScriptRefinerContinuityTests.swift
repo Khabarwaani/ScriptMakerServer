@@ -7,9 +7,14 @@ import Testing
     let registry = AgentRegistry()
     let v1_1 = try await registry.resolve(id: "ScriptRefiner", version: "1.1.0")
     #expect(v1_1.version == "1.1.0")
-    let previous = try await registry.resolve(id: "ScriptRefiner", version: "1.0.0")
+    let v1_2 = try await registry.resolve(id: "ScriptRefiner", version: "1.2.0")
+    #expect(v1_2.version == "1.2.0")
+
+    // Legacy 1.0.0 is retired and no longer resolves
+    await #expect(throws: AgentError.self) { try await registry.resolve(id: "ScriptRefiner", version: "1.0.0") }
+
     let inputSchema = try #require(v1_1.inputSchema)
-    let oldInput = try #require(previous.inputSchema)
+    let v1_2Input = try #require(v1_2.inputSchema)
     for category in ["prop_continuity", "character_continuity", "spatial_continuity", "action_continuity"] {
         let input = JSONValue.object([
             "script": .string("Scene 1: one person holds the same key across every subscene."),
@@ -17,7 +22,7 @@ import Testing
             "correction_focus": .array([.string(category)]),
         ])
         try OutputValidator.validate(input, schema: inputSchema)
-        #expect(throws: AgentError.self) { try OutputValidator.validate(input, schema: oldInput) }
+        try OutputValidator.validate(input, schema: v1_2Input)
         let output = JSONValue.object([
             "detected_issues": .array([.object([
                 "category": .string(category), "description": .string("Points 1 and 2 conflict."),
@@ -28,7 +33,8 @@ import Testing
             ])]),
         ])
         try OutputValidator.validate(output, schema: v1_1.outputSchema)
-        #expect(throws: AgentError.self) { try OutputValidator.validate(output, schema: previous.outputSchema) }
+        // 1.2.0 requires scene_timings in output, so output without scene_timings fails 1.2.0
+        #expect(throws: AgentError.self) { try OutputValidator.validate(output, schema: v1_2.outputSchema) }
     }
     // Existing callers need neither issues_found nor correction_focus.
     try OutputValidator.validate(.object(["script": .string("A coherent scene.")]), schema: inputSchema)
@@ -45,11 +51,9 @@ import Testing
     let latest = try await registry.resolve(id: "ScriptRefiner", version: nil)
     #expect(latest.version == "1.2.0")
     let v1_1 = try await registry.resolve(id: "ScriptRefiner", version: "1.1.0")
-    let v1_0 = try await registry.resolve(id: "ScriptRefiner", version: "1.0.0")
 
     let v1_2Input = try #require(latest.inputSchema)
     let v1_1Input = try #require(v1_1.inputSchema)
-    let v1_0Input = try #require(v1_0.inputSchema)
 
     // 1. Dialogue overflow and timing parameters are accepted in 1.2.0 and rejected by earlier versions
     let timingInput = JSONValue.object([
@@ -68,7 +72,6 @@ import Testing
     ])
     try OutputValidator.validate(timingInput, schema: v1_2Input)
     #expect(throws: AgentError.self) { try OutputValidator.validate(timingInput, schema: v1_1Input) }
-    #expect(throws: AgentError.self) { try OutputValidator.validate(timingInput, schema: v1_0Input) }
 
     // 2. Scene timing breakdown in output is required and validated in 1.2.0
     let v1_2Output = JSONValue.object([
@@ -99,7 +102,6 @@ import Testing
     ])
     try OutputValidator.validate(v1_2Output, schema: latest.outputSchema)
     #expect(throws: AgentError.self) { try OutputValidator.validate(v1_2Output, schema: v1_1.outputSchema) }
-    #expect(throws: AgentError.self) { try OutputValidator.validate(v1_2Output, schema: v1_0.outputSchema) }
 
     // 3. Output missing scene_timings is rejected by 1.2.0
     let missingTimingsOutput = JSONValue.object([
@@ -120,7 +122,6 @@ import Testing
     let minimalInput = JSONValue.object(["script": .string("INT. ROOM - DAY\nPerson speaks.")])
     try OutputValidator.validate(minimalInput, schema: v1_2Input)
     try OutputValidator.validate(minimalInput, schema: v1_1Input)
-    try OutputValidator.validate(minimalInput, schema: v1_0Input)
 
     // 5. Schema example validation
     for example in v1_2Input["examples"]?.array ?? [] {
