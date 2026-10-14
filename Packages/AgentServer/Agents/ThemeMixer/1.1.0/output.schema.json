@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "script"
+  ],
+  "properties": {
+    "script": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Complete source script with consistent visual cues throughout and an appended VISUAL THEME & COLOUR GUIDE containing only those cues and their used colour-token declarations. Unused categories and tokens are omitted."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "script": "INT. STUDIO - NIGHT\nVISUAL SETUP: Warm neutral studio backdrop uses var(--paper); the display surround uses var(--card). Soft neutral lighting. ANCHOR retains the same var(--ink-2) jacket throughout.\nANCHOR stands beside a display.\nANCHOR\nThe new route connects the station and hospital after midnight.\n\nVISUAL THEME & COLOUR GUIDE\nMode: light. Warm neutral surfaces and soft neutral illumination.\nClothing: ANCHOR — var(--ink-2) jacket, consistent in every shot.\nObjects: Display — var(--card) surround.\nLocation: Studio — var(--paper) backdrop; retain layout across cuts.\nLighting: Soft neutral illumination.\nUsed colours:\n:root {\n  --paper: #F5F3EE;\n  --card: #FFFFFF;\n  --ink-2: #6B675F;\n}"
+    }
+  ]
+}
