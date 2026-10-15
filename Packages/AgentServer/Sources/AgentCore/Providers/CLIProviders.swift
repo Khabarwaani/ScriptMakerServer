@@ -125,6 +125,7 @@ public struct CLIProvider: AIProvider {
                 "--input-format", "stream-json", "--output-format", "stream-json",
                 "--print-timeout", "\(timeoutSeconds)s", "--sandbox",
                 "--disable-slash-commands",
+                "--dangerously-skip-permissions",
             ]
             if nativeSchema != nil { arguments += ["--json-schema", schemaURL.path] }
             stdin =

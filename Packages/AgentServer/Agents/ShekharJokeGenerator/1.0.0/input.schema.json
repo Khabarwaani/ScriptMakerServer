@@ -2,16 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ShekharJokeGeneratorInput",
   "type": "object",
-  "properties": {
-    "topic": {
-      "type": "string",
-      "description": "Optional news topic or focus area to guide news selection."
-    },
-    "news_source_url": {
-      "type": "string",
-      "description": "Optional direct news article URL to include in curation."
-    }
-  },
+  "properties": {},
   "additionalProperties": false,
   "examples": [
     {}

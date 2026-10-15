@@ -18,14 +18,13 @@ import ShekharJokeGenerator
 }
 
 @Test func promptBuildingAndFeasibilityVerification() throws {
-    let input = ShekharJokeGeneratorInput(topic: "Indian Railways counter tickets")
+    let input = ShekharJokeGeneratorInput()
     let prompt = try ShekharJokeGeneratorDefinition.buildPrompt(version: "1.0.0", input: input)
     #expect(prompt.contains("MASTER SYSTEM PROTOCOL"))
     #expect(prompt.contains("ROLE"))
     #expect(prompt.contains("INSTRUCTIONS"))
     #expect(prompt.contains("OUTPUT CONTRACT"))
     #expect(prompt.contains("CLIENT INPUT"))
-    #expect(prompt.contains("Indian Railways"))
 
     let feasibility = ShekharJokeGeneratorDefinition.verifyFeasibility(input: input)
     #expect(feasibility == .feasible)

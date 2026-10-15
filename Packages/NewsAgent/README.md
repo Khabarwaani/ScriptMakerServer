@@ -22,7 +22,7 @@ A Hindi comedy news satirist and joke curator inspired by Shekhar Suman's iconic
 
 ### Models & Specifications
 
-- `ShekharJokeGeneratorInput`: Input payload with optional topic and news source URL.
+- `ShekharJokeGeneratorInput`: Input payload for autonomous Hindi comedy news curation.
 - `ShekharJokeGeneratorOutput`: Structured output payload containing headline, date, link, category, both jokes, and plain script.
 - `ShekharJokeGeneratorSpec`: Conforms to `AgentAtom.ModelledSpec`, providing typed input and schema-derived output.
 
@@ -33,7 +33,7 @@ import AgentAtom
 import NewsAgent
 
 let spec = ShekharJokeGeneratorSpec(
-    input: ShekharJokeGeneratorInput(topic: "Indian Railways")
+    input: ShekharJokeGeneratorInput()
 )
 
 // Run with any AgentAtom session (e.g. AppleIntelligenceSession)
