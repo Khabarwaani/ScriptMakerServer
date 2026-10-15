@@ -1,3 +1,5 @@
+import Foundation
+
 public actor AppleIntelligenceSession: AgenticSessionProtocol {
     public nonisolated let configuration: Configuration
     private var isBusy = false
@@ -12,14 +14,17 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         #endif
     }
 
-    public func execute(_ operation: any AgenticOperationProtocol) async throws -> AgenticResponse {
+    public func execute(_ operation: any AgenticOperationProtocol) async throws -> (
+        content: Result<String, NSError>, metadata: AgenticExecutionMetadata?
+    ) {
         try admit()
         defer { isBusy = false }
         return try await generate(operation, streaming: false, yield: { _ in })
     }
 
     public func stream(_ operation: any AgenticOperationProtocol) async throws -> (
-        snapshots: AsyncThrowingStream<String, any Error>, result: Task<AgenticResponse, any Error>
+        snapshots: AsyncThrowingStream<String, any Error>,
+        result: Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), any Error>
     ) {
         try admit()
         let (snapshots, continuation) = AsyncThrowingStream<String, any Error>.makeStream(
@@ -54,7 +59,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
     private func generate(
         _ operation: any AgenticOperationProtocol, streaming: Bool,
         yield: @escaping @Sendable (String) throws -> Void
-    ) async throws -> AgenticResponse {
+    ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
         #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
             if #available(macOS 26, iOS 26, visionOS 26, *) {
                 return try await perform(operation, streaming: streaming, yield: yield)

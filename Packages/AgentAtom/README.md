@@ -30,7 +30,7 @@ failure; these are programmer preconditions, not recoverable execution errors.
 permits the AI to decline with a reason. Both are structs conforming to
 `AgenticOperationProtocol`, and both can throw execution errors.
 
-Execution returns `AgenticResponse` containing session metadata and the built-in
+Execution returns a native tuple containing session metadata and the built-in
 `Result<String, NSError>` directly, without a custom result type or typealias.
 
 Successful content is the model's unchanged response text. The operation supplies
@@ -109,7 +109,7 @@ conversation. History-enabled behavior is a separate feature.
 
 Concrete configuration selects generation temperature, response token budget, and
 which metadata fields to return. Temperature is non-optional, defaults to 1, and
-uses an internal property wrapper to clamp to 0...1. NaN uses the default; infinities
+uses a private generic property wrapper in the configuration file to clamp to 0...1. NaN uses the default; infinities
 clamp to their respective bounds. An unspecified response token budget remains nil
 to preserve the provider's context-based limit. See
 [Apple's temperature documentation](https://developer.apple.com/documentation/foundationmodels/generationoptions/temperature).
@@ -164,9 +164,9 @@ implementations and defaults. Existing spec files remain untouched.
 
 The remaining types have distinct roles: two operation structs describe their
 allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
-response and metadata carry execution details; the Apple actor/configuration own
+native response tuple and portable metadata carry execution details; the Apple actor/configuration own
 provider execution; the built-in stream and Task provide progressive delivery and completion.
-There are no transport content wrappers, schema translator, backend class, or
+There are no response/result/stream wrapper types, result aliases, transport content wrappers, schema translator, backend class, or
 domain-output conversion layer.
 
 Run `swift build --target AgentAtom` to compile the library. Runnable examples and

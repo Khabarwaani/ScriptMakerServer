@@ -20,7 +20,7 @@
         func perform(
             _ operation: any AgenticOperationProtocol, streaming: Bool,
             yield: @escaping @Sendable (String) throws -> Void
-        ) async throws -> AgenticResponse {
+        ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
             if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
             let input = operation.inputJSON.rawValue
             let instructions = try operation.makeInstructions()
@@ -53,7 +53,7 @@
             let metadata = metadata(duration: start.duration(to: clock.now), session: session)
             let result = try operation.result(from: response)
             if Task.isCancelled { throw AgenticSessionError.cancelled }
-            return AgenticResponse(content: result, metadata: metadata)
+            return (content: result, metadata: metadata)
         }
 
         private func metadata(duration: Duration, session: LanguageModelSession) -> AgenticExecutionMetadata? {
