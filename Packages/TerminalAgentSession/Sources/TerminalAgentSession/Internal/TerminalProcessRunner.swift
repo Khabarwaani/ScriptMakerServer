@@ -3,6 +3,12 @@ import Synchronization
 import AgentAtom
 
 /// An internal process runner instance that executes commands and streams lines.
+///
+/// Handles execution across three distinct persistence modes configured by `TerminalAgentConfiguration`:
+/// 1. `.persistentStdio`: Keeps a single long-running subprocess active in memory across multiple turns,
+///    reusing stdin/stdout pipes to eliminate expensive process creation overhead.
+/// 2. `.daemon`: Connects to pre-existing background agent server/daemon sockets or protocols.
+/// 3. `.ephemeral`: Executes short-lived processes with isolated process lifecycles per turn.
 final class TerminalProcessRunner: Sendable {
     struct ExecutionResult: Sendable {
         let stdout: String
@@ -13,6 +19,9 @@ final class TerminalProcessRunner: Sendable {
     init() {}
 
     /// A long-running process managed by the session in memory.
+    ///
+    /// Kept alive across turns in `.persistentStdio` mode. Retains open pipes for continuous
+    /// streaming interaction until `purgeMemory()` or session deinitialization.
     final class ManagedProcess: Sendable {
         private let state: Mutex<ProcessState>
 
@@ -21,6 +30,7 @@ final class TerminalProcessRunner: Sendable {
             let stdinPipe: Pipe
             let stdoutPipe: Pipe
             let stderrPipe: Pipe
+            var pendingStdout: String = ""
         }
 
         init(process: Process, stdinPipe: Pipe, stdoutPipe: Pipe, stderrPipe: Pipe) {
@@ -46,6 +56,68 @@ final class TerminalProcessRunner: Sendable {
 
         var stderrHandle: FileHandle {
             state.withLock { $0.stderrPipe.fileHandleForReading }
+        }
+
+        var terminationStatus: Int32? {
+            state.withLock {
+                $0.process.isRunning ? nil : $0.process.terminationStatus
+            }
+        }
+
+        /// Reads output lines from stdout until the stop condition is satisfied, preserving any remainder in `pendingStdout`.
+        func readLinesUntil(
+            stopCondition: @Sendable (String) -> Bool,
+            onCancel: @Sendable () -> Void,
+            yield: (String) async -> Void
+        ) async throws -> String {
+            var emittedLines: [String] = []
+
+            while true {
+                if Task.isCancelled {
+                    onCancel()
+                    throw AgenticError.cancelled
+                }
+
+                // First check if pendingStdout already has a complete line
+                var extractedLine: String?
+                state.withLock { state in
+                    if let newlineIndex = state.pendingStdout.firstIndex(of: "\n") {
+                        let line = String(state.pendingStdout[..<newlineIndex])
+                        state.pendingStdout.removeSubrange(...newlineIndex)
+                        extractedLine = line
+                    }
+                }
+
+                if let line = extractedLine {
+                    emittedLines.append(line)
+                    await yield(line)
+                    if stopCondition(line) {
+                        return emittedLines.joined(separator: "\n")
+                    }
+                    continue
+                }
+
+                // If no complete line in pending buffer, read more from pipe
+                let chunk = stdoutHandle.availableData
+                guard !chunk.isEmpty else { break }
+
+                let text = String(decoding: chunk, as: UTF8.self)
+                state.withLock { state in
+                    state.pendingStdout.append(text)
+                }
+            }
+
+            let leftover = state.withLock { state -> String in
+                let rest = state.pendingStdout
+                state.pendingStdout = ""
+                return rest
+            }
+            if !leftover.isEmpty {
+                emittedLines.append(leftover)
+                await yield(leftover)
+            }
+
+            return emittedLines.joined(separator: "\n")
         }
 
         func terminate() {
@@ -174,7 +246,7 @@ final class TerminalProcessRunner: Sendable {
         onCancel: @Sendable () -> Void = {},
         yield: (String) async -> Void
     ) async throws -> String {
-        var fullStdout = ""
+        var emittedLines: [String] = []
         var pendingStdout = ""
 
         while true {
@@ -187,13 +259,13 @@ final class TerminalProcessRunner: Sendable {
             guard !chunk.isEmpty else { break }
 
             let text = String(decoding: chunk, as: UTF8.self)
-            fullStdout.append(text)
             pendingStdout.append(text)
 
             var shouldStop = false
             while let newlineIndex = pendingStdout.firstIndex(of: "\n") {
                 let line = String(pendingStdout[..<newlineIndex])
                 pendingStdout.removeSubrange(...newlineIndex)
+                emittedLines.append(line)
                 await yield(line)
                 if stopCondition(line) {
                     shouldStop = true
@@ -204,10 +276,11 @@ final class TerminalProcessRunner: Sendable {
         }
 
         if !pendingStdout.isEmpty {
+            emittedLines.append(pendingStdout)
             await yield(pendingStdout)
         }
 
-        return fullStdout
+        return emittedLines.joined(separator: "\n")
     }
 
     private func mapLaunchError(_ error: Error, path: String) -> AgenticError {

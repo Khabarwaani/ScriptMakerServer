@@ -45,10 +45,18 @@ final class TerminalSessionEngine: Sendable {
         state.withLock { $0.activeConversationID = id }
     }
 
-    /// Clears any cached session state or history, and optionally terminates in-memory process.
+    /// Clears execution metadata without terminating the active in-memory process.
     func clearMemory() {
         state.withLock {
             $0.records.removeAll()
+        }
+    }
+
+    /// Purges all session memory, terminates any running in-memory process, and resets all engine state.
+    func purgeMemory() {
+        state.withLock {
+            $0.records.removeAll()
+            $0.activeConversationID = nil
             $0.managedProcess?.terminate()
             $0.managedProcess = nil
         }
@@ -125,11 +133,22 @@ final class TerminalSessionEngine: Sendable {
             }
             let spawned = try runner.spawnProcess(
                 executableURL: executableURL,
-                arguments: arguments,
+                arguments: configuration.extraArguments,
                 currentDirectoryURL: configuration.workingDirectory
             )
             state.managedProcess = spawned
             return spawned
+        }
+
+        // If the process immediately exited on spawn (e.g. CLI that requires batch mode or runs to completion), fallback to streamLines
+        if !process.isRunning {
+            state.withLock { $0.managedProcess = nil }
+            return try await runner.streamLines(
+                executableURL: executableURL,
+                arguments: arguments,
+                currentDirectoryURL: configuration.workingDirectory,
+                yield: yield
+            )
         }
 
         let inputPrompt = arguments.last ?? ""
@@ -137,8 +156,7 @@ final class TerminalSessionEngine: Sendable {
             try? process.stdinHandle.write(contentsOf: inputData)
         }
 
-        let stdout = try await runner.readAndStreamLines(
-            from: process.stdoutHandle,
+        let stdout = try await process.readLinesUntil(
             stopCondition: { line in
                 let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.contains("\"type\":\"result\"") || trimmed.contains("\"type\":\"completed\"") || trimmed.contains("\"result\":") {
@@ -153,10 +171,11 @@ final class TerminalSessionEngine: Sendable {
             yield: yield
         )
 
+        let exitCode = process.terminationStatus ?? 0
         return TerminalProcessRunner.ExecutionResult(
             stdout: stdout,
             stderr: "",
-            exitCode: 0
+            exitCode: exitCode
         )
     }
 }

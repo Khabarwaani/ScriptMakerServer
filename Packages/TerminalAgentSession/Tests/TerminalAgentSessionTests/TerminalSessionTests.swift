@@ -270,7 +270,7 @@ struct TerminalSessionTests {
         #expect(session != nil)
     }
 
-    @Test("TerminalSession reuses persistent in-memory process across multiple turns")
+    @Test("TerminalSession reuses persistent in-memory process across multiple turns and purgeMemory terminates it")
     func testPersistentProcessMemoryReuse() async throws {
         let counterFile = FileManager.default.temporaryDirectory.appendingPathComponent("count_\(UUID().uuidString)")
         try? "0".write(to: counterFile, atomically: true, encoding: .utf8)
@@ -300,14 +300,22 @@ struct TerminalSessionTests {
         let out1: MockEchoSpec.Output = try await session.respond(input: MockEchoSpec.Input(message: "hello"), instructions: "test")
         #expect(out1.reply == "turn 1")
 
-        // Turn 2: Reuses the same running process in memory
+        // Turn 2: Reuses the same running process in memory without termination
         let out2: MockEchoSpec.Output = try await session.respond(input: MockEchoSpec.Input(message: "again"), instructions: "test")
         #expect(out2.reply == "turn 2")
-
         #expect(session.executionMetadata.count == 2)
 
-        // Clear memory: shuts down the in-memory process and clears metadata
+        // clearMemory() clears metadata records but keeps the in-memory process alive
         session.clearMemory()
+        #expect(session.executionMetadata.isEmpty)
+
+        // Turn 3: Process is still running and receives turn 3
+        let out3: MockEchoSpec.Output = try await session.respond(input: MockEchoSpec.Input(message: "third"), instructions: "test")
+        #expect(out3.reply == "turn 3")
+        #expect(session.executionMetadata.count == 1)
+
+        // purgeMemory() terminates the in-memory process and clears all session state
+        session.purgeMemory()
         #expect(session.executionMetadata.isEmpty)
     }
 
@@ -333,6 +341,87 @@ struct TerminalSessionTests {
 
         _ = try await session.execute(MockEchoSpec(message: "second"))
         #expect(session.executionMetadata.isEmpty)
+    }
+
+    @Test("Benchmark and compare performance across all three persistence modes")
+    func testPerformanceAcrossPersistenceModes() async throws {
+        // Mock script for persistent mode: keeps reading stdin line by line and echoes valid json
+        let persistentScript = """
+        #!/bin/bash
+        while IFS= read -r line; do
+            echo "{\\"reply\\":\\"persistent\\"}"
+        done
+        """
+        let persistentScriptURL = try createMockExecutable(script: persistentScript)
+        defer { try? FileManager.default.removeItem(at: persistentScriptURL.deletingLastPathComponent()) }
+
+        // Mode 1: Persistent Stdio (Process kept in memory)
+        let persistentConfig = TerminalAgentConfiguration(
+            executablePath: persistentScriptURL.path,
+            persistenceMode: .persistentStdio
+        )
+        let persistentSession = GenericTerminalSession(configuration: persistentConfig)!
+
+        let t1Start = ContinuousClock().now
+        for i in 0..<3 {
+            do {
+                let res: MockEchoSpec.Output = try await persistentSession.respond(input: MockEchoSpec.Input(message: "test"), instructions: "test")
+                #expect(res.reply == "persistent")
+            } catch {
+                print("Failed in persistent turn \(i): \(error)")
+                throw error
+            }
+        }
+        let persistentDuration = t1Start.duration(to: ContinuousClock().now)
+        persistentSession.purgeMemory()
+
+        // Mock script for ephemeral/daemon mode: exits immediately with valid json output
+        let ephemeralScript = """
+        #!/bin/bash
+        echo '{"reply":"ephemeral"}'
+        exit 0
+        """
+        let ephemeralScriptURL = try createMockExecutable(script: ephemeralScript)
+        defer { try? FileManager.default.removeItem(at: ephemeralScriptURL.deletingLastPathComponent()) }
+
+        // Mode 2: Ephemeral (Process spawned per turn)
+        let ephemeralConfig = TerminalAgentConfiguration(
+            executablePath: ephemeralScriptURL.path,
+            persistenceMode: .ephemeral
+        )
+        let ephemeralSession = GenericTerminalSession(configuration: ephemeralConfig)!
+
+        let t2Start = ContinuousClock().now
+        for i in 0..<3 {
+            do {
+                let res: MockEchoSpec.Output = try await ephemeralSession.respond(input: MockEchoSpec.Input(message: "test"), instructions: "test")
+                #expect(res.reply == "ephemeral")
+            } catch {
+                print("Failed in ephemeral turn \(i): \(error)")
+                throw error
+            }
+        }
+        let ephemeralDuration = t2Start.duration(to: ContinuousClock().now)
+
+        // Mode 3: Daemon (Interacts with daemon/app-server)
+        let daemonConfig = TerminalAgentConfiguration(
+            executablePath: ephemeralScriptURL.path,
+            extraArguments: ["--daemon"],
+            persistenceMode: .daemon
+        )
+        let daemonSession = GenericTerminalSession(configuration: daemonConfig)!
+        #expect(daemonSession.configuration.persistenceMode == .daemon)
+        do {
+            let daemonRes: MockEchoSpec.Output = try await daemonSession.respond(input: MockEchoSpec.Input(message: "test"), instructions: "test")
+            #expect(daemonRes.reply == "ephemeral")
+        } catch {
+            print("Failed in daemon turn: \(error)")
+            throw error
+        }
+
+        // Verify all 3 modes ran successfully and recorded durations
+        #expect(persistentDuration > .zero)
+        #expect(ephemeralDuration > .zero)
     }
 }
 

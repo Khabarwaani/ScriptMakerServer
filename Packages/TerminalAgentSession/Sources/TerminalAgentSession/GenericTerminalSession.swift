@@ -35,6 +35,10 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
         engine.clearMemory()
     }
 
+    public func purgeMemory() {
+        engine.purgeMemory()
+    }
+
     public convenience init?(
         executablePath: String,
         model: String? = nil,

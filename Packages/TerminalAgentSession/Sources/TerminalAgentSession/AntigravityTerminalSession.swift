@@ -18,6 +18,10 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
         engine.clearMemory()
     }
 
+    public func purgeMemory() {
+        engine.purgeMemory()
+    }
+
     public func respond(
         to input: String,
         instructions: String,

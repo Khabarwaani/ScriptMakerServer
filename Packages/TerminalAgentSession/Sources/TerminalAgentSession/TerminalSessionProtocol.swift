@@ -9,12 +9,18 @@ public protocol TerminalSessionProtocol: AgenticSessionProtocol {
     /// The configuration describing the binary path, arguments, working directory, and metadata.
     var configuration: TerminalAgentConfiguration { get }
 
-    /// Clears any in-memory conversation context accumulated by this session.
+    /// Clears execution metadata and conversation context from memory without terminating the underlying in-memory process.
     func clearMemory()
+
+    /// Purges all memory, terminates any persistent subprocesses, and releases system resources.
+    func purgeMemory()
 }
 
 extension TerminalSessionProtocol {
     public func clearMemory() {}
+    public func purgeMemory() {
+        clearMemory()
+    }
 }
 
 /// A provider descriptor that can instantiate a `TerminalSessionProtocol` given a configuration.

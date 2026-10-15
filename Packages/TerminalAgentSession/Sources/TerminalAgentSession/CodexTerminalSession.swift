@@ -9,13 +9,22 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
     public typealias Configuration = TerminalAgentConfiguration
     private let engine: TerminalSessionEngine
 
-    public init?(configuration: Configuration = Configuration(executablePath: "codex")) {
-        guard let engine = TerminalSessionEngine(configuration: configuration) else { return nil }
+    public init?(configuration: Configuration = Configuration(executablePath: "codex", persistenceMode: .ephemeral)) {
+        var adjusted = configuration
+        // Codex batch CLI execution writes to a temporary file via -o and exits, so it requires ephemeral mode
+        if configuration.persistenceMode == .persistentStdio {
+            adjusted.persistenceMode = .ephemeral
+        }
+        guard let engine = TerminalSessionEngine(configuration: adjusted) else { return nil }
         self.engine = engine
     }
 
     public func clearMemory() {
         engine.clearMemory()
+    }
+
+    public func purgeMemory() {
+        engine.purgeMemory()
     }
 
     public func respond(

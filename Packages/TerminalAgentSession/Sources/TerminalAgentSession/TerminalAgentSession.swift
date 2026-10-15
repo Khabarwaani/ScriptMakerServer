@@ -82,6 +82,10 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
         underlying.clearMemory()
     }
 
+    public func purgeMemory() {
+        underlying.purgeMemory()
+    }
+
     public func respond(
         to input: String,
         instructions: String,
