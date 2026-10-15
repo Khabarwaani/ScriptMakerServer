@@ -12,7 +12,7 @@ extension OperationStrategy {
         do {
             let failure = try JSONDecoder().decode(OperationFailure.self, from: Data(text.utf8))
             guard failure.domain == "AgentAtom.Operation" else { return response }
-            guard allowsFailure, failure.code == 422 else { return .failure(.operationFailed) }
+            guard allowsFailure, failure.code == 422 else { return .failure(.operationFailed(reason: "Invalid failure response.")) }
             return .failure(.generationFailed(reason: failure.reason))
         } catch let error as AgenticError {
             return .failure(error)

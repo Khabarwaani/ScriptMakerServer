@@ -32,7 +32,9 @@ protocol OperationLifecycle: AgenticOperationProtocol {
 
 extension OperationLifecycle {
     public func instructions() throws(AgenticError) -> String {
-        try InstructionAssembler(strategy: strategy).assemble(spec: spec)
+        try strategy.assemble(
+            role: Specification.role, instructions: spec.instructions,
+            schema: Specification.outputSchema)
     }
 
     public func cancel() {
@@ -122,9 +124,7 @@ extension OperationLifecycle where Result == AsyncStream<Swift.Result<String, Ag
             let response = await session.stream(
                 to: spec.inputJSON.rawValue, instructions: try instructions(), for: id
             ) { text in
-                if case .terminated = output.yield(.success(text)) {
-                    throw AgenticError.cancelled
-                }
+                output.yield(.success(text))
             }
             result = strategy.result(from: response)
         } catch {

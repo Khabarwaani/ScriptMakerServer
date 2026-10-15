@@ -1,4 +1,4 @@
-/// Provider access that honors cancellation before admission and successful completion.
+/// Provider access with cooperative cancellation.
 public protocol AgenticSessionProtocol: AnyObject, Sendable {
     associatedtype Configuration: Sendable
     var configuration: Configuration { get }
@@ -10,7 +10,7 @@ public protocol AgenticSessionProtocol: AnyObject, Sendable {
 
     func stream(
         to input: String, instructions: String, for operation: ObjectIdentifier,
-        yield: @Sendable (String) async throws -> Void
+        yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError>
 
     func pause(_ operation: ObjectIdentifier) async throws(AgenticError)
@@ -20,7 +20,7 @@ public protocol AgenticSessionProtocol: AnyObject, Sendable {
 extension AgenticSessionProtocol {
     public func stream(
         to input: String, instructions: String, for operation: ObjectIdentifier,
-        yield: @Sendable (String) async throws -> Void
+        yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
         .failure(.unsupported)
     }

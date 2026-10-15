@@ -111,7 +111,7 @@ explicit unsupported errors.
 ## Instructions and declared failures
 
 Operations assemble final instructions on every call using the generic
-strategy-backed assembler. They send the spec role, rules, and original output
+strategy implementations; no forwarding-only assembler wrapper is needed. They send the spec role, rules, and original output
 schema as provider instructions, with input JSON sent separately as prompt data.
 A String input retains its JSON quoting and escaping. Session configuration does
 not own roles, rules, or instruction overrides.
@@ -127,7 +127,9 @@ The original success schema remains unchanged. Failable operations convert a val
 reserved failure response into `generationFailed(reason:)`; standard operations
 return `operationFailed` for it. Malformed reserved failure responses are also
 invalid. All other final text passes through unchanged, including malformed domain
-JSON for the caller to decode. Failure inspection uses one JSONDecoder pass. Malformed reserved failures remain\nerrors; unrelated domain output still passes through unchanged.\nIntermediate streaming snapshots are not decoded.
+JSON for the caller to decode. Failure inspection uses one JSONDecoder pass. Malformed reserved failures remain
+errors; unrelated domain output still passes through unchanged.
+Intermediate streaming snapshots are not decoded.
 
 Keep reference-backed spec input and computed request values stable during a run.
 Domain constraints, fact checking, output decoding, and retry decisions belong to
@@ -140,7 +142,7 @@ instructions, input, and an operation ObjectIdentifier. Streaming forwards snaps
 nonescaping async callback and returns the final result. Sessions own provider access,
 configuration, per-run IDs, and execution records. Operations own lifecycle control
 and final failure interpretation.
-Sessions honor cancellation before admission and before returning success; operations
+Sessions reject cancellation before admission and rely on provider cancellation during generation; operations
 use that result without checking cancellation again after the session returns.
 Non-streaming caller cancellation reaches the worker through a cancellation handler.
 Streaming checks the caller before launching its independent producer; provider
@@ -169,8 +171,8 @@ for example `metadata: [.duration, .tokenUsage]`. Optional metrics default to di
 Apple can collect model identifier, monotonic
 generation duration, and token usage. Token counts use the guarded OS 27 SDK API;
 unavailable counts stay absent and actual zero is preserved. The identifier is
-`SystemLanguageModel.default`, not an invented model version. Other sessions can
-populate the portable tier, reasoning-effort, and finish-reason fields.
+`SystemLanguageModel.default`, not an invented model version. Unpopulated tier,
+reasoning-effort, and finish-reason fields are omitted.
 
 ## Streaming
 
@@ -196,25 +198,30 @@ Call `await operation.cancel()` to stop generation without losing the consumer's
 ability to receive the final cancellation failure. Cancelling the consuming task
 also cancels the producer but terminates delivery, so its last received snapshot
 might remain partial. Breaking the loop alone does not guarantee prompt cancellation.
-Call await operation.cancel() before breaking early when generation should stop.\nA rerun is available after the producer finishes cleanup.
+Call `await operation.cancel()` before breaking early when generation should stop.
+A rerun is available after the producer finishes cleanup.
 
 ## Errors and validation
 
 `AgenticError` is a Sendable, Equatable Swift error with LocalizedError
-descriptions. Its six cases are operationFailed, generationFailed(reason:), cancelled,
+descriptions. Its six cases are operationFailed(reason:), generationFailed(reason:), cancelled,
 busy, notRunning, and unsupported. Provider, instruction, and response failures use
-operationFailed; AI-declared failure retains its reason. Public results do not require
+operationFailed with a diagnostic reason; AI-declared failure retains its reason separately. Public results do not require
 NSError. Provider errors are mapped
 once at the session boundary; the operation interprets only the reserved final
 model-failure format.
 
 Protocol extensions live with their declarations. Concrete implementations and
 the typed error occupy separate files.
-Each worker completes its lifecycle and releases its task before returning a result.\nThe four operation actors own their tasks directly; an internal actor protocol shares
-lifecycle and execution defaults without adding a controller. Normal and streaming\nexecution each have one implementation; concrete actors only provide their stored\nstate, strategy, and a forwarding execute() method. Immutable generic strategies
+Each worker completes its lifecycle and releases its task before returning a result.
+The four operation actors own their tasks directly; an internal actor protocol shares
+lifecycle and execution defaults without adding a controller. Normal and streaming
+execution each have one implementation; concrete actors only provide their stored
+state, strategy, and a forwarding execute() method. Immutable generic strategies
 share instruction assembly and final failure interpretation. The final session
 class shares admission and completion helpers; it has no runner or unchecked Sendable conformance.
-Concrete Result aliases witness the protocol using native Result or AsyncStream.\nNo public execution handle, response wrapper, queue, or schema translator is introduced.
+Concrete Result aliases witness the protocol using native Result or AsyncStream.
+No public execution handle, response wrapper, queue, or schema translator is introduced.
 Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 
 Run `swift build --package-path Packages/AgentAtom` to compile. Automated operation,

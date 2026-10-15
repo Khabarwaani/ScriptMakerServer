@@ -15,21 +15,9 @@ struct OperationFailure: Decodable {
             reason = try values.decode(String.self, forKey: .reason)
         } catch {
             // Malformed reserved failures must not pass through as successful output.
-            if domain == "AgentAtom.Operation" { throw AgenticError.operationFailed }
+            if domain == "AgentAtom.Operation" { throw AgenticError.operationFailed(reason: "Invalid failure response.") }
             throw error
         }
-    }
-}
-
-struct InstructionAssembler<Strategy: OperationStrategy> {
-    let strategy: Strategy
-
-    func assemble<Specification: Spec>(spec: Specification) throws(AgenticError) -> String {
-        try strategy.assemble(
-            role: Specification.role,
-            instructions: spec.instructions,
-            schema: Specification.outputSchema
-        )
     }
 }
 
@@ -53,7 +41,7 @@ struct FailableOperationStrategy: OperationStrategy {
 
     func assemble(role: String, instructions: String, schema: JSONSchema) throws(AgenticError) -> String {
         guard let failureSchema = JSONSchema(OperationFailure.self) else {
-            throw AgenticError.operationFailed
+            throw AgenticError.operationFailed(reason: "The failure schema could not be derived.")
         }
         return JSONOperationStrategy().assemble(role: role, instructions: instructions, schema: schema) + """
 

@@ -2,7 +2,7 @@ import Foundation
 
 /// An operation or session failure.
 public enum AgenticError: Error, Sendable, Equatable {
-    case operationFailed
+    case operationFailed(reason: String)
     case generationFailed(reason: String)
     case cancelled
     case busy
@@ -13,7 +13,7 @@ public enum AgenticError: Error, Sendable, Equatable {
 extension AgenticError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-        case .operationFailed: "The operation failed."
+        case .operationFailed(let reason): reason
         case .generationFailed(let reason): reason
         case .cancelled: "The operation was cancelled."
         case .busy: "An operation is already running."

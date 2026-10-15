@@ -24,7 +24,7 @@
                 let run = try begin(instructions: instructions, for: operation)
                 defer { finish(run) }
                 let response = try await run.model.respond(to: input, options: run.options)
-                return try result(response.content)
+                return result(response.content)
             } catch {
                 return .failure(map(error))
             }
@@ -32,17 +32,17 @@
 
         public func stream(
             to input: String, instructions: String, for operation: ObjectIdentifier,
-            yield: @Sendable (String) async throws -> Void
+            yield: @Sendable (String) async -> Void
         ) async -> Result<String, AgenticError> {
             do {
                 let run = try begin(instructions: instructions, for: operation)
                 defer { finish(run) }
                 let stream = run.model.streamResponse(to: input, options: run.options)
                 for try await snapshot in stream {
-                    try await yield(snapshot.content)
+                    await yield(snapshot.content)
                 }
                 let response = try await stream.collect()
-                return try result(response.content)
+                return result(response.content)
             } catch {
                 return .failure(map(error))
             }
@@ -86,9 +86,8 @@
                 started: ContinuousClock().now)
         }
 
-        private func result(_ text: String) throws(AgenticError) -> Result<String, AgenticError> {
-            guard !Task.isCancelled else { throw .cancelled }
-            guard !text.isEmpty else { throw .operationFailed }
+        private func result(_ text: String) -> Result<String, AgenticError> {
+            guard !text.isEmpty else { return .failure(.operationFailed(reason: "The model returned an empty response.")) }
             return .success(text)
         }
 
@@ -115,7 +114,7 @@
 
         private func map(_ error: any Error) -> AgenticError {
             if error is CancellationError { return .cancelled }
-            return (error as? AgenticError) ?? .operationFailed
+            return (error as? AgenticError) ?? .operationFailed(reason: error.localizedDescription)
         }
     }
 #endif
