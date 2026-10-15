@@ -1,23 +1,8 @@
 import Foundation
 import AgentCoreBase
+@_exported import NewsAgent
 
-/// Typed input payload for ShekharJokeGenerator.
-public struct ShekharJokeGeneratorInput: Codable, Sendable, Equatable, JSONSchemaConvertible {
-    /// Optional topic or focus area to guide news selection.
-    public var topic: String?
-    /// Optional direct news source URL.
-    public var newsSourceURL: String?
-
-    public init(topic: String? = nil, newsSourceURL: String? = nil) {
-        self.topic = topic
-        self.newsSourceURL = newsSourceURL
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case topic
-        case newsSourceURL = "news_source_url"
-    }
-
+extension ShekharJokeGeneratorInput: @retroactive JSONSchemaConvertible {
     public static func schema() -> SchemaDefinition {
         SchemaDefinition(
             title: "ShekharJokeGeneratorInput",
@@ -33,51 +18,7 @@ public struct ShekharJokeGeneratorInput: Codable, Sendable, Equatable, JSONSchem
     }
 }
 
-/// Typed output payload for ShekharJokeGenerator.
-public struct ShekharJokeGeneratorOutput: Codable, Sendable, Equatable, JSONSchemaConvertible {
-    /// Winning news headline in Hindi.
-    public var title: String
-    /// Verified publication date and time.
-    public var date: String
-    /// Direct article URL.
-    public var link: String
-    /// Selection category of the winning news story ("Trending", "Meme Potential", or "Public Importance").
-    public var category: String
-    /// Winning story's short Hindi joke, maximum 30 words in Devanagari Hindi.
-    public var joke1: String
-    /// Winning story's long Hindi joke, maximum 60 words in Devanagari Hindi.
-    public var joke2: String
-    /// Formatted plain-text script ready for direct display or broadcast.
-    public var script: String
-
-    public init(
-        title: String,
-        date: String,
-        link: String,
-        category: String,
-        joke1: String,
-        joke2: String,
-        script: String
-    ) {
-        self.title = title
-        self.date = date
-        self.link = link
-        self.category = category
-        self.joke1 = joke1
-        self.joke2 = joke2
-        self.script = script
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case title
-        case date
-        case link
-        case category
-        case joke1
-        case joke2
-        case script
-    }
-
+extension ShekharJokeGeneratorOutput: @retroactive JSONSchemaConvertible {
     public static func schema() -> SchemaDefinition {
         SchemaDefinition(
             title: "ShekharJokeGeneratorOutput",
@@ -100,9 +41,9 @@ public enum ShekharJokeGeneratorDefinition: AgentProtocol, FailureRecoverableAge
     public typealias Input = ShekharJokeGeneratorInput
     public typealias Output = ShekharJokeGeneratorOutput
 
-    public static let id = "ShekharJokeGenerator"
-    public static let name = "Shekhar Joke Generator"
-    public static let versions: [String] = ["1.0.0"]
+    public static let id = ShekharJokeGeneratorSpec.identity.id
+    public static let name = ShekharJokeGeneratorSpec.identity.name
+    public static let versions: [String] = [ShekharJokeGeneratorSpec.identity.version]
     public static var bundle: Bundle { Bundle.module }
 
     public static func verifyFeasibility(input: ShekharJokeGeneratorInput) -> FeasibilityResult {
