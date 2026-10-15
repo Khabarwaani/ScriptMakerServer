@@ -1,289 +1,190 @@
 # AgentAtom
 
-A standalone Swift package for provider-independent specifications, operations, and sessions. This
-directory can move to a separate repository without changing its source or dependency
-paths. It has no dependency on AgentServer or sibling packages.
+Standalone Swift specifications, operations, and sessions. This package has no
+dependency on AgentServer, the Mac app, or sibling packages and can move to its own
+repository.
 
-## Public contract
+## Specifications
 
-`Spec` exposes static `Identity` (id, name, version), role, and output schema.
-Each instance supplies instructions and validated input JSON. Both JSON properties
-are non-optional and non-throwing.
+`Spec` supplies identity, role, instructions, input JSON, and the expected output
+JSON schema. `ModelledSpec<Input, Output>` derives JSON from an Encodable input and
+schema from a Decodable output. Outputs need neither Encodable nor `@Generable`.
+The spec's optional output storage is caller-owned; execution never writes to it.
 
-`ModelledSpec<Input, Output>` adds an `Encodable & Sendable` input and a
-`Decodable & Sendable` output and supplies both JSON properties by default.
-Output models need no additional schema protocol, annotation, or Encodable conformance.
-Conformers own a mutable optional output property, initially nil, to retain a decoded result.
+`JSONString` preserves validated JSON text. Its dynamic initializer is failable;
+invalid string literals are programmer errors. Foundation parsing accepts scalars
+and null, and can accept extensions such as trailing commas on Apple platforms.
+
+`JSONSchema` derives supported primitive, object, array, string-keyed dictionary,
+and optional shapes through pinned TypeDecoder. Objects allow additional domain
+keys; optional properties may be absent or null. Recursive/unsupported shapes and
+excessive nesting fail derivation. Arbitrary raw-schema construction is not public.
+Custom Decodable implementations are not guaranteed to be described completely by
+model inspection. Domain validation, enum cases, and numeric-width rules are not
+inferred. Existing ModelledSpec defaults use preconditionFailure on conversion
+failure; these are programmer preconditions, not recoverable execution errors.
+
+## Operations and results
+
+`AgenticOperation` requests the spec's output. `FailableAgenticOperation` also
+permits the AI to decline with a reason. Both are structs conforming to
+`AgenticOperationProtocol`, and both can throw execution errors.
+
+Execution returns `AgenticResponse` containing session metadata and `AgenticResult`:
 
 ```swift
-import AgentAtom
+public enum AgenticResult {
+    case success(String)
+    case failure(AgenticFailure)
+}
+```
 
-struct SummaryInput: Encodable, Sendable {
-    let article: String
+Successful content is the model's unchanged response text. The operation supplies
+the spec's JSON schema in its instructions; the model is expected to produce that
+JSON directly. The library does not translate the schema into an Apple-specific
+schema, decode domain output, unwrap success JSON, re-encode, repair, strip fences,
+or otherwise format the answer. Prompted schema adherence is an expectation, not
+a guarantee that arbitrary output will decode. The caller decodes it afterward.
+
+```swift
+guard let session = AppleIntelligenceSession(configuration: .init(
+    metadata: [.duration, .modelIdentifier], maximumResponseTokens: 512
+)) else {
+    return // Unsupported OS/device, unavailable model, or invalid configuration.
 }
 
-struct SummaryOutput: Decodable, Sendable {
-    let summary: String
-    let sources: [String]?
+let response = try await session.execute(AgenticOperation(spec: spec))
+switch response.content {
+case .success(let json):
+    let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
+    // Retain and validate output in the caller.
+case .failure(let failure):
+    print(failure.reason)
 }
-
-struct Summariser: ModelledSpec {
-    typealias Input = SummaryInput
-    typealias Output = SummaryOutput
-
-    static let identity = Identity(
-        id: "summariser",
-        name: "Summariser",
-        version: "1.0.0"
-    )
-
-    let input: SummaryInput
-    var output: SummaryOutput? = nil
-    static let role = "You summarise articles."
-    let instructions = "Produce a concise, factual summary."
-}
-
-let spec = Summariser(input: SummaryInput(article: "Article text"))
-let inputText = spec.inputJSON.rawValue
-let schemaText = Summariser.outputSchema.rawValue
 ```
 
-Consumers can decode a response directly or use the typed operation/session API below.
-Execution never writes to the spec's optional output property. The caller may retain
-the returned output wherever appropriate.
+A normal operation returns its response string without interpreting domain JSON.
+A failable operation reads only the package-owned envelope to distinguish these
+outcomes:
 
-## JSON construction
-
-JSONString's failable string initializer uses Foundation JSONSerialization,
-preserves the original text, and accepts JSON objects, arrays, scalars, and null.
-Acceptance follows Foundation's parser, which can accept extensions such as
-trailing commas on Apple platforms. It is not a separate strict JSON grammar check.
-JSONString also supports string literals; an invalid literal is a programming
-error and terminates execution.
-
-JSONSchema has a failable model-type initializer. It constructs standard schema
-keywords from supported model shapes and uses Foundation to check the serialized
-JSON. There is no public schema initializer from raw text or dialect selection.
-
-```swift
-let literal: JSONString = #"{"message":"Hello"}"#
-let dynamic = JSONString(receivedText) // JSONString?
-let schema = JSONSchema(SummaryOutput.self) // JSONSchema?
+```json
+{"status":"success","output":{"example":"domain output"}}
 ```
 
-Both types conform to CustomStringConvertible and CustomDebugStringConvertible.
-Print and debugger inspection use Foundation's pretty-printed JSON formatting;
-rawValue retains the compact provider representation (or original input text).
-
-ModelledSpec uses Foundation JSONEncoder directly, with default strategies,
-compact output, and sorted keys. Default getters terminate with preconditionFailure
-when conversion or derivation fails. They do not return empty or permissive JSON,
-and failure messages do not include input or prompt text. Conformers can replace
-either inherited property with their own implementation.
-
-## Schema derivation
-
-The package delegates model inspection to the pinned open-source
-[TypeDecoder](https://github.com/Kitura/TypeDecoder) library and maps its type
-information into a small Encodable schema representation. Foundation JSONEncoder
-serializes it; JSONString checks the emitted JSON syntax. Schema structure is
-constructed from known shapes: type, properties, required, items,
-additionalProperties, and nullable alternatives. There is no meta-schema engine.
-
-Ordinary model shapes include primitive fields, nested models, CodingKeys, arrays,
-string-keyed dictionaries, and optionals. Optional fields can be absent or null;
-non-optional fields are required. Generated object schemas permit additional keys,
-matching JSONDecoder's ordinary behavior.
-Empty structs are supported through a guarded empty-object decoding fallback.
-
-Foundation Date, Data, UUID, URL, and Decimal representations follow JSONDecoder's
-default strategies. Derivation does not infer domain validation rules, enum cases,
-or integer-width bounds. Unsupported, opaque, and recursive type information fails
-construction. Schema conversion is limited to 64 levels; model inspection behavior
-is delegated to TypeDecoder.
-
-TypeDecoder probes Decodable initializers using dummy values. Custom decoding can
-fail or describe only one execution path, so inferred schemas are not proof of
-equivalence to arbitrary custom decoding. Property wrappers and macros would require
-model annotations or added metadata; they are not imposed on the Decodable-only API.
-
-This package generates model schemas; it does not validate arbitrary external
-schemas or responses. Provider-specific compatibility belongs in adapters.
-Provider testing is tracked separately in [#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88). Adapters must check their provider's
-supported keywords and object restrictions, including nullable `anyOf`, formats,
-`contentEncoding`, and additional keys, before submitting a generated schema.
-
-## Readability guidance
-
-Use names that explain a type's responsibility and a value's meaning. Keep control
-flow explicit, format branches consistently, and scope implementation helpers to
-their owning type or file. Group protocol implementations in separate extensions.
-Keep comments short; add them for a behavior boundary or useful example rather
-than narrating the code. Prefer Foundation APIs over duplicate infrastructure.
-
-Third-party imports are internal; implementation helpers are private or fileprivate.
-Access control defines these boundaries without an Internal folder.
-
-## Operations and sessions
-
-`AgenticOperationProtocol` describes a request and its typed decoding.
-`AgenticOperation<Specification>` returns the ModelledSpec's Output;
-`FailableAgenticOperation<Specification>` returns `AgenticResult<Output>` with
-`.success(Output)` or `.failure(AgenticFailure)`. The latter permits the model to
-decline a request; both operations can throw execution and decoding errors.
-
-```swift
-let session = try AppleIntelligenceSession(configuration: .init(
-    instructions: "Be concise and use only supplied facts.",
-    supportedOutputTypes: [.json],
-    metadata: [.duration, .modelIdentifier, .tokenUsage],
-    maximumResponseTokens: 512
-))
-let operation = AgenticOperation(spec: spec)
-let response = try await session.execute(operation)
-let output: Summariser.Output = response.content
+```json
+{"status":"failure","failure":{"reason":"The input is insufficient."}}
 ```
 
-The caller chooses and initializes each session. `AgenticSessionProtocol` has no
-configuration requirement; concrete sessions define their own configuration.
-There is no singleton. Apple initialization throws on unavailable OS, framework,
-device, disabled Apple Intelligence, or unavailable model assets. It also validates
-configuration. Availability is rechecked before each generation.
+On success, the **whole original envelope string** is preserved, including the
+output field. On failure, the reason is returned as AgenticFailure. The caller may
+decode a success envelope into a local Decodable type with an `output` property.
+Envelope parsing rejects missing, contradictory, unknown-status, and unknown-key
+outcomes. It never interprets the nested success output. Invalid envelopes throw
+`AgenticSessionError.invalidResponse`. Domain decoding errors happen later in the
+caller and retain Foundation's error domains/codes.
 
-Apple supports macOS/iOS/visionOS 26+ using `SystemLanguageModel.default` locally.
-The package itself retains its older deployment minimums. On unsupported platforms
-or SDKs, the initializer throws rather than selecting another provider. The adapter
-is historyless; each request gets fresh provider instructions and conversation.
-History-enabled behavior belongs to a future concrete session specification.
+Operations use value semantics. Create one per request; there is no reuse tracking,
+defensive copying, or mutation policing. Keep reference-backed input and computed
+request values stable during execution. Fact checking, list lengths, and other
+domain validation belong to the caller, as do retries.
 
-Each Apple session admits one request at a time and throws `.busy` on overlap.
-Create separate sessions for concurrency. Cancellation is caller-owned through
-Swift Task cancellation, or the stream handle described below. Retries and any
-application-wide resource limits also belong to the caller.
+## Instructions
 
-### Execution and decoding
+Operations assemble instructions before the session executes them. Session
+configuration has no instructions, roles, or spec rules. Four levels remain,
+highest priority first:
 
-`execute(operation)` provides convenience over two independent steps:
-
-```swift
-let raw = try await session.respond(to: operation.makeRequest())
-let decoded = try operation.decode(raw.content)
-```
-
-Both concrete operations accept a custom JSONDecoder through `decode(_:decoder:)`.
-The failable decoder validates reserved envelope keys using default strategies,
-then applies caller strategies to the nested domain output, with its coding path
-starting at that output's root. Unknown outer/failure keys and contradictory or
-missing payloads are errors, including an opposite payload set to null. Optional
-domain output can be null; failure itself cannot be null.
-
-Successful typed execution guarantees decoding into the declared output type.
-It does not validate meaning, truth, list lengths, or other domain rules. Those
-checks belong to the caller. The raw `respond` interface is intentionally undecoded.
-Provider refusal is a thrown session error; a valid model-authored failable outcome
-is a returned result. JSON decoding errors remain decoding errors.
-
-Operations and transport requests are structs with value semantics. Create a fresh
-operation per request. The library does not track reuse, deep-copy specs, police
-mutation, or add defensive snapshots. Callers must keep reference-backed input and
-computed request values stable during execution. Existing ModelledSpec getters
-retain their documented conversion preconditions.
-
-### Instruction hierarchy
-
-Instructions are assembled in four levels, highest priority first:
-
-1. Session base instructions.
-2. Operation instructions, including package failable guidance.
+1. Caller-supplied operation base instructions.
+2. Operation instructions, including failable guidance when applicable.
 3. Spec role and instructions.
 4. Input content.
 
-The first three levels go into provider instructions. Input is sent separately as
-prompt data. String ModelledSpec inputs remain JSON string literals, including
-escaping; no input wrapper or unescaping is added. Assembly expresses this priority,
-but does not guarantee a model will obey it.
+The first three levels and the output schema are sent as provider instructions.
+Input is sent separately as prompt data. A String spec input stays its JSON string
+literal, with its original escaping. Instruction assembly expresses precedence;
+it does not prove model obedience.
 
-### Streaming
+## Sessions and configuration
+
+`AgenticSessionProtocol` directly executes an operation. Callers initialize and
+inject the concrete session they want; there is no singleton or shared scheduling.
+The protocol has no common configuration type. Default streaming throws an explicit
+unsupported-streaming error for implementations that do not provide it.
+
+`AppleIntelligenceSession.init?` returns nil if configuration, SDK, OS, device,
+Apple Intelligence settings, or local model availability prevent initialization.
+It uses only `SystemLanguageModel.default`, requires macOS/iOS/visionOS 26+, and
+rechecks model availability during execution. The package retains its older
+deployment minimums. There is no automatic provider fallback.
+
+Each Apple session handles one active operation; overlap throws busy. Create
+independent sessions for concurrency. Each execution uses a fresh provider
+conversation. History-enabled behavior is a separate feature.
+
+Concrete configuration selects generation temperature, response token budget, and
+which metadata fields to return. All operations here request JSON and expose
+strings; provider-specific image generation is outside this implementation.
+
+Metadata belongs exclusively to the session response and is disabled by default.
+Enabled but unavailable fields remain nil. Duration uses a monotonic clock for
+generation time, excluding instruction assembly and caller decoding. The model
+identifier reports the selected SystemLanguageModel.default, not an invented
+version. Model tier, reasoning effort, and finish reason remain nil when unknown.
+Token counts use the version-guarded OS 27 SDK usage API. The provider conversation
+contains exactly one request, so those counts are per-request; actual zero is kept.
+
+## Streaming and cancellation
 
 ```swift
 let stream = try await session.stream(AgenticOperation(spec: spec))
 for try await snapshot in stream.snapshots {
-    // Replace display content; snapshots are cumulative, not token deltas.
-    // Structured partial snapshots are text and may be incomplete JSON.
+    print(snapshot) // Replace display content with this cumulative string.
 }
-let response = try await stream.result() // Completed typed output and metadata.
+let response = try await stream.result() // Final string-or-failure and metadata.
 ```
 
-Starting a stream starts its generation, even before iteration. Snapshots have one
-consumer and buffer only the newest element; slower readers can miss intermediate
-updates. A snapshot need not extend the previous text as a prefix. `result()` awaits
-that same generation and decodes only its completed content. Ending iteration or
-seeing valid-looking JSON is not a success signal. Call `cancel()` when abandoning
-work, especially after breaking out of iteration while retaining the handle.
-Cancelling a result waiter cancels the underlying work; releasing the handle also
-requests cancellation. The generation slot is retained until the backend returns.
-Buffering bounds snapshot count, not the size of the final response; configure the
-provider's response token budget as appropriate.
+Starting a stream starts generation. Snapshots have one consumer and buffer only
+the newest string. Intermediate updates may coalesce and need not be prefix
+extensions. Partial JSON is not decoded or repaired. Only result() establishes
+completed execution; it still does not decode domain output. An error after a
+valid-looking partial snapshot remains an execution error.
 
-### Metadata and content capabilities
+The caller cancels ordinary calls through Swift Task cancellation, and streams
+through cancel() or by cancelling the result waiter. Releasing the stream handle
+also requests cancellation. Explicitly cancel abandoned work when retaining its
+handle after breaking iteration. The session stays busy until its provider call
+returns. Buffering bounds snapshot count, not the final string size; configure a
+response token budget appropriate to the application.
 
-Metadata is disabled by default. Configuration selects fields to request; disabled
-or unavailable fields remain nil. Metadata belongs exclusively to the session
-response. Duration measures backend generation with a monotonic clock, excluding
-schema translation and domain decoding. `modelIdentifier` identifies the selected
-`SystemLanguageModel.default`, not an invented model version. Tier, reasoning effort,
-and finish reason remain nil because this adapter cannot determine them reliably.
-Token counts use the guarded OS 27 SDK usage API when available; the fresh conversation
-contains exactly one request. Older runtimes keep token counts nil. Zero is retained.
+## Errors
 
-The shared content supports text, JSON, and `AgenticImage` (bytes plus media type).
-Custom operations conform to AgenticOperationProtocol to decode those content types;
-custom sessions conform to AgenticSessionProtocol. They need no Apple imports.
-The concrete Apple LLM supports text/JSON output and text/JSON input only. Its
-configuration can restrict those outputs but cannot enable image generation.
-An image-generation provider is a separate session implementation. Unsupported
-output or streaming returns a typed error; default protocol streaming is unsupported.
+Session errors conform to LocalizedError and CustomNSError with stable domain
+`AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
+1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
+1007, rate limited 1008, execution failure 1009, invalid envelope 1010. Diagnostic
+messages do not copy provider prompts or input. AI-declared failure is result data,
+not an execution error. A normal operation never permits that result alternative.
 
-### Apple schema compatibility
+## Structure and validation
 
-| Schema shape | Guided generation |
-| --- | --- |
-| String, Boolean, integer, number; root scalars | Translated to Apple primitive schemas; final domain decoding enforces the actual Swift type. |
-| Objects and arrays, including roots | Supported. Apple generates only declared object properties, a documented subset of the open domain schema. |
-| Optional object property | May be omitted. Its explicit-null alternative is narrowed to omission on the baseline. |
-| Required nullable value / nullable array element | Requires OS 26.4+ and an SDK exposing null schemas; otherwise rejected. |
-| Tagged success/failure unions | Runtime anyOf with constrained status values and closed package-owned envelopes. |
-| Arbitrary-key dictionaries | Rejected. |
-| Formats and content encodings (UUID, URL, Data) | Rejected rather than silently dropping constraints. |
-| Domain counts, numeric-width rules, custom decoder semantics | Not inferred; final decoding and caller validation apply. |
+Protocols have their own files. Concrete implementations and default extensions
+are separate. The spec, example execution, and caller decoding are separated too.
 
-Guided output uses `GeneratedContent.jsonString`. Unsupported translation throws;
-there is no automatic prompt-only fallback, output repair, input truncation, or retry.
-Schema construction and compilation are not proof of live generation compatibility.
+The remaining types have distinct roles: two operation structs describe their
+allowed outcomes; the result and failure payload carry string-or-failure data; the
+response and metadata carry execution details; the Apple actor/configuration own
+provider execution; the stream class owns asynchronous completion and cancellation.
+There are no transport content wrappers, schema translator, backend class, or
+domain-output conversion layer.
 
-## Example and feature status
+Run `swift build` to compile the package and public-import example. Run
+`swift run KeyPointsExample` explicitly on a supported device to use the local
+model. The caller decodes the returned string and checks that there are three
+points. Existing Phase 2 tests cover specs and schema derivation. New operation,
+session, cancellation, platform, and live-model tests are a separate task:
+[#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88).
 
-`swift run KeyPointsExample` runs the real local Apple adapter. It requires an
-available Apple model and demonstrates normal execution, streaming, and a failable
-request. The caller checks exactly three points and prints extracted people.
-The example is compiled by `swift build` and is not run automatically.
-
-Implementation: [#87](https://github.com/Khabarwaani/ScriptMakerServer/issues/87).
-New automated and live provider testing is a separate task:
-[#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88). Existing Phase 2
-tests cover the specification/schema package; they do not verify this adapter.
-
-The feature PR must not merge until the user explicitly authorizes that specific
-merge in chat, verified twice. Passing checks or inferred intent are not authorization.
-
-## Build and validation
-
-Run `swift build` and `swift test` from this directory. Swift Testing suites cover public contracts,
-ordinary model derivation, the 64-level conversion limit, unsupported models,
-Foundation representations, and formatting. On macOS and Linux, a test-only
-`FailureProbe` executable checks invalid literals and failing default conversions
-in separate processes. No real server or AI provider is started.
-
-The tests use `@testable import AgentAtom`, including Encodable-only inputs and
-Decodable-only outputs. Schema assertions check generated keyword structures;
-they do not constitute meta-schema validation or prove arbitrary custom decoding.
+Implementation [PR #89](https://github.com/Khabarwaani/ScriptMakerServer/pull/89)
+addresses [#87](https://github.com/Khabarwaani/ScriptMakerServer/issues/87). It must
+remain unmerged until the user explicitly authorizes that PR's merge in chat,
+with the authorization verified twice. Checks and inferred intent are insufficient.

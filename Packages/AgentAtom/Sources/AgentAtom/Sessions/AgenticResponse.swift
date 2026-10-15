@@ -1,8 +1,8 @@
-public struct AgenticResponse<Content: Sendable>: Sendable {
-    public let content: Content
+public struct AgenticResponse: Sendable {
+    public let content: AgenticResult
     public let metadata: AgenticExecutionMetadata?
 
-    public init(content: Content, metadata: AgenticExecutionMetadata? = nil) {
+    public init(content: AgenticResult, metadata: AgenticExecutionMetadata? = nil) {
         self.content = content
         self.metadata = metadata
     }

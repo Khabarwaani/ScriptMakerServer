@@ -1,28 +1,17 @@
 import AgentAtom
+import Foundation
 
-struct KeyPointsSpec: ModelledSpec {
-    struct Output: Decodable, Sendable {
-        let points: [String]
-        let person: [String]
-    }
-
-    static let identity = Identity(id: "key-points", name: "Key points", version: "1.0.0")
-    static let role = "Extract factual key points and explicitly named people from the input."
-    let input: String
-    var output: Output?
-    let instructions = """
-        Return exactly three concise points supported by the input. Do not invent facts.
-        List distinct named people or characters in first-appearance order in person.
-        Use an empty person array when nobody is named.
-        """
+struct KeyPointsSuccess: Decodable {
+    let output: KeyPointsSpec.Output
 }
-
-enum ExampleError: Error { case wrongPointCount }
 
 @main
 struct KeyPointsExample {
     static func main() async throws {
-        let session = try AppleIntelligenceSession(configuration: .init(metadata: [.duration]))
+        guard let session = AppleIntelligenceSession(configuration: .init(metadata: [.duration])) else {
+            print("The Apple local model is unavailable.")
+            return
+        }
         let article =
             "Maya opened the library on Monday. Ravi donated forty books. The library hosts free classes on Fridays."
         let response = try await session.execute(AgenticOperation(spec: KeyPointsSpec(input: article)))
@@ -31,7 +20,7 @@ struct KeyPointsExample {
         let unnamed = "The library opened on Monday. It has forty books. Free classes take place on Fridays."
         let stream = try await session.stream(AgenticOperation(spec: KeyPointsSpec(input: unnamed)))
         for try await snapshot in stream.snapshots {
-            if case .text(let text) = snapshot { print(text) }
+            print(snapshot)
         }
         try display(try await stream.result().content)
 
@@ -41,14 +30,31 @@ struct KeyPointsExample {
                 failureGuidance: "Return failure if the input cannot support three meaningful points."
             ))
         switch outcome.content {
-        case .success(let output): try display(output)
-        case .failure(let failure): print("Unable to fulfill: \(failure.reason)")
+        case .success(let responseString):
+            let envelope = try JSONDecoder().decode(KeyPointsSuccess.self, from: Data(responseString.utf8))
+            try display(envelope.output)
+        case .failure(let failure):
+            print("Unable to fulfill: \(failure.reason)")
+        }
+    }
+
+    private static func display(_ result: AgenticResult) throws {
+        switch result {
+        case .success(let responseString):
+            let output = try JSONDecoder().decode(KeyPointsSpec.Output.self, from: Data(responseString.utf8))
+            try display(output)
+        case .failure(let failure):
+            print("Unable to fulfill: \(failure.reason)")
         }
     }
 
     private static func display(_ output: KeyPointsSpec.Output) throws {
-        // Domain validation belongs to the caller.
-        guard output.points.count == 3 else { throw ExampleError.wrongPointCount }
+        // Decoding and domain validation belong to the caller.
+        guard output.points.count == 3 else {
+            throw NSError(
+                domain: "AgentAtom.KeyPointsExample", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Expected exactly three points."])
+        }
         print(output.points.joined(separator: "\n"))
         print("People: \(output.person.joined(separator: ", "))")
     }

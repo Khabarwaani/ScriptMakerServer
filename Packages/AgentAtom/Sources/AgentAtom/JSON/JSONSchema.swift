@@ -39,7 +39,7 @@ extension JSONSchema: CustomDebugStringConvertible {
     public var debugDescription: String { description }
 }
 
-// Internal nodes are shared by composition and provider translation.
+// Internal nodes support package-owned schema composition.
 extension JSONSchema {
     private enum Constants {
         // Bounds recursive schema conversion.
