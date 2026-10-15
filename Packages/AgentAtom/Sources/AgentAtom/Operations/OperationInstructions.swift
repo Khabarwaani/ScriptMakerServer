@@ -1,6 +1,6 @@
 func assembleOperationInstructions(
-    role: String?,
-    spec: String?, schema: JSONSchema
+    role: String,
+    spec: String, schema: JSONSchema
 ) -> String {
     let format = """
         Follow the spec role and instructions.
@@ -10,11 +10,7 @@ func assembleOperationInstructions(
         """
     return [
         format,
-        section("Spec role", role), section("Spec rules", spec),
+        "Spec role:\n\(role)", "Spec rules:\n\(spec)",
     ]
-    .compactMap { $0 }.joined(separator: "\n\n")
-}
-
-private func section(_ title: String, _ content: String?) -> String? {
-    content.map { "\(title):\n\($0)" }
+    .joined(separator: "\n\n")
 }
