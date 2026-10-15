@@ -1,18 +1,18 @@
 import Foundation
 import AgentAtom
 
-/// A process runner instance that executes commands and streams lines.
-public final class TerminalProcessRunner: Sendable {
-    public struct ExecutionResult: Sendable {
-        public let stdout: String
-        public let stderr: String
-        public let exitCode: Int32
+/// An internal process runner instance that executes commands and streams lines.
+final class TerminalProcessRunner: Sendable {
+    struct ExecutionResult: Sendable {
+        let stdout: String
+        let stderr: String
+        let exitCode: Int32
     }
 
-    public init() {}
+    init() {}
 
     /// Spawns a process and asynchronously returns lines as they are produced on standard output.
-    public func streamLines(
+    func streamLines(
         executableURL: URL,
         arguments: [String],
         environment: [String: String]? = nil,
@@ -83,7 +83,7 @@ public final class TerminalProcessRunner: Sendable {
     }
 
     /// Resolves executable in system PATH if url does not exist directly.
-    public func resolveExecutable(named name: String) -> URL? {
+    func resolveExecutable(named name: String) -> URL? {
         #if os(Windows)
         let extensions = ["", ".exe", ".cmd", ".bat"]
         let pathSeparator: Character = ";"
