@@ -61,7 +61,7 @@ case .failure(let failure):
 ```
 
 A normal operation returns its response string without interpreting domain JSON.
-A failable operation reads only the package-owned envelope to distinguish these
+A failable operation needs no separate failure guidance. It reads only the package-owned envelope to distinguish these
 outcomes:
 
 ```json
@@ -73,7 +73,7 @@ outcomes:
 ```
 
 On success, the **whole original envelope string** is preserved, including the
-output field. On failure, the reason is returned as a Foundation NSError in domain AgentAtom.Operation, code 1. The caller may
+output field. On failure, the reason is returned as a Foundation NSError in domain AgentAtom.Operation, code 422. The caller may
 decode a success envelope into a local Decodable type with an `output` property.
 Envelope parsing rejects missing, contradictory, unknown-status, and unknown-key
 outcomes. It never interprets the nested success output. Invalid envelopes throw
@@ -87,12 +87,12 @@ domain validation belong to the caller, as do retries.
 
 ## Instructions
 
-Operations assemble instructions before the session executes them. Session
+Operations generate instructions through makeInstructions() before the session executes them. Session
 configuration has no instructions, roles, or spec rules. Four levels remain,
 highest priority first:
 
 1. Caller-supplied operation base instructions.
-2. Operation instructions, including failable guidance when applicable.
+2. Operation instructions.
 3. Spec role and instructions.
 4. Input content.
 
@@ -159,7 +159,7 @@ Session errors conform to LocalizedError and CustomNSError with stable domain
 `AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
 1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
 1007, rate limited 1008, execution failure 1009, invalid envelope 1010. Diagnostic
-messages do not copy provider prompts or input. AI-declared failure uses Foundation NSError (domain AgentAtom.Operation, code 1) as result data,
+messages do not copy provider prompts or input. AI-declared failure uses Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
 not an execution error. A normal operation never permits that result alternative.
 
 ## Structure and validation

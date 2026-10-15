@@ -26,8 +26,7 @@ struct KeyPointsExample {
 
         let outcome = try await session.execute(
             FailableAgenticOperation(
-                spec: KeyPointsSpec(input: "Hello."),
-                failureGuidance: "Return failure if the input cannot support three meaningful points."
+                spec: KeyPointsSpec(input: "Hello.")
             ))
         switch outcome.content {
         case .success(let responseString):

@@ -23,7 +23,7 @@
         ) async throws -> AgenticResponse {
             if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
             let input = operation.inputJSON.rawValue
-            let instructions = try operation.instructions
+            let instructions = try operation.makeInstructions()
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
             let options = GenerationOptions(
                 temperature: configuration.temperature,

@@ -12,7 +12,7 @@ public struct AgenticOperation<Specification: Spec>: AgenticOperationProtocol {
     public var inputJSON: JSONString { spec.inputJSON }
     public var outputSchema: JSONSchema { Specification.outputSchema }
 
-    public var instructions: String {
+    public func makeInstructions() -> String {
         assembleOperationInstructions(
             base: baseInstructions, operation: operationInstructions,
             role: Specification.role, spec: spec.instructions, schema: outputSchema

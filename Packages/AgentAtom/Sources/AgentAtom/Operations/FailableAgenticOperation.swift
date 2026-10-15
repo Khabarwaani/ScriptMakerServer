@@ -4,16 +4,14 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
     public let spec: Specification
     public let baseInstructions: String?
     public let operationInstructions: String?
-    public let failureGuidance: String?
 
     public init(
         spec: Specification, baseInstructions: String? = nil,
-        instructions: String? = nil, failureGuidance: String? = nil
+        instructions: String? = nil
     ) {
         self.spec = spec
         self.baseInstructions = baseInstructions
         self.operationInstructions = instructions
-        self.failureGuidance = failureGuidance
     }
 
     public var inputJSON: JSONString { spec.inputJSON }
@@ -22,19 +20,11 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
         get throws { try Specification.outputSchema.allowingFailure() }
     }
 
-    public var instructions: String {
-        get throws {
-            let guidance = """
-                Return either {"status":"success","output":<requested output>} or
-                {"status":"failure","failure":{"reason":"<reason>"}}.
-                If you cannot fulfill the request, return failure rather than inventing an answer.
-                """
-            return assembleOperationInstructions(
-                base: baseInstructions,
-                operation: [operationInstructions, guidance, failureGuidance].compactMap { $0 }.joined(separator: "\n"),
-                role: Specification.role, spec: spec.instructions, schema: try outputSchema
-            )
-        }
+    public func makeInstructions() throws -> String {
+        assembleOperationInstructions(
+            base: baseInstructions, operation: operationInstructions,
+            role: Specification.role, spec: spec.instructions, schema: try outputSchema
+        )
     }
 
     public func result(from response: String) throws -> AgenticResult {
@@ -66,7 +56,7 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
                 }
                 self = .failure(
                     NSError(
-                        domain: "AgentAtom.Operation", code: 1,
+                        domain: "AgentAtom.Operation", code: 422,
                         userInfo: [NSLocalizedDescriptionKey: try failure.decode(String.self, forKey: Key("reason"))]))
             default:
                 throw AgenticSessionError.invalidResponse
