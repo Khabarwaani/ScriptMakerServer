@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.0.0
+
+- Introduce `ShekharJokeGenerator` Hindi news comedy agent:
+  - Generates sharp, indirect news satire inspired by Shekhar Suman in everyday spoken Hindi (बोलचाल की हिंदी).
+  - Configurable inputs: `output_count` (default 1), `news_count` (default 3), and `jokes_per_category` (default 2) (#103, #104).
+  - Top-level `items` output array containing dual jokes (short <= 30 words, long <= 60 words) and formatted broadcast scripts without mock/example data (#94, #98, #104).
+- Introduce standalone `NewsAgent` Swift package conforming to `AgentAtom.ModelledSpec` (#96).
+- Introduce `AgentAtom` framework for lightweight typed agent specifications, native guided JSON generation, lifecycle operations, streaming execution, and Apple Intelligence local session integration (#87, #88, #89, #92).
+- Apply first-listen clarity guidance to all agent generations across the server (#102).
+- Report provider exit status and termination signals transparently in terminal status and session logs without unverified authentication assumptions (#95, #97).
+- Support headless and interactive execution with Antigravity provider using `--dangerously-skip-permissions` (#94, #98, #99, #100).
+- Add independent agent packages: `ReelIdeaGenerator` (#66), `ThemeMixer` (#67), `DialogueGenerator` (#68), and `ReelJokeMaker` (#69, #70).
+- Enforce natural conversational connection, tight cause-and-effect flow, and real-world human plausibility across all dialogue and script agents (#83, #85).
+- Dedicated agent format inspection page, schema-form controls, and contract examples on Try pages (#74).
+- Deprecate and remove legacy `ScriptRefiner` v1.0.0 following verification of v1.2.0 (#47, #82).
+- `/status`, `/openapi.json`, and RPC client info report server version 3.0.0 (#105).
+
 ## 2.0.0
 
 - Separate configurable development (8080), production (8081), and automatic
