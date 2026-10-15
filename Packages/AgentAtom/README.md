@@ -53,7 +53,7 @@ if #available(macOS 26, iOS 26, visionOS 26, *) {
         return // This device or its local model is unavailable.
     }
 
-    let response = try await session.execute(AgenticOperation(spec: spec))
+    let response = await session.execute(AgenticOperation(spec: spec))
     switch response.content {
     case .success(let json):
         let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
@@ -101,8 +101,9 @@ it does not prove model obedience.
 
 `AgenticSessionProtocol` directly executes generic operations and associates its
 own configuration type. Callers initialize and inject the concrete session they
-want; there is no singleton or shared scheduling. Default streaming throws an explicit
-unsupported-streaming error for implementations that do not provide it.
+want; there is no singleton or shared scheduling. Execution returns success or a
+mapped NSError. A session without streaming support finishes its snapshot stream
+with an unsupported-streaming error and returns the same failure in its result.
 
 `AppleIntelligenceSession` is available at compile time on macOS/iOS/visionOS 26+.
 Its failable initializer returns nil if the device, Apple Intelligence settings,
@@ -111,13 +112,13 @@ or local model availability prevent initialization. It uses only
 The package retains its older deployment minimums. There is no automatic provider
 fallback.
 
-Each Apple session handles one active operation; overlap throws busy. Create
+Each Apple session handles one active operation; overlap returns a busy failure. Create
 independent sessions for concurrency. Each execution uses a fresh provider
 conversation. History-enabled behavior is a separate feature.
 
 Apple configuration selects generation temperature and which metadata fields to
 return. Temperature is non-optional, defaults to 1, and uses a private generic
-property wrapper in the configuration file to clamp to 0...1. NaN uses the default;
+property wrapper in the session implementation to clamp to 0...1. NaN uses the default;
 infinities clamp to their respective bounds. Response length uses the provider's
 context-based limit. See
 [Apple's temperature documentation](https://developer.apple.com/documentation/foundationmodels/generationoptions/temperature).
@@ -136,11 +137,11 @@ contains exactly one request, so token counts are per-request; actual zero is ke
 ## Streaming and cancellation
 
 ```swift
-let stream = try await session.stream(AgenticOperation(spec: spec))
+let stream = await session.stream(AgenticOperation(spec: spec))
 for try await snapshot in stream.snapshots {
     print(snapshot) // Replace display content with this cumulative string.
 }
-let response = try await stream.result.value // Final string-or-failure and metadata.
+let response = await stream.result.value // Final string-or-failure and metadata.
 ```
 
 Starting a stream starts generation. Snapshots have one consumer and buffer only
@@ -150,7 +151,9 @@ completed execution; it still does not decode domain output. An error after a
 valid-looking partial snapshot remains an execution error.
 
 The session returns a tuple containing the built-in AsyncThrowingStream and a
-Swift Task for the final response. Cancel stream.result directly to stop work,
+nonthrowing Swift Task for the final response. Execution failures are mapped once
+to the session NSError and returned as Result.failure; the snapshot stream also
+finishes with that error. Cancel stream.result directly to stop work,
 including when abandoning iteration. Cancellation of the snapshot iterator also
 cancels the producer. Awaiting Task.value alone does not propagate cancellation
 from the waiter; the caller owns cancellation of that result Task. The session stays busy until its provider call
