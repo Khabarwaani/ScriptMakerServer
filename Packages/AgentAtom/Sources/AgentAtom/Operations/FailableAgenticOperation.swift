@@ -1,60 +1,79 @@
-import Foundation
-
 public actor FailableAgenticOperation<Specification: Spec, Session: AgenticSessionProtocol>: AgenticOperationProtocol {
-    public nonisolated let id: UUID
-    public nonisolated let spec: Specification
+    public let spec: Specification
+    public private(set) var state: OperationState = .ready
     private let session: Session
     private let strategy = FailableOperationStrategy()
-    private var task: Task<Result<String, AgenticError>, Never>?
-
-    public var isExecuting: Bool { task != nil }
+    private var task: Task<Swift.Result<String, AgenticError>, Never>?
 
     public init(spec: Specification, session: Session) {
-        self.id = UUID()
         self.spec = spec
         self.session = session
     }
 
-    public nonisolated func makeInstructions() throws -> String {
-        try OperationInstructionAssembler(strategy: strategy).assemble(spec: spec)
+    public func instructions() throws(AgenticError) -> String {
+        try InstructionAssembler(strategy: strategy).assemble(spec: spec)
     }
 
-    public func execute() async -> Result<String, AgenticError> {
-        guard task == nil else { return .failure(.busy) }
+    public func execute() async -> Swift.Result<String, AgenticError> {
+        guard state.canStart else { return .failure(.busy) }
         guard !Task.isCancelled else { return .failure(.cancelled) }
-        let instructions: String
-        do {
-            instructions = try makeInstructions()
-        } catch {
-            return .failure((error as? AgenticError) ?? .invalidInstructions)
-        }
-        let worker = Task<Result<String, AgenticError>, Never> {
-            let response = await session.generate(
-                input: spec.inputJSON.rawValue, instructions: instructions, operationID: id)
-            if Task.isCancelled { return .failure(.cancelled) }
-            return strategy.result(from: response)
-        }
-        task = worker
+        let work = Task { await run() }
+        task = work
+        state = .running
+        defer { task = nil }
         let result = await withTaskCancellationHandler {
-            await worker.value
+            await work.value
         } onCancel: {
-            worker.cancel()
+            work.cancel()
         }
-        task = nil
+        finish(result)
         return result
     }
 
+    private func run() async -> Swift.Result<String, AgenticError> {
+        do {
+            let response = await session.respond(
+                to: spec.inputJSON.rawValue, instructions: try instructions(), for: id)
+            guard !Task.isCancelled else { return .failure(.cancelled) }
+            return strategy.result(from: response)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    private func finish(_ result: Swift.Result<String, AgenticError>) {
+        switch result {
+        case .success: state = .completed
+        case .failure(.cancelled): state = .cancelled
+        case .failure: state = .failed
+        }
+    }
+
     public func cancel() {
-        task?.cancel()
+        switch state {
+        case .running, .paused:
+            state = .cancelling
+            task?.cancel()
+        case .ready, .cancelling, .completed, .cancelled, .failed:
+            break
+        }
     }
 
     public func pause() async throws(AgenticError) {
-        guard task != nil else { throw .notRunning }
-        try await session.pause(operationID: id)
+        guard let work = task else { throw .notRunning }
+        guard state == .running else { throw .cannotPause }
+        try await session.pause(id)
+        guard task == work else { throw .notRunning }
+        guard state == .running else { throw .cannotPause }
+        state = .paused
     }
 
     public func resume() async throws(AgenticError) {
-        guard task != nil else { throw .notRunning }
-        try await session.resume(operationID: id)
+        guard let work = task else { throw .notRunning }
+        guard state == .paused else { throw .cannotResume }
+        try await session.resume(id)
+        guard task == work else { throw .notRunning }
+        guard state == .paused else { throw .cannotResume }
+        state = .running
     }
 }

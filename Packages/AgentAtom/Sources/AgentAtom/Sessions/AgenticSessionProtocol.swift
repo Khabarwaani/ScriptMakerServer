@@ -1,19 +1,17 @@
-import Foundation
-
 public protocol AgenticSessionProtocol: AnyObject, Sendable {
-    associatedtype SessionConfiguration: Sendable
-    var configuration: SessionConfiguration { get }
+    associatedtype Configuration: Sendable
+    var configuration: Configuration { get }
     var executionMetadata: [AgenticExecutionMetadata] { get }
 
-    func generate(
-        input: String, instructions: String, operationID: UUID
+    func respond(
+        to input: String, instructions: String, for operation: ObjectIdentifier
     ) async -> Result<String, AgenticError>
 
     func stream(
-        input: String, instructions: String, operationID: UUID,
+        to input: String, instructions: String, for operation: ObjectIdentifier,
         yield: @Sendable (String) async throws -> Void
     ) async -> Result<String, AgenticError>
 
-    func pause(operationID: UUID) async throws(AgenticError)
-    func resume(operationID: UUID) async throws(AgenticError)
+    func pause(_ operation: ObjectIdentifier) async throws(AgenticError)
+    func resume(_ operation: ObjectIdentifier) async throws(AgenticError)
 }

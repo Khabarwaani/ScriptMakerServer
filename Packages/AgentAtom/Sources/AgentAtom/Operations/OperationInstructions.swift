@@ -6,10 +6,10 @@ struct OperationFailure: Decodable {
     let reason: String
 }
 
-struct OperationInstructionAssembler<Strategy: OperationStrategy> {
+struct InstructionAssembler<Strategy: OperationStrategy> {
     let strategy: Strategy
 
-    func assemble<Specification: Spec>(spec: Specification) throws -> String {
+    func assemble<Specification: Spec>(spec: Specification) throws(AgenticError) -> String {
         try strategy.assemble(
             role: Specification.role,
             instructions: spec.instructions,
@@ -36,7 +36,7 @@ struct JSONOperationStrategy: OperationStrategy {
 struct FailableOperationStrategy: OperationStrategy {
     let allowsFailure = true
 
-    func assemble(role: String, instructions: String, schema: JSONSchema) throws -> String {
+    func assemble(role: String, instructions: String, schema: JSONSchema) throws(AgenticError) -> String {
         guard let failureSchema = JSONSchema(OperationFailure.self) else {
             throw AgenticError.invalidInstructions
         }

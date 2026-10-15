@@ -17,37 +17,46 @@
             guard case .available = SystemLanguageModel.default.availability else { return nil }
         }
 
-        public func generate(
-            input: String, instructions: String, operationID: UUID
+        public func respond(
+            to input: String, instructions: String, for operation: ObjectIdentifier
         ) async -> Result<String, AgenticError> {
-            await perform(instructions: instructions, operationID: operationID) { session, options in
-                try await session.respond(to: input, options: options).content
+            do {
+                let run = try begin(instructions: instructions, for: operation)
+                defer { finish(run) }
+                let response = try await run.model.respond(to: input, options: run.options)
+                return try result(response.content)
+            } catch {
+                return .failure(map(error))
             }
         }
 
         public func stream(
-            input: String, instructions: String, operationID: UUID,
+            to input: String, instructions: String, for operation: ObjectIdentifier,
             yield: @Sendable (String) async throws -> Void
         ) async -> Result<String, AgenticError> {
-            await perform(instructions: instructions, operationID: operationID) { session, options in
-                let stream = session.streamResponse(to: input, options: options)
+            do {
+                let run = try begin(instructions: instructions, for: operation)
+                defer { finish(run) }
+                let stream = run.model.streamResponse(to: input, options: run.options)
                 for try await snapshot in stream {
                     try Task.checkCancellation()
                     try await yield(snapshot.content)
                 }
                 try Task.checkCancellation()
-                return try await stream.collect().content
+                let response = try await stream.collect()
+                return try result(response.content)
+            } catch {
+                return .failure(map(error))
             }
         }
 
         public struct Configuration: Sendable {
             public let metadata: AgenticExecutionMetadata.Fields
-            @Clamped(0...1, default: 1) private var temperatureValue: Double
-            public var temperature: Double { temperatureValue }
+            public let temperature: Double
 
             public init(metadata: AgenticExecutionMetadata.Fields = [], temperature: Double = 1) {
                 self.metadata = metadata
-                self.temperatureValue = temperature
+                self.temperature = temperature.isNaN ? 1 : min(max(temperature, 0), 1)
             }
         }
 
@@ -56,62 +65,54 @@
             var records: [AgenticExecutionMetadata] = []
         }
 
-        private func admit() -> AgenticError? {
-            if Task.isCancelled { return .cancelled }
-            return state.withLock { storage in
-                guard !storage.isBusy else { return .busy }
+        private struct Run {
+            let id: UUID
+            let operation: ObjectIdentifier
+            let model: LanguageModelSession
+            let options: GenerationOptions
+            let started: ContinuousClock.Instant
+        }
+
+        private func begin(instructions: String, for operation: ObjectIdentifier) throws(AgenticError) -> Run {
+            guard !Task.isCancelled else { throw .cancelled }
+            let admitted = state.withLock { storage in
+                guard !storage.isBusy else { return false }
                 storage.isBusy = true
-                return nil
+                return true
             }
+            guard admitted else { throw .busy }
+            return Run(
+                id: UUID(), operation: operation,
+                model: LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions),
+                options: GenerationOptions(temperature: configuration.temperature),
+                started: ContinuousClock().now)
         }
 
-        private func perform(
-            instructions: String, operationID: UUID,
-            generation: @Sendable (LanguageModelSession, GenerationOptions) async throws -> String
-        ) async -> Result<String, AgenticError> {
-            if let failure = admit() { return .failure(failure) }
-            let executionID = UUID()
-            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
-            let clock = ContinuousClock()
-            let start = clock.now
-            defer {
-                let record = metadata(
-                    operationID: operationID, executionID: executionID,
-                    duration: start.duration(to: clock.now), session: session)
-                state.withLock { storage in
-                    storage.records.append(record)
-                    storage.isBusy = false
-                }
-            }
-            do {
-                try Task.checkCancellation()
-                let response = try await generation(session, GenerationOptions(temperature: configuration.temperature))
-                try Task.checkCancellation()
-                guard !response.isEmpty else { throw AgenticError.incompleteGeneration }
-                return .success(response)
-            } catch {
-                return .failure(map(error))
-            }
+        private func result(_ text: String) throws(AgenticError) -> Result<String, AgenticError> {
+            guard !Task.isCancelled else { throw .cancelled }
+            guard !text.isEmpty else { throw .incompleteGeneration }
+            return .success(text)
         }
 
-        private func metadata(
-            operationID: UUID, executionID: UUID, duration: Duration, session: LanguageModelSession
-        ) -> AgenticExecutionMetadata {
+        private func finish(_ run: Run) {
             let fields = configuration.metadata
             var promptTokens: Int?
             var completionTokens: Int?
             #if compiler(>=6.4)
                 if #available(macOS 27, iOS 27, visionOS 27, *), fields.contains(.tokenUsage) {
-                    promptTokens = session.usage.input.totalTokenCount
-                    completionTokens = session.usage.output.totalTokenCount
+                    promptTokens = run.model.usage.input.totalTokenCount
+                    completionTokens = run.model.usage.output.totalTokenCount
                 }
             #endif
-            return AgenticExecutionMetadata(
-                operationID: operationID, executionID: executionID,
+            let record = AgenticExecutionMetadata(
+                operationID: run.operation, executionID: run.id,
                 modelIdentifier: fields.contains(.modelIdentifier) ? "SystemLanguageModel.default" : nil,
-                duration: fields.contains(.duration) ? duration : nil,
-                promptTokens: promptTokens, completionTokens: completionTokens
-            )
+                duration: fields.contains(.duration) ? run.started.duration(to: ContinuousClock().now) : nil,
+                promptTokens: promptTokens, completionTokens: completionTokens)
+            state.withLock { storage in
+                storage.records.append(record)
+                storage.isBusy = false
+            }
         }
 
         private func map(_ error: any Error) -> AgenticError {
@@ -145,24 +146,6 @@
                 }
             }
             return .executionFailed
-        }
-    }
-
-    @propertyWrapper
-    private struct Clamped<Value: BinaryFloatingPoint & Sendable>: Sendable {
-        private let range: ClosedRange<Value>
-        private let fallback: Value
-        private var value: Value
-
-        var wrappedValue: Value {
-            get { value }
-            set { value = newValue.isNaN ? fallback : min(max(newValue, range.lowerBound), range.upperBound) }
-        }
-
-        init(_ range: ClosedRange<Value>, default fallback: Value) {
-            self.range = range
-            self.fallback = min(max(fallback, range.lowerBound), range.upperBound)
-            self.value = self.fallback
         }
     }
 #endif

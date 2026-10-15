@@ -26,8 +26,8 @@ failure; these are programmer preconditions, not recoverable execution errors.
 
 Operations depend on `Spec` and an injected generic `AgenticSessionProtocol`.
 They do not depend on `ModelledSpec` or decode domain output. Each operation
-exposes its UUID, spec, `isExecuting`, final-instruction method, and an associated
-execution-result type through `AgenticOperationProtocol`.
+conforms to Swift's `Identifiable` and exposes its spec, `state`, `instructions()`,
+and associated `Result` through `AgenticOperationProtocol`.
 
 | Operation | `execute()` result | AI-declared failure allowed |
 | --- | --- | --- |
@@ -68,10 +68,12 @@ if #available(macOS 26, iOS 26, visionOS 26, *) {
 
 ## Reuse, identity, and lifecycle
 
-An operation's UUID is assigned at initialization and remains stable across runs.
+Operations use Identifiable's default ObjectIdentifier, stable for the object's
+lifetime across runs. This identity is process-local and may be reused after the
+object is deallocated; retain the operation when correlating its records.
 Each operation is an actor retaining its immutable spec and session reference.
 It owns its active task and execution state directly. Assigning another reference
-preserves the same operation, UUID, and active execution. Construct another
+preserves the same operation, identity, and active execution. Construct another
 operation for independent identity and lifecycle control. There is no runner.
 
 Call `execute()` again after completion or cancellation cleanup to start another
@@ -80,14 +82,15 @@ producer Task is retained; operations store neither execution IDs nor result his
 They do not enqueue requests or retry automatically.
 
 The session assigns a fresh execution UUID when it admits a run. Its read-only,
-thread-safe `executionMetadata` array records the operation UUID
+thread-safe `executionMetadata` array records the operation's ObjectIdentifier
 and execution UUID after that run finishes, including provider failure and cancellation.
 Identity is always recorded; configured metrics are optional. Admission failures
 and instruction-assembly failures do not create an execution ID or record.
 
 ```swift
 let latest = session.executionMetadata.last
-let runs = session.executionMetadata.filter { $0.operationID == operation.id }
+let id = operation.id
+let runs = session.executionMetadata.filter { $0.operationID == id }
 ```
 
 `await operation.cancel()` cooperatively cancels the active producer. Cancellation
@@ -98,7 +101,10 @@ Cancelling an idle operation is a no-op and does not prevent a later execution.
 `try await operation.pause()` and `resume()` delegate to the session for the active
 operation. They throw `notRunning` when idle. Unsupported sessions throw
 `cannotPause` or `cannotResume` without changing the active execution.
-`isExecuting` remains true while a run is active, including when a provider pauses it.
+`state` is ready, running, paused, cancelling, completed, cancelled, or failed.
+Cancelling reserves the active slot until cleanup finishes. Terminal states permit
+another execution. Pause/resume recheck the active task after suspension so a late
+provider response cannot change a later run's state.
 The Apple session has no native generation pause/resume support and uses these
 explicit unsupported errors.
 
@@ -130,7 +136,7 @@ the caller.
 ## Sessions and configuration
 
 The class-bound, Sendable session protocol supplies generation primitives accepting finalized
-instructions, input, and an operation UUID. Streaming forwards snapshots through a
+instructions, input, and an operation ObjectIdentifier. Streaming forwards snapshots through a
 nonescaping async callback and returns the final result. Sessions own provider access,
 configuration, per-run IDs, and execution records. Operations own lifecycle control
 and final failure interpretation.
@@ -140,8 +146,8 @@ and is available on macOS/iOS/visionOS 26+. Its failable initializer checks devi
 settings, and model readiness once. It uses `SystemLanguageModel.default` and one
 file-level platform guard. The package retains its older deployment minimums.
 
-Normal and streaming generation share one pipeline for admission, per-run identity,
-cancellation checks, result checks, error mapping, and metadata recording.
+Normal and streaming generation call the provider directly and share admission,
+per-run identity, result checks, error mapping, and metadata helpers.
 A mutex protects admission and record snapshots; provider work and callbacks run
 outside the lock. The session does not create producer tasks.
 
@@ -150,7 +156,7 @@ independent sessions for concurrency. Every run uses a fresh provider conversati
 execution records are diagnostic metadata, not conversation history.
 
 Configuration is fixed at initialization. Temperature defaults to 1 and clamps to
-0...1 using a private generic property wrapper; NaN uses the default and infinities
+0...1 using Swift's min/max; NaN uses the default and infinities
 clamp to the bounds. Response length follows the provider context limit.
 
 `AgenticExecutionMetadata.Fields` is an OptionSet selecting independent metrics,
@@ -199,7 +205,7 @@ model-failure format.
 Protocols, implementations, defaults, and the typed error occupy separate files.
 The four operation actors own their tasks directly. Immutable generic strategies
 share instruction assembly and final failure interpretation. The final session
-class shares its generation pipeline; it has no runner or unchecked Sendable conformance.
+class shares admission and completion helpers; it has no runner or unchecked Sendable conformance.
 No public execution handle, response wrapper, result alias, queue, or schema translator is introduced.
 Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 

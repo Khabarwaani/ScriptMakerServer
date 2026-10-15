@@ -1,15 +1,12 @@
-import Foundation
-
-public protocol AgenticOperationProtocol: Sendable {
+public protocol AgenticOperationProtocol: Identifiable, Sendable where ID == ObjectIdentifier {
     associatedtype Specification: Spec
-    associatedtype ExecutionResult: Sendable
+    associatedtype Result: Sendable
 
-    var id: UUID { get }
-    var spec: Specification { get }
-    var isExecuting: Bool { get async }
+    var spec: Specification { get async }
+    var state: OperationState { get async }
 
-    func makeInstructions() throws -> String
-    func execute() async -> ExecutionResult
+    func instructions() async throws(AgenticError) -> String
+    func execute() async -> Result
     func cancel() async
     func pause() async throws(AgenticError)
     func resume() async throws(AgenticError)

@@ -1,74 +1,95 @@
-import Foundation
-
 public actor StreamingAgenticOperation<Specification: Spec, Session: AgenticSessionProtocol>: AgenticOperationProtocol {
-    public nonisolated let id: UUID
-    public nonisolated let spec: Specification
+    public let spec: Specification
+    public private(set) var state: OperationState = .ready
     private let session: Session
     private let strategy = JSONOperationStrategy()
     private var task: Task<Void, Never>?
 
-    public var isExecuting: Bool { task != nil }
-
     public init(spec: Specification, session: Session) {
-        self.id = UUID()
         self.spec = spec
         self.session = session
     }
 
-    public nonisolated func makeInstructions() throws -> String {
-        try OperationInstructionAssembler(strategy: strategy).assemble(spec: spec)
+    public func instructions() throws(AgenticError) -> String {
+        try InstructionAssembler(strategy: strategy).assemble(spec: spec)
     }
 
-    public func execute() async -> AsyncStream<Result<String, AgenticError>> {
-        let (results, continuation) = AsyncStream<Result<String, AgenticError>>.makeStream(
+    public func execute() async -> AsyncStream<Swift.Result<String, AgenticError>> {
+        guard state.canStart else { return failed(.busy) }
+        guard !Task.isCancelled else { return failed(.cancelled) }
+        let (stream, output) = AsyncStream<Swift.Result<String, AgenticError>>.makeStream(
             bufferingPolicy: .bufferingNewest(1))
-        if task != nil || Task.isCancelled {
-            continuation.yield(.failure(task != nil ? .busy : .cancelled))
-            continuation.finish()
-            return results
+        let work = Task { await run(into: output) }
+        task = work
+        state = .running
+        output.onTermination = { reason in
+            if case .cancelled = reason { work.cancel() }
         }
-        let instructions: String
+        return stream
+    }
+
+    private func run(into output: AsyncStream<Swift.Result<String, AgenticError>>.Continuation) async {
+        defer {
+            task = nil
+            output.finish()
+        }
+        let result: Swift.Result<String, AgenticError>
         do {
-            instructions = try makeInstructions()
-        } catch {
-            continuation.yield(.failure((error as? AgenticError) ?? .invalidInstructions))
-            continuation.finish()
-            return results
-        }
-        let worker = Task {
-            defer {
-                task = nil
-                continuation.finish()
-            }
             let response = await session.stream(
-                input: spec.inputJSON.rawValue, instructions: instructions, operationID: id
-            ) { snapshot in
-                if case .terminated = continuation.yield(.success(snapshot)) {
+                to: spec.inputJSON.rawValue, instructions: try instructions(), for: id
+            ) { text in
+                if case .terminated = output.yield(.success(text)) {
                     throw AgenticError.cancelled
                 }
             }
-            let result: Result<String, AgenticError> = Task.isCancelled
-                ? .failure(.cancelled) : strategy.result(from: response)
-            continuation.yield(result)
+            result = Task.isCancelled ? .failure(.cancelled) : strategy.result(from: response)
+        } catch {
+            result = .failure(error)
         }
-        task = worker
-        continuation.onTermination = { termination in
-            if case .cancelled = termination { worker.cancel() }
+        finish(result)
+        output.yield(result)
+    }
+
+    private func failed(_ error: AgenticError) -> AsyncStream<Swift.Result<String, AgenticError>> {
+        AsyncStream { output in
+            output.yield(.failure(error))
+            output.finish()
         }
-        return results
+    }
+
+    private func finish(_ result: Swift.Result<String, AgenticError>) {
+        switch result {
+        case .success: state = .completed
+        case .failure(.cancelled): state = .cancelled
+        case .failure: state = .failed
+        }
     }
 
     public func cancel() {
-        task?.cancel()
+        switch state {
+        case .running, .paused:
+            state = .cancelling
+            task?.cancel()
+        case .ready, .cancelling, .completed, .cancelled, .failed:
+            break
+        }
     }
 
     public func pause() async throws(AgenticError) {
-        guard task != nil else { throw .notRunning }
-        try await session.pause(operationID: id)
+        guard let work = task else { throw .notRunning }
+        guard state == .running else { throw .cannotPause }
+        try await session.pause(id)
+        guard task == work else { throw .notRunning }
+        guard state == .running else { throw .cannotPause }
+        state = .paused
     }
 
     public func resume() async throws(AgenticError) {
-        guard task != nil else { throw .notRunning }
-        try await session.resume(operationID: id)
+        guard let work = task else { throw .notRunning }
+        guard state == .paused else { throw .cannotResume }
+        try await session.resume(id)
+        guard task == work else { throw .notRunning }
+        guard state == .paused else { throw .cannotResume }
+        state = .running
     }
 }

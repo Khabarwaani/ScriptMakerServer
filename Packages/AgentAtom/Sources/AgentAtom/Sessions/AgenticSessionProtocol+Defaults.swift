@@ -1,18 +1,16 @@
-import Foundation
-
 extension AgenticSessionProtocol {
     public func stream(
-        input: String, instructions: String, operationID: UUID,
+        to input: String, instructions: String, for operation: ObjectIdentifier,
         yield: @Sendable (String) async throws -> Void
     ) async -> Result<String, AgenticError> {
         .failure(.unsupportedStreaming)
     }
 
-    public func pause(operationID: UUID) async throws(AgenticError) {
+    public func pause(_ operation: ObjectIdentifier) async throws(AgenticError) {
         throw .cannotPause
     }
 
-    public func resume(operationID: UUID) async throws(AgenticError) {
+    public func resume(_ operation: ObjectIdentifier) async throws(AgenticError) {
         throw .cannotResume
     }
 }
