@@ -1,17 +1,18 @@
 import Foundation
 import AgentAtom
 
-/// Robust, asynchronous process runner for terminal CLI agent tools.
-/// Handles stdout streaming, stderr capture, and cancellation.
-enum TerminalProcessRunner {
-    struct ExecutionResult: Sendable {
-        let stdout: String
-        let stderr: String
-        let exitCode: Int32
+/// A process runner instance that executes commands and streams lines.
+public final class TerminalProcessRunner: Sendable {
+    public struct ExecutionResult: Sendable {
+        public let stdout: String
+        public let stderr: String
+        public let exitCode: Int32
     }
 
+    public init() {}
+
     /// Spawns a process and asynchronously returns lines as they are produced on standard output.
-    static func streamLines(
+    public func streamLines(
         executableURL: URL,
         arguments: [String],
         environment: [String: String]? = nil,
@@ -21,20 +22,13 @@ enum TerminalProcessRunner {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
-        if let environment {
-            process.environment = environment
-        }
-        if let currentDirectoryURL {
-            process.currentDirectoryURL = currentDirectoryURL
-        }
+        if let environment { process.environment = environment }
+        if let currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
-
-        var fullStdout = ""
-        var pendingStdout = ""
 
         do {
             try process.run()
@@ -42,14 +36,14 @@ enum TerminalProcessRunner {
             throw AgenticError.operationFailed(reason: "Failed to launch process '\(executableURL.path)': \(error.localizedDescription)")
         }
 
-        // Read stderr concurrently
         let stderrTask = Task {
             let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
             return String(decoding: stderrData, as: UTF8.self)
         }
 
-        // Stream stdout by reading chunks
         let stdoutHandle = stdoutPipe.fileHandleForReading
+        var fullStdout = ""
+        var pendingStdout = ""
         var isEOF = false
 
         while !isEOF {
@@ -58,7 +52,6 @@ enum TerminalProcessRunner {
                 throw AgenticError.cancelled
             }
 
-            // readData of up to 4096 bytes
             let chunk = stdoutHandle.availableData
             if chunk.isEmpty {
                 isEOF = true
@@ -75,11 +68,8 @@ enum TerminalProcessRunner {
             }
         }
 
-        // Flush any remaining pending stdout
         if !pendingStdout.isEmpty {
-            let remaining = pendingStdout
-            pendingStdout = ""
-            await yield(remaining)
+            await yield(pendingStdout)
         }
 
         process.waitUntilExit()
@@ -92,24 +82,8 @@ enum TerminalProcessRunner {
         )
     }
 
-    /// Runs a process to completion, returning the complete stdout, stderr, and exit code.
-    static func runToCompletion(
-        executableURL: URL,
-        arguments: [String],
-        environment: [String: String]? = nil,
-        currentDirectoryURL: URL? = nil
-    ) async throws -> ExecutionResult {
-        try await streamLines(
-            executableURL: executableURL,
-            arguments: arguments,
-            environment: environment,
-            currentDirectoryURL: currentDirectoryURL,
-            yield: { _ in }
-        )
-    }
-
     /// Resolves executable in system PATH if url does not exist directly.
-    static func resolveExecutable(named name: String) -> URL? {
+    public func resolveExecutable(named name: String) -> URL? {
         #if os(Windows)
         let extensions = ["", ".exe", ".cmd", ".bat"]
         let pathSeparator: Character = ";"

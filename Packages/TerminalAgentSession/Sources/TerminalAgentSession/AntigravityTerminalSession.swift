@@ -1,25 +1,17 @@
 import Foundation
-import Synchronization
 import AgentAtom
 
 /// An `AgentAtom.AgenticSessionProtocol` implementation driving Antigravity CLI (`agy`).
 public final class AntigravityTerminalSession: TerminalSessionProtocol {
-    public let configuration: Configuration
-    private let state = Mutex(State())
-
-    public var executionMetadata: [AgenticExecutionMetadata] {
-        state.withLock { $0.records }
-    }
+    public var configuration: TerminalAgentConfiguration { engine.configuration }
+    public var executionMetadata: [AgenticExecutionMetadata] { engine.executionMetadata }
 
     public typealias Configuration = TerminalAgentConfiguration
+    private let engine: TerminalSessionEngine
 
     public init?(configuration: Configuration = Configuration(executablePath: "agy")) {
-        guard let resolvedURL = TerminalProcessRunner.resolveExecutable(named: configuration.executablePath) else {
-            return nil
-        }
-        var updatedConfig = configuration
-        updatedConfig.resolvedURL = resolvedURL
-        self.configuration = updatedConfig
+        guard let engine = TerminalSessionEngine(configuration: configuration) else { return nil }
+        self.engine = engine
     }
 
     public func respond(
@@ -41,11 +33,6 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
         await runSession(input: input, instructions: instructions, schema: schema, for: operation, yield: yield)
     }
 
-    private struct State: Sendable {
-        var isBusy = false
-        var records: [AgenticExecutionMetadata] = []
-    }
-
     private func runSession(
         input: String,
         instructions: String,
@@ -53,37 +40,6 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
         for operation: ObjectIdentifier,
         yield: (String) async -> Void
     ) async -> Result<String, AgenticError> {
-        guard !Task.isCancelled else { return .failure(.cancelled) }
-
-        let admitted = state.withLock { state -> Bool in
-            guard !state.isBusy else { return false }
-            state.isBusy = true
-            return true
-        }
-        guard admitted else { return .failure(.busy) }
-
-        let startTime = ContinuousClock().now
-        let executionID = UUID()
-
-        defer {
-            let record = AgenticExecutionMetadata(
-                operationID: operation,
-                executionID: executionID,
-                modelIdentifier: configuration.metadata.contains(.modelIdentifier) ? (configuration.model ?? "agy") : nil,
-                duration: configuration.metadata.contains(.duration) ? startTime.duration(to: ContinuousClock().now) : nil,
-                promptTokens: nil,
-                completionTokens: nil
-            )
-            state.withLock { state in
-                state.records.append(record)
-                state.isBusy = false
-            }
-        }
-
-        guard let executableURL = configuration.resolvedURL else {
-            return .failure(.operationFailed(reason: "Antigravity CLI executable not found at '\(configuration.executablePath)'"))
-        }
-
         var arguments: [String] = [
             "--output-format", "stream-json",
             "--json-schema", schema.rawValue,
@@ -93,23 +49,19 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
             arguments += ["--model", model]
         }
         arguments += configuration.extraArguments
-
-        let promptText = "\(instructions)\n\nInput:\n\(input)"
-        arguments.append(promptText)
+        arguments.append("\(instructions)\n\nInput:\n\(input)")
 
         do {
             var finalStructuredOutput = ""
 
-            let result: TerminalProcessRunner.ExecutionResult
-            result = try await TerminalProcessRunner.streamLines(
-                executableURL: executableURL,
+            let result = try await engine.execute(
                 arguments: arguments,
-                currentDirectoryURL: configuration.workingDirectory,
+                operation: operation,
+                defaultModel: "agy",
                 yield: { line in
                     let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
 
-                    // Parse JSON line from stream-json format
                     if let data = trimmed.data(using: .utf8),
                        let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                         if let type = obj["type"] as? String {
@@ -126,7 +78,6 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
                             }
                         }
                     } else {
-                        // Plain line output fallback
                         await yield(trimmed)
                         if trimmed.hasPrefix("{") && trimmed.hasSuffix("}") {
                             finalStructuredOutput = trimmed
