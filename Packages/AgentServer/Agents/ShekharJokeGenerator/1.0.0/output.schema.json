@@ -3,53 +3,68 @@
   "title": "ShekharJokeGeneratorOutput",
   "type": "object",
   "required": [
-    "title",
-    "date",
-    "link",
-    "category",
-    "joke1",
-    "joke2",
-    "script"
+    "items"
   ],
   "properties": {
-    "title": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Winning news headline in Hindi."
-    },
-    "date": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Verified publication date and time."
-    },
-    "link": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Direct article URL."
-    },
-    "category": {
-      "type": "string",
-      "enum": [
-        "Trending",
-        "Meme Potential",
-        "Public Importance"
-      ],
-      "description": "Selection category of the winning news story."
-    },
-    "joke1": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Winning story's short Hindi joke, maximum 30 words in Devanagari Hindi."
-    },
-    "joke2": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Winning story's long Hindi joke, maximum 60 words in Devanagari Hindi."
-    },
-    "script": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Clean, formatted plain-text script ready for direct display or broadcast."
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "description": "Array of winning news story joke packages matching the requested output_count.",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "date",
+          "link",
+          "category",
+          "joke1",
+          "joke2",
+          "script"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Winning news headline in Hindi."
+          },
+          "date": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Verified publication date and time."
+          },
+          "link": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Direct article URL."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "Trending",
+              "Meme Potential",
+              "Public Importance"
+            ],
+            "description": "Selection category of the winning news story."
+          },
+          "joke1": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Winning story's short Hindi joke, maximum 30 words in Devanagari Hindi."
+          },
+          "joke2": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Winning story's long Hindi joke, maximum 60 words in Devanagari Hindi."
+          },
+          "script": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Clean, formatted plain-text script ready for direct display or broadcast."
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

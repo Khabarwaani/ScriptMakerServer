@@ -1,7 +1,7 @@
 import Foundation
 
-/// Typed output payload for ShekharJokeGenerator.
-public struct ShekharJokeGeneratorOutput: Codable, Sendable, Equatable {
+/// One winning news joke story item.
+public struct ShekharJokeItem: Codable, Sendable, Equatable {
     /// Winning news headline in Hindi.
     public var title: String
     /// Verified publication date and time.
@@ -43,5 +43,19 @@ public struct ShekharJokeGeneratorOutput: Codable, Sendable, Equatable {
         case joke1
         case joke2
         case script
+    }
+}
+
+/// Typed output payload for ShekharJokeGenerator.
+public struct ShekharJokeGeneratorOutput: Codable, Sendable, Equatable {
+    /// Array of winning news story joke packages matching requested output_count.
+    public var items: [ShekharJokeItem]
+
+    public init(items: [ShekharJokeItem]) {
+        self.items = items
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case items
     }
 }
