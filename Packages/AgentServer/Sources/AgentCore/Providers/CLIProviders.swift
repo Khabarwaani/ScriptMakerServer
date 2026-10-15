@@ -84,6 +84,10 @@ public struct CLIProvider: AIProvider {
                     "provider_initialization_failed",
                     "Provider authentication is required. Authenticate using its CLI first.")
             }
+        } catch let error as AgentError {
+            throw AgentError(
+                "provider_initialization_failed", "\(id) readiness check failed: \(error.message)",
+                details: error.details)
         } catch {
             throw AgentError(
                 "provider_initialization_failed",
@@ -97,7 +101,8 @@ public struct CLIProvider: AIProvider {
         timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
         onProgress: @escaping @Sendable (JSONValue) async -> Void
     ) async throws -> JSONValue {
-        let schemaURL = directory.appendingPathComponent("output.schema.json")
+        // Antigravity resolves local refs against schema.json when cwd contains spaces.
+        let schemaURL = directory.appendingPathComponent(kind == .antigravity ? "schema.json" : "output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
         let resultURL = directory.appendingPathComponent("result.json")
         let nativeSchema = kind == .grok ? nil : CodexOutputSchema.executionSchema(definition.outputSchema)
@@ -121,6 +126,7 @@ public struct CLIProvider: AIProvider {
                 "--input-format", "stream-json", "--output-format", "stream-json",
                 "--print-timeout", "\(timeoutSeconds)s", "--sandbox",
                 "--disable-slash-commands",
+                "--dangerously-skip-permissions",
             ]
             if nativeSchema != nil { arguments += ["--json-schema", schemaURL.path] }
             stdin =
@@ -201,6 +207,12 @@ public struct CLIProvider: AIProvider {
                - You MUST immediately return ONLY this error JSON: {"error":{"reason":"<A concise explanation specifying why the input cannot produce the requested output>"}}.
             2. TASK EXECUTION:
                - If the input is meaningful and feasible, proceed to generate the requested output conforming strictly to the OUTPUT CONTRACT schema below.
+            3. NATURAL CONNECTION & COMMON SENSE:
+               - Exercise real-world common sense and human plausibility in all character behaviors, choices, physical actions, and reactions. Characters must react like authentic, situationally aware human beings, never synthetic automatons.
+               - Ensure all dialogue, scenes, and transitions exhibit natural connection: conversational turns must build organically on preceding lines with authentic connective tissue, emotional reciprocity, and tight cause-and-effect flow.
+
+
+            \(GenerationGuidance.clarity)
 
             ROLE
             \(definition.role)

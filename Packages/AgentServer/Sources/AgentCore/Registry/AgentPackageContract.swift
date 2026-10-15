@@ -2,6 +2,10 @@ import Foundation
 import NewsResearcher
 import ScriptRefiner
 import DialogueRefiner
+import ReelIdeaGenerator
+import DialogueGenerator
+import ThemeMixer
+import ReelJokeMaker
 
 public protocol AgentPackageContract: Sendable {
     static var id: String { get }
@@ -36,4 +40,13 @@ extension ScriptRefinerDefinition: AgentPackageContract {
 }
 extension DialogueRefinerDefinition: AgentPackageContract {
     public static var name: String { "Dialogue Refiner" }
+}
+extension ReelIdeaGeneratorDefinition: AgentPackageContract {
+    public static var name: String { "Reel Idea Generator" }
+}
+extension DialogueGeneratorDefinition: AgentPackageContract {
+    public static var name: String { "Dialogue Generator" }
+}
+extension ThemeMixerDefinition: AgentPackageContract {
+    public static var name: String { "Theme Mixer" }
 }

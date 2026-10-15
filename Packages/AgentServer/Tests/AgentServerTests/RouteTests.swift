@@ -32,7 +32,9 @@ private struct RouteProvider: AIProvider {
                     "reason": .string("Input cannot be processed: topic contains random unfeasible characters.")
                 ])
             ])
-        case .providerFailure: throw AgentError("provider_execution_failed", "Mock execution failed.")
+        case .providerFailure:
+            throw AgentError("provider_execution_failed", "Mock execution failed.",
+                             details: .object(["termination_reason": .string("exit"), "exit_code": .number(2)]))
         case .cancelled: throw CancellationError()
         case .success: break
         }
@@ -146,7 +148,7 @@ private enum RouteEchoPackage: AgentPackageContract {
         try await client.execute(uri: "/status", method: .get) { response in
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["status"] == .string("healthy"))
-            #expect(value["server"]?["version"] == .string("2.0.0"))
+            #expect(value["server"]?["version"] == .string("3.0.0"))
             #expect(value["executions"]?.array?.first?["status"] == .string("completed"))
             let record = try #require(value["executions"]?.array?.first)
             let startedAt = try #require(record["started_at"]?.string)
@@ -180,7 +182,7 @@ private enum RouteEchoPackage: AgentPackageContract {
             #expect(response.status == .ok)
             let document = try JSONValue.parse(String(buffer: response.body))
             #expect(document["openapi"] == .string("3.1.0"))
-            #expect(document["info"]?["version"] == .string("2.0.0"))
+            #expect(document["info"]?["version"] == .string("3.0.0"))
             let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
                 .deletingLastPathComponent().deletingLastPathComponent()
             let readme = try String(contentsOf: packageRoot.appendingPathComponent("README.md"), encoding: .utf8)
@@ -243,6 +245,24 @@ private enum RouteEchoPackage: AgentPackageContract {
         try await client.execute(uri: "/agent/try?id=Echo", method: .get) { response in
             #expect(response.status == .ok)
             #expect(String(buffer: response.body).contains("Agent input fields"))
+        }
+        try await client.execute(uri: "/agents/Echo/format", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/html; charset=utf-8")
+            let body = String(buffer: response.body)
+            #expect(body.contains("Input &amp; Output Formats"))
+            #expect(body.contains("Input format specification"))
+            #expect(body.contains("Output format specification"))
+        }
+        try await client.execute(uri: "/agents/Echo/schema", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(response.headers[.contentType] == "text/html; charset=utf-8")
+            let body = String(buffer: response.body)
+            #expect(body.contains("Input &amp; Output Formats"))
+        }
+        try await client.execute(uri: "/agent/format?id=Echo", method: .get) { response in
+            #expect(response.status == .ok)
+            #expect(String(buffer: response.body).contains("Input &amp; Output Formats"))
         }
         try await client.execute(uri: "/help", method: .get) { response in
             #expect(response.status == .ok)
@@ -332,12 +352,14 @@ private func responseManager(registry: AgentRegistry, providers: ProviderCatalog
             #expect(record["status"] == .string("failed"))
             #expect(record["error"]?["code"] == .string("provider_execution_failed"))
             #expect(record["error"]?["message"] == .string("Mock execution failed."))
+            #expect(record["error"]?["details"]?["exit_code"] == .number(2))
         }
         try await client.execute(uri: "/execution-logs", method: .get) { response in
             #expect(response.status == .ok && response.headers[.cacheControl] == "no-store")
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["entries"]?.array?.count == 3)
             #expect(value["entries"]?.array?.last?["error"]?["code"] == .string("provider_execution_failed"))
+            #expect(value["entries"]?.array?.last?["error"]?["details"]?["exit_code"] == .number(2))
         }
         try await client.execute(uri: "/execution-logs/download", method: .get) { response in
             #expect(response.status == .ok && response.headers[.contentType] == "application/x-ndjson")
@@ -402,6 +424,10 @@ private func executionErrorsMatchTheSelectedResponseMode(outcome: RouteProvider.
                 if outcome != .cancelled {
                     #expect(text.contains(outcome == .schemaFailure ? "output_schema_validation_failed" : "provider_execution_failed"))
                 }
+                if outcome == .providerFailure {
+                    #expect(text.contains("\"termination_reason\":\"exit\""))
+                    #expect(text.contains("\"exit_code\":2"))
+                }
                 return
             }
             #expect(response.status == .internalServerError)
@@ -414,6 +440,10 @@ private func executionErrorsMatchTheSelectedResponseMode(outcome: RouteProvider.
             case .success, .agentFeasibilityFailure: "unexpected"
             }
             #expect(value["error"]?["code"] == .string(expected))
+            if outcome == .providerFailure {
+                #expect(value["error"]?["details"]?["exit_code"] == .number(2))
+                #expect(value["error"]?["details"]?["termination_reason"] == .string("exit"))
+            }
             #expect(value["error"]?["execution_id"]?.string == response.headers[.init("X-Execution-ID")!])
             #expect(value["result"] == nil)
         }

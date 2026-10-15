@@ -134,7 +134,7 @@ func cancellationAndTimeoutRetirePooledWorkers(timeout: Bool) async throws {
     var pool = ProviderWorkerPool(capacity: 2, maxProcesses: 3)
     let a = ProviderWorkerPool.Key(provider: "codex", agent: "NewsResearcher", version: "1.1.0")
     let b = ProviderWorkerPool.Key(provider: "grok", agent: "ScriptRefiner", version: "1.1.0")
-    let c = ProviderWorkerPool.Key(provider: "codex", agent: "ScriptRefiner", version: "1.0.0")
+    let c = ProviderWorkerPool.Key(provider: "codex", agent: "ScriptRefiner", version: "1.2.0")
     let first = try #require(pool.acquire(key: a) { SyntheticWorker() })
     #expect(pool.release(first.id, healthy: true) == nil)
     let second = try #require(pool.acquire(key: b) { SyntheticWorker() })

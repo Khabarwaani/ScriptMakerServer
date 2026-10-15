@@ -15,6 +15,13 @@ let package = Package(
         .package(path: "Agents/NewsResearcher"),
         .package(path: "Agents/ScriptRefiner"),
         .package(path: "Agents/DialogueRefiner"),
+        .package(path: "Agents/ReelIdeaGenerator"),
+        .package(path: "Agents/DialogueGenerator"),
+        .package(path: "Agents/ThemeMixer"),
+        .package(path: "Agents/ReelJokeMaker"),
+        .package(path: "Agents/ShekharJokeGenerator"),
+        .package(path: "../AgentCoreBase"),
+        .package(path: "../ScriptDomainModels"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
@@ -23,9 +30,16 @@ let package = Package(
         .target(
             name: "AgentCore",
             dependencies: [
+                .product(name: "AgentCoreBase", package: "AgentCoreBase"),
+                .product(name: "ScriptDomainModels", package: "ScriptDomainModels"),
                 .product(name: "NewsResearcher", package: "NewsResearcher"),
                 .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "DialogueRefiner", package: "DialogueRefiner"),
+                .product(name: "ReelIdeaGenerator", package: "ReelIdeaGenerator"),
+                .product(name: "DialogueGenerator", package: "DialogueGenerator"),
+                .product(name: "ThemeMixer", package: "ThemeMixer"),
+                .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
+                .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
             ]
@@ -50,6 +64,11 @@ let package = Package(
                 .product(name: "NewsResearcher", package: "NewsResearcher"),
                 .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "DialogueRefiner", package: "DialogueRefiner"),
+                .product(name: "ReelIdeaGenerator", package: "ReelIdeaGenerator"),
+                .product(name: "DialogueGenerator", package: "DialogueGenerator"),
+                .product(name: "ThemeMixer", package: "ThemeMixer"),
+                .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
+                .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
             ],

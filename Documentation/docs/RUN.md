@@ -30,6 +30,13 @@ Use `arch=x86_64` on an Intel Mac. If resolution fails, inspect its first error
 for network or dependency diagnostics before changing package references or
 deleting caches.
 
+`GeneratedAgentValidationCatalog.swift` must remain in the AgentServer target's
+**Compile Sources**. The **Validate Agents** build phase creates it in the derived
+sources directory before compilation. Removing its project reference causes
+missing `GeneratedAgentDocumentationRegistry` and `GeneratedAgentValidationCatalog`
+errors; subsequent `.seconds` errors can be cascading diagnostics. Restore the
+reference or regenerate the project from the configuration below, then rebuild.
+
 The generated project lives at the repository root. To regenerate it:
 
 ```sh
@@ -128,8 +135,24 @@ The server inherits the user environment and reuses existing Codex, Antigravity 
 Grok CLI logins. There is no new server login. Configure absolute executable paths
 if Xcode's PATH does not include them, and optional model IDs to override CLI defaults.
 Codex checks cached login status. Antigravity/Grok perform local initialization checks
-without querying remote model lists; expired or inaccessible credentials are reported
+using `--help`, which verifies CLI startup, not authentication or model access.
+Without querying remote model lists, expired or inaccessible credentials are reported
 when the actual provider attempts execution.
+
+A nonzero process exit retains `provider_execution_failed` and reports its actual
+exit status, or its termination signal, in the message and structured `details`.
+This alone does not diagnose authentication, configuration, quota or network
+failures. Inspect the provider's local diagnostic logs for the underlying cause
+(for Antigravity, `~/.gemini/antigravity-cli/log/`). Early login warnings can precede
+successful silent authentication; check the full session outcome. Raw stderr is
+drained but never copied into API responses or default server logs. Readiness
+failures preserve the same bounded exit details under `provider_initialization_failed`.
+
+Antigravity 1.3.5's schema compiler can reload local `$ref` targets relative to
+`schema.json` when the execution directory contains spaces, including macOS's
+normal `Application Support` path. Its adapter therefore writes and passes
+`schema.json` in that directory. Keep the transport envelope and local references;
+renaming the file avoids the startup rejection without moving runtime data.
 
 Test ScriptRefiner with a sample script using each provider:
 

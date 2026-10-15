@@ -152,7 +152,7 @@ Do not expose private configuration, credentials or environment variables.
 {
   "agents": [
     {"id": "NewsResearcher", "name": "News Researcher", "versions": ["1.1.0"]},
-    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.0.0", "1.1.0", "1.2.0"]}
+    {"id": "ScriptRefiner", "name": "Script Refiner", "versions": ["1.1.0", "1.2.0"]}
   ]
 }
 ```
@@ -229,7 +229,7 @@ Return a snapshot of health and tracked executions, not an output stream.
 ```json
 {
   "status": "healthy",
-  "server": {"version": "2.0.0", "uptime_seconds": 3600},
+  "server": {"version": "3.0.0", "uptime_seconds": 3600},
   "active_executions": 1,
   "executions": [
     {

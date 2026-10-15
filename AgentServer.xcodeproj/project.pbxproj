@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -39,13 +39,13 @@
 		1BB5AF3721AFBD0E25B780C4 /* ServerRoutes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerRoutes.swift; sourceTree = "<group>"; };
 		20E5AFECAC4C49B3C01371C0 /* RUN.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = RUN.md; sourceTree = "<group>"; };
 		29BF4D24B4CE95A3E3D1E71A /* ARCHITECTURE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = ARCHITECTURE.md; sourceTree = "<group>"; };
-		3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedAgentValidationCatalog.swift; sourceTree = "<group>"; };
+		3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GeneratedAgentValidationCatalog.swift; path = "${DERIVED_FILE_DIR}/GeneratedAgentValidationCatalog.swift"; sourceTree = "<group>"; };
 		325E825ADCE942D27038E5DF /* AgentServer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AgentServer; path = Packages/AgentServer; sourceTree = SOURCE_ROOT; };
-		386D9F458172275D248ED075 /* AgentServer */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentServer; sourceTree = BUILT_PRODUCTS_DIR; };
+		386D9F458172275D248ED075 /* AgentServer */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = text; path = AgentServer; sourceTree = BUILT_PRODUCTS_DIR; };
 		4F290A5E708BC254FA4F46D0 /* help.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = help.html; sourceTree = "<group>"; };
-		5988CAC2401BE5D64DF0B400 /* AgentValidator */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentValidator; sourceTree = BUILT_PRODUCTS_DIR; };
+		5988CAC2401BE5D64DF0B400 /* AgentValidator */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = text; path = AgentValidator; sourceTree = BUILT_PRODUCTS_DIR; };
 		5E41255502D02B08A83A490E /* AgentValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentValidator.swift; sourceTree = "<group>"; };
-		6C5ECB33A4DED16C6491AFF5 /* AgentTools */ = {isa = PBXFileReference; includeInIndex = 0; path = AgentTools; sourceTree = BUILT_PRODUCTS_DIR; };
+		6C5ECB33A4DED16C6491AFF5 /* AgentTools */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = text; path = AgentTools; sourceTree = BUILT_PRODUCTS_DIR; };
 		777AF91316B2A55503915BA9 /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		8E4E133B515545726D8DB60F /* SPECIFICATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = SPECIFICATION.md; sourceTree = "<group>"; };
 		9BC0CCAED615779A99E35DE2 /* agent.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = agent.md; sourceTree = "<group>"; };
@@ -122,19 +122,19 @@
 			path = Packages/AgentServer/Sources/AgentValidator;
 			sourceTree = "<group>";
 		};
-		5D669F15022878EBACC01E89 /* ${DERIVED_FILE_DIR} */ = {
+		5D669F15022878EBACC01E89 /* Generated Sources */ = {
 			isa = PBXGroup;
 			children = (
 				3090CDE427DA63E1E1C49055 /* GeneratedAgentValidationCatalog.swift */,
 			);
-			path = "${DERIVED_FILE_DIR}";
+			name = "Generated Sources";
 			sourceTree = "<group>";
 		};
 		6E25A08092543BB4B04696F4 = {
 			isa = PBXGroup;
 			children = (
-				5D669F15022878EBACC01E89 /* ${DERIVED_FILE_DIR} */,
 				A4C6DD20EC2DD9F19B4B0BEF /* AgentServer */,
+				5D669F15022878EBACC01E89 /* Generated Sources */,
 				9FDE7EE8DA41473017215356 /* AgentServer */,
 				B2E7783B6F4DD3CE29772286 /* AgentTools */,
 				1F71A9CE1C464631CC599AC0 /* AgentValidator */,
@@ -320,7 +320,6 @@
 				244AE428F1571CA4ADC112FB /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/NewsResearcher" */,
 				54D460CD15DD816ACF3ED8A5 /* XCLocalSwiftPackageReference "Packages/AgentServer/Agents/ScriptRefiner" */,
 			);
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (

@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReelJokeMakerOutput",
+  "type": "object",
+  "required": [
+    "key_facts",
+    "characters",
+    "variations"
+  ],
+  "properties": {
+    "key_facts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "Core factual news takeaways extracted from the source story."
+    },
+    "characters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "role_description",
+          "clothing_and_look",
+          "voice_tone"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Character name."
+          },
+          "role_description": {
+            "type": "string",
+            "description": "Character comedic archetype."
+          },
+          "clothing_and_look": {
+            "type": "string",
+            "description": "Visual appearance, grooming, and clothing details suited for 9:16 vertical framing."
+          },
+          "voice_tone": {
+            "type": "string",
+            "description": "Distinct voice tone and delivery attitude."
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Cast of comedic characters appearing in the reel."
+    },
+    "variations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "variation_index",
+          "hook",
+          "dialogues",
+          "scenes",
+          "humor_notes",
+          "total_duration_seconds"
+        ],
+        "properties": {
+          "variation_index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "hook": {
+            "type": "string",
+            "description": "Opening punchy text popover / hook appearing in the first 2 seconds."
+          },
+          "dialogues": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "speaker",
+                "text",
+                "delivery_emotion",
+                "spoken_duration_seconds",
+                "pause_after_seconds"
+              ],
+              "properties": {
+                "speaker": {
+                  "type": "string",
+                  "description": "Name of the speaking character."
+                },
+                "text": {
+                  "type": "string",
+                  "description": "Spoken dialogue line in conversational Hindi/Hinglish."
+                },
+                "delivery_emotion": {
+                  "type": "string",
+                  "description": "Facial expression and delivery emotion."
+                },
+                "spoken_duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Duration of spoken dialogue based on word count and WPS."
+                },
+                "pause_after_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Comedic pause or beat after the line."
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "Sequential dialogue turns in request-reply or fact-reaction pairs."
+          },
+          "scenes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "scene_number",
+                "location",
+                "character_actions",
+                "popover_text",
+                "duration_seconds"
+              ],
+              "properties": {
+                "scene_number": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Visual scene backdrop suitable for 9:16 mobile frame."
+                },
+                "character_actions": {
+                  "type": "string",
+                  "description": "Character blocking, physical actions, and phone interactions."
+                },
+                "popover_text": {
+                  "type": "string",
+                  "description": "On-screen text popover, meme caption, or sticker overlay."
+                },
+                "duration_seconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Total scene duration."
+                }
+              },
+              "additionalProperties": false
+            },
+            "description": "Scene breakdown with mobile staging and on-screen text overlays."
+          },
+          "humor_notes": {
+            "type": "string",
+            "description": "Explanation of the comedic angle, satirical premise, and punchline."
+          },
+          "total_duration_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 30.0,
+            "description": "Total duration including speech and pauses, fitting within the duration limit."
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Array of 10-second comedic reel script variations."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "key_facts": [
+        "Government announced free Wi-Fi in city parks.",
+        "Routers were installed atop 50-foot coconut trees with no ground signal."
+      ],
+      "characters": [
+        {
+          "name": "Bunty",
+          "role_description": "Data-starved college student",
+          "clothing_and_look": "Loose graphic t-shirt, messy hair, holding smartphone in search of signal",
+          "voice_tone": "Frantic excitement turning into despair"
+        },
+        {
+          "name": "Chaiwala Kaka",
+          "role_description": "Deadpan roadside philosopher",
+          "clothing_and_look": "Stained white banyan with gamcha over shoulder, holding brass teapot",
+          "voice_tone": "Calm, unimpressed sarcasm"
+        }
+      ],
+      "variations": [
+        {
+          "variation_index": 1,
+          "hook": "Park mein Free 5G Wi-Fi! 📶🌴",
+          "dialogues": [
+            {
+              "speaker": "Bunty",
+              "text": "Kaka, park mein free Wi-Fi laga hai, par network nahi aa raha!",
+              "delivery_emotion": "Excited then confused",
+              "spoken_duration_seconds": 3.2,
+              "pause_after_seconds": 0.5
+            },
+            {
+              "speaker": "Chaiwala Kaka",
+              "text": "Beta, router 50 foot upar nariyal ke ped pe hai. Signal chahiye toh bandar banna padega!",
+              "delivery_emotion": "Deadpan, sipping chai",
+              "spoken_duration_seconds": 4.8,
+              "pause_after_seconds": 1.0
+            }
+          ],
+          "scenes": [
+            {
+              "scene_number": 1,
+              "location": "Park bench under tall coconut tree, vertical 9:16 framing",
+              "character_actions": "Bunty holds phone high in the air stretching upward; Kaka shakes his head while pouring tea.",
+              "popover_text": "Wi-Fi Password: Climb the tree first 😂",
+              "duration_seconds": 9.5
+            }
+          ],
+          "humor_notes": "Irony of public infrastructure announcements where technical execution makes it physically unreachable.",
+          "total_duration_seconds": 9.5
+        }
+      ]
+    }
+  ]
+}

@@ -22,21 +22,20 @@ details{margin-top:18px}[hidden]{display:none!important}
 @media(max-width:700px){.row{grid-template-columns:1fr}main{padding:16px}.header-card{flex-direction:column;align-items:stretch}}
 .copy-button{font-size:13px;padding:6px 12px;margin:8px 8px 4px 0}
 input[type=checkbox]{width:auto;margin-right:8px}
-.schema-field{border:1px solid var(--border);border-radius:8px;padding:14px;margin:12px 0;background:#fafbfc}
-.schema-label{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-weight:600;margin:0 0 6px}
-.schema-name{color:var(--ink)}
+.schema-field{margin:0;padding:0}
 .schema-badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:2px 8px;border-radius:12px}
 .schema-badge-required{background:#fde8e8;color:#9b1c1c}
 .schema-badge-optional{background:#eef1f6;color:var(--muted)}
 .schema-badge-default{background:#edf2ff;color:var(--blue);text-transform:none;font-family:ui-monospace,monospace}
-.schema-desc{display:block;margin:4px 0 8px;color:var(--muted)}
-.schema-field textarea{min-height:76px;background:white}
 .schema-include{font-weight:400;margin:8px 0;display:flex;align-items:center}
-.schema-children{padding-left:16px;border-left:2px solid var(--border);margin-top:8px}
-.schema-array-item{border-left:2px solid #acb9cc;padding-left:12px;margin:8px 0}
 #input-warning,#progress{white-space:pre-wrap}
+#schema-fields{margin-top:12px}
 #result{background:#eff7f2;border:1px solid #cce4d6;border-radius:8px;padding:16px}
 #result:empty{display:none}
+.tabs-bar{display:flex;gap:4px;border-bottom:1px solid #dce2ec;margin:20px 0 16px;padding-bottom:0}
+.tab-btn{background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;padding:8px 16px;margin:0;font-size:14px;font-weight:600;cursor:pointer}
+.tab-btn:hover{color:var(--ink);background:transparent}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);background:transparent}
 </style></head><body><main>
 <nav><strong>AgentServer</strong><a href="/help">HTTP API reference</a><a href="/">Run an agent</a><a href="/try">Try an API</a></nav>
 <div class="breadcrumb"><a href="/help">API Reference</a> &rsaquo; <a href="/help#agents">Agents</a> &rsaquo; <a id="doc-breadcrumb" href="#">Agent</a> &rsaquo; <span>Try</span></div>
@@ -50,7 +49,8 @@ input[type=checkbox]{width:auto;margin-right:8px}
       <h1 id="title">Try <span id="agent-display-name">Agent</span></h1>
       <p id="description" class="muted" style="margin:4px 0 0">Configure inputs, send a real execution request, and inspect validated results.</p>
     </div>
-    <div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <a id="view-format-btn" class="button secondary" style="display:inline-block;background:#e8edfb;color:var(--blue);padding:10px 18px;border-radius:8px;font-weight:500" href="#">Input &amp; output formats &nearr;</a>
       <a id="view-doc-btn" class="button secondary" style="display:inline-block;background:#e8edfb;color:var(--blue);padding:10px 18px;border-radius:8px;font-weight:500" href="#">Read documentation &nearr;</a>
     </div>
   </div>
@@ -72,13 +72,17 @@ input[type=checkbox]{width:auto;margin-right:8px}
       <small class="muted" style="display:block;margin-left:24px">Off by default: receive only the final validated JSON or an error. When enabled, streams progress and heartbeat SSE events.</small>
     </div>
 
-    <div id="agent-input-fields" style="margin-top:24px">
+    <div id="builder-tabs" class="tabs-bar">
+      <button type="button" id="tab-btn-form" class="tab-btn active">Form Fields</button>
+      <button type="button" id="tab-btn-json" class="tab-btn">Request JSON</button>
+    </div>
+
+    <div id="agent-input-fields">
       <h2>Agent input fields</h2>
-      <p class="muted">Fields are dynamically populated from the agent's input schema. Required and optional fields and schema default values are indicated.</p>
       <div id="schema-fields"></div>
     </div>
 
-    <div id="request-body" style="margin-top:20px">
+    <div id="request-body" hidden style="margin-top:20px">
       <label for="body">Request JSON (editable)</label>
       <textarea id="body" spellcheck="false"></textarea>
       <small class="muted">This is the JSON payload sent to POST /execute. You can edit this directly; field inputs stay synchronized.</small>
@@ -173,6 +177,8 @@ function buildAgentRequest(){
     $('body').value=drafts.get(nextKey)||pretty(body);
   }
   draftKey=nextKey;patchMetadata();renderInputFields();
+  const formatUrl=`/agents/${encodeURIComponent(currentAgent.id)}/format${version?`?version=${encodeURIComponent(version)}`:''}`;
+  if($('view-format-btn'))$('view-format-btn').href=formatUrl;
   const def=currentDefinition();
   if(def)$('contract').textContent=pretty({agent_id:currentAgent.id,version:def.version,role:def.role,input_schema:def.input_schema,output_schema:def.output_schema});
 }
@@ -250,6 +256,17 @@ async function load(){
   }
 }
 
+let activeTab='form';
+function switchTab(tab){
+  activeTab=tab;
+  $('tab-btn-form').classList.toggle('active',tab==='form');
+  $('tab-btn-json').classList.toggle('active',tab==='json');
+  $('agent-input-fields').hidden=tab!=='form';
+  $('request-body').hidden=tab!=='json';
+}
+$('tab-btn-form').onclick=()=>switchTab('form');
+$('tab-btn-json').onclick=()=>switchTab('json');
+
 $('version').onchange=buildAgentRequest;
 $('provider').onchange=patchMetadata;
 $('include-status').onchange=()=>{
@@ -287,7 +304,7 @@ $('send').onclick=async()=>{
     $('result').textContent='';$('response').textContent='';$('progress').textContent='';
     $('heartbeat').textContent='Waiting for events.';
     $('raw').textContent=`${options.method} ${path}\n${options.body||''}\n\n`;
-    state('Sending');
+    state('Submitted');$('progress').textContent='Waiting for final result.';
     const response=await serverFetch(path,options);
     raw([...response.headers].map(([name,value])=>`${name}: ${value}`).join('\n')+'\n\n');
     state(`HTTP ${response.status}`,!response.ok);
