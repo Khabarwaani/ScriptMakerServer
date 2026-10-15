@@ -1,6 +1,6 @@
 # AgentServer Swift package
 
-Server release: **2.0.0**. Agent contract versions are independent.
+Server release: **3.0.0**. Agent contract versions are independent.
 
 A local Swift 6 server for explicitly registered, versioned agent packages using
 Codex, Antigravity or Grok CLI providers. For setup, configuration and contributor
