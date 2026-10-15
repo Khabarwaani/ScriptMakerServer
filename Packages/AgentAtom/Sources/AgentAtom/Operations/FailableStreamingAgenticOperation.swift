@@ -25,10 +25,7 @@ public actor FailableStreamingAgenticOperation<Specification: Spec, Session: Age
     }
 
     private func run(into output: AsyncStream<Swift.Result<String, AgenticError>>.Continuation) async {
-        defer {
-            task = nil
-            output.finish()
-        }
+        defer { output.finish() }
         let result: Swift.Result<String, AgenticError>
         do {
             let response = await session.stream(

@@ -15,23 +15,23 @@ public actor AgenticOperation<Specification: Spec, Session: AgenticSessionProtoc
         let work = Task { await run() }
         task = work
         state = .running
-        defer { task = nil }
-        let result = await withTaskCancellationHandler {
+        return await withTaskCancellationHandler {
             await work.value
         } onCancel: {
             work.cancel()
         }
-        finish(result)
-        return result
     }
 
     private func run() async -> Swift.Result<String, AgenticError> {
+        let result: Swift.Result<String, AgenticError>
         do {
             let response = await session.respond(
                 to: spec.inputJSON.rawValue, instructions: try instructions(), for: id)
-            return strategy.result(from: response)
+            result = strategy.result(from: response)
         } catch {
-            return .failure(error)
+            result = .failure(error)
         }
+        finish(result)
+        return result
     }
 }

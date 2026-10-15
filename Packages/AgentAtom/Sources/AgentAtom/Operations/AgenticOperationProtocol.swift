@@ -64,6 +64,7 @@ extension OperationLifecycle {
     }
 
     func finish(_ result: Swift.Result<String, AgenticError>) {
+        task = nil
         switch result {
         case .success: state = .completed
         case .failure(.cancelled): state = .cancelled
