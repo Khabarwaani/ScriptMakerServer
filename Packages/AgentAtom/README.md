@@ -88,15 +88,11 @@ domain validation belong to the caller, as do retries.
 ## Instructions
 
 Operations generate instructions through makeInstructions() before the session executes them. Session
-configuration has no instructions, roles, or spec rules. Four levels remain,
-highest priority first:
+configuration has no instructions, roles, or spec rules. The spec owns its
+initialized instructions. Operations accept only a spec; they add fixed JSON-format
+rules in code, without runtime base instructions or instruction overrides.
 
-1. Caller-supplied operation base instructions.
-2. Operation instructions.
-3. Spec role and instructions.
-4. Input content.
-
-The first three levels and the output schema are sent as provider instructions.
+The spec role, instructions, and output schema are sent as provider instructions.
 Input is sent separately as prompt data. A String spec input stays its JSON string
 literal, with its original escaping. Instruction assembly expresses precedence;
 it does not prove model obedience.

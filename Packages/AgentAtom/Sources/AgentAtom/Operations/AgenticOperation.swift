@@ -1,12 +1,8 @@
 public struct AgenticOperation<Specification: Spec>: AgenticOperationProtocol {
     public let spec: Specification
-    public let baseInstructions: String?
-    public let operationInstructions: String?
 
-    public init(spec: Specification, baseInstructions: String? = nil, instructions: String? = nil) {
+    public init(spec: Specification) {
         self.spec = spec
-        self.baseInstructions = baseInstructions
-        self.operationInstructions = instructions
     }
 
     public var inputJSON: JSONString { spec.inputJSON }
@@ -14,7 +10,6 @@ public struct AgenticOperation<Specification: Spec>: AgenticOperationProtocol {
 
     public func makeInstructions() -> String {
         assembleOperationInstructions(
-            base: baseInstructions, operation: operationInstructions,
             role: Specification.role, spec: spec.instructions, schema: outputSchema
         )
     }
