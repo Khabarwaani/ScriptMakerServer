@@ -140,3 +140,30 @@ private enum MockAgent: AgentProtocol {
     let decodedOut = try JSONDecoder().decode(ReelJokeMakerOutput.self, from: outData)
     #expect(decodedOut == output)
 }
+
+@Test(arguments: [false, true])
+func allAgentVersionsReceiveGlobalClarityGuidance(nativeEnvelope: Bool) async throws {
+    let registry = AgentRegistry()
+    let agents = await registry.availableAgents()
+    #expect(agents.count > 1)
+    for agent in agents {
+        for version in agent.versions {
+            let definition = try await registry.resolve(id: agent.id, version: version)
+            let prompt = try CLIProvider.prompt(
+                definition: definition, input: .object([:]), nativeEnvelope: nativeEnvelope)
+            #expect(prompt.components(separatedBy: GenerationGuidance.clarity).count == 2)
+            #expect(prompt.contains(definition.instructions))
+            #expect(prompt.contains("OUTPUT CONTRACT"))
+        }
+    }
+}
+
+@Test func typedAgentPromptUsesTheSameGlobalClarityGuidance() throws {
+    let input = ReelJokeMakerInput(
+        news: "City opens a new park", language: "hi-IN", durationSeconds: 10,
+        wpsRange: ReelWpsRange(min: 2.5, max: 3.5), outputCount: 3)
+    let prompt = try ReelJokeMakerDefinition.buildPrompt(version: "1.0.0", input: input)
+    #expect(prompt.components(separatedBy: GenerationGuidance.clarity).count == 2)
+    #expect(prompt.contains("City opens a new park"))
+    #expect(prompt.contains("OUTPUT CONTRACT"))
+}

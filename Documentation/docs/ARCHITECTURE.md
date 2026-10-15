@@ -179,3 +179,12 @@ nullable transport fields. The adapter removes only transport-added optional nul
 before authoritative validation against the unchanged domain schema; originally
 nullable, required and unknown fields are preserved. Unsupported native shapes
 use prompt-based JSON with the same authoritative server validation.
+
+## Global generation language
+
+Every server agent/provider and `AgentProtocol.buildPrompt` includes the shared
+`GenerationGuidance.clarity` policy. Audience-facing text must be understandable
+on the first listen by a Class 5 student: everyday words, short sentences, clear
+news context and an immediately understandable joke. Simplify explanations while
+preserving facts, required content, language, word limits and machine-readable
+contracts. Fresh CLI and persistent RPC execution use the same server prompt.

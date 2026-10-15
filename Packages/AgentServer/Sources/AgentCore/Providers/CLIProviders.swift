@@ -212,6 +212,8 @@ public struct CLIProvider: AIProvider {
                - Ensure all dialogue, scenes, and transitions exhibit natural connection: conversational turns must build organically on preceding lines with authentic connective tissue, emotional reciprocity, and tight cause-and-effect flow.
 
 
+            \(GenerationGuidance.clarity)
+
             ROLE
             \(definition.role)
 

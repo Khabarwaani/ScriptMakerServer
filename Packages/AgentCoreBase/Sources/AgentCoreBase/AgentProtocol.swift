@@ -141,6 +141,8 @@ extension AgentProtocol {
         return """
             \(feasibilityProtocol)
 
+            \(GenerationGuidance.clarity)
+
             ROLE
             \(roleText)
 
