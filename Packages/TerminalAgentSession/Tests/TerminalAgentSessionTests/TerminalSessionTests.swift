@@ -234,6 +234,13 @@ struct TerminalSessionTests {
 
         // Verify execution metadata recorded both turns
         #expect(session.executionMetadata.count == 2)
+
+        // Clear memory explicitly
+        session.clearMemory()
+
+        // Turn 3 starts with cleared memory
+        _ = try await session.execute(MockEchoSpec(message: "Fresh start"))
+        #expect(session.executionMetadata.count == 3)
     }
 }
 

@@ -54,6 +54,13 @@ final class TerminalSessionEngine: Sendable {
         }
     }
 
+    /// Clears recorded conversation context from memory.
+    func clearMemory() {
+        state.withLock {
+            $0.conversationHistory.removeAll()
+        }
+    }
+
     /// Formats prompt prepending conversation history if context preservation is active.
     func formatPrompt(input: String, instructions: String) -> String {
         guard configuration.preservesContext else {

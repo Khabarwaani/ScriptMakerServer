@@ -31,6 +31,10 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
         }
     }
 
+    public func clearMemory() {
+        engine.clearMemory()
+    }
+
     public convenience init?(
         executablePath: String,
         model: String? = nil,

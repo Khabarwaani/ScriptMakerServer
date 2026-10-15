@@ -8,6 +8,13 @@ import AgentAtom
 public protocol TerminalSessionProtocol: AgenticSessionProtocol {
     /// The configuration describing the binary path, arguments, working directory, and metadata.
     var configuration: TerminalAgentConfiguration { get }
+
+    /// Clears any in-memory conversation context accumulated by this session.
+    func clearMemory()
+}
+
+extension TerminalSessionProtocol {
+    public func clearMemory() {}
 }
 
 /// A provider descriptor that can instantiate a `TerminalSessionProtocol` given a configuration.

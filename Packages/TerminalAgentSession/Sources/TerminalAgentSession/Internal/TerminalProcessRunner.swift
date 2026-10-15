@@ -20,51 +20,91 @@ final class TerminalProcessRunner: Sendable {
         yield: (String) async -> Void
     ) async throws -> ExecutionResult {
         let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments
-        if let environment { process.environment = environment }
-        if let currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
-
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
+
+        configure(
+            process: process,
+            executableURL: executableURL,
+            arguments: arguments,
+            environment: environment,
+            currentDirectoryURL: currentDirectoryURL,
+            stdoutPipe: stdoutPipe,
+            stderrPipe: stderrPipe
+        )
 
         do {
             try process.run()
         } catch {
-            throw AgenticError.operationFailed(reason: "Failed to launch process '\(executableURL.path)': \(error.localizedDescription)")
+            throw mapLaunchError(error, path: executableURL.path)
         }
 
-        let stderrTask = Task {
-            let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-            return String(decoding: stderrData, as: UTF8.self)
-        }
+        let stderrTask = Task { readStream(from: stderrPipe.fileHandleForReading) }
+        let stdout = try await readAndStreamLines(from: stdoutPipe.fileHandleForReading, process: process, yield: yield)
 
-        let stdoutHandle = stdoutPipe.fileHandleForReading
+        process.waitUntilExit()
+        let stderr = await stderrTask.value
+
+        return ExecutionResult(stdout: stdout, stderr: stderr, exitCode: process.terminationStatus)
+    }
+
+    /// Resolves executable in system PATH if url does not exist directly.
+    func resolveExecutable(named name: String) -> URL? {
+        if isExplicitPath(name) {
+            return searchExtensions(basePath: name)
+        }
+        return searchSystemPath(named: name)
+    }
+
+    // MARK: - Private Decomposed Helpers
+
+    private func configure(
+        process: Process,
+        executableURL: URL,
+        arguments: [String],
+        environment: [String: String]?,
+        currentDirectoryURL: URL?,
+        stdoutPipe: Pipe,
+        stderrPipe: Pipe
+    ) {
+        process.executableURL = executableURL
+        process.arguments = arguments
+        if let environment { process.environment = environment }
+        if let currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+    }
+
+    private func readStream(from handle: FileHandle) -> String {
+        let data = handle.readDataToEndOfFile()
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private func readAndStreamLines(
+        from handle: FileHandle,
+        process: Process,
+        yield: (String) async -> Void
+    ) async throws -> String {
         var fullStdout = ""
         var pendingStdout = ""
-        var isEOF = false
 
-        while !isEOF {
+        while true {
             if Task.isCancelled {
                 process.terminate()
                 throw AgenticError.cancelled
             }
 
-            let chunk = stdoutHandle.availableData
-            if chunk.isEmpty {
-                isEOF = true
-            } else {
-                let text = String(decoding: chunk, as: UTF8.self)
-                fullStdout.append(text)
-                pendingStdout.append(text)
+            let chunk = handle.availableData
+            guard !chunk.isEmpty else { break }
 
-                while let newlineIndex = pendingStdout.firstIndex(of: "\n") {
-                    let line = String(pendingStdout[..<newlineIndex])
-                    pendingStdout.removeSubrange(...newlineIndex)
-                    await yield(line)
-                }
+            let text = String(decoding: chunk, as: UTF8.self)
+            fullStdout.append(text)
+            pendingStdout.append(text)
+
+            while let newlineIndex = pendingStdout.firstIndex(of: "\n") {
+                let line = String(pendingStdout[..<newlineIndex])
+                pendingStdout.removeSubrange(...newlineIndex)
+                await yield(line)
             }
         }
 
@@ -72,43 +112,57 @@ final class TerminalProcessRunner: Sendable {
             await yield(pendingStdout)
         }
 
-        process.waitUntilExit()
-        let fullStderr = await stderrTask.value
-
-        return ExecutionResult(
-            stdout: fullStdout,
-            stderr: fullStderr,
-            exitCode: process.terminationStatus
-        )
+        return fullStdout
     }
 
-    /// Resolves executable in system PATH if url does not exist directly.
-    func resolveExecutable(named name: String) -> URL? {
+    private func mapLaunchError(_ error: Error, path: String) -> AgenticError {
+        (error as? AgenticError) ?? .operationFailed(reason: error.localizedDescription)
+    }
+
+    private var executableExtensions: [String] {
         #if os(Windows)
-        let extensions = ["", ".exe", ".cmd", ".bat"]
-        let pathSeparator: Character = ";"
-        let defaultPath = "C:\\Windows\\System32;C:\\Windows"
+        ["", ".exe", ".cmd", ".bat"]
         #else
-        let extensions = [""]
-        let pathSeparator: Character = ":"
-        let defaultPath = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
+        [""]
         #endif
+    }
 
-        if name.hasPrefix("/") || name.hasPrefix("./") || (name.count > 1 && name.contains(":")) {
-            for ext in extensions {
-                let candidatePath = ext.isEmpty ? name : name + ext
-                let url = URL(fileURLWithPath: candidatePath)
-                if FileManager.default.isExecutableFile(atPath: url.path) {
-                    return url
-                }
+    private var pathSeparator: Character {
+        #if os(Windows)
+        ";"
+        #else
+        ":"
+        #endif
+    }
+
+    private var defaultSystemPath: String {
+        #if os(Windows)
+        "C:\\Windows\\System32;C:\\Windows"
+        #else
+        "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
+        #endif
+    }
+
+    private func isExplicitPath(_ name: String) -> Bool {
+        name.hasPrefix("/") || name.hasPrefix("./") || (name.count > 1 && name.contains(":"))
+    }
+
+    private func searchExtensions(basePath: String) -> URL? {
+        for ext in executableExtensions {
+            let candidate = ext.isEmpty ? basePath : basePath + ext
+            let url = URL(fileURLWithPath: candidate)
+            if FileManager.default.isExecutableFile(atPath: url.path) {
+                return url
             }
-            return nil
         }
+        return nil
+    }
 
-        let envPath = ProcessInfo.processInfo.environment["PATH"] ?? defaultPath
+    private func searchSystemPath(named name: String) -> URL? {
+        let envPath = ProcessInfo.processInfo.environment["PATH"] ?? defaultSystemPath
         let searchPaths = envPath.split(separator: pathSeparator).map(String.init)
         for searchPath in searchPaths {
-            for ext in extensions {
+            for ext in executableExtensions {
                 let fullName = ext.isEmpty ? name : name + ext
                 let candidate = URL(fileURLWithPath: searchPath).appendingPathComponent(fullName)
                 if FileManager.default.isExecutableFile(atPath: candidate.path) {

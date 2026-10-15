@@ -78,6 +78,10 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
         self.underlying = session
     }
 
+    public func clearMemory() {
+        underlying.clearMemory()
+    }
+
     public func respond(
         to input: String,
         instructions: String,
