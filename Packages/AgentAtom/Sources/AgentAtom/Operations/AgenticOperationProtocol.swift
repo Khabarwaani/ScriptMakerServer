@@ -1,8 +1,5 @@
-import Foundation
-
 public protocol AgenticOperationProtocol: Sendable {
-    var inputJSON: JSONString { get }
-    var outputSchema: JSONSchema { get }
+    associatedtype Specification: Spec
+    var spec: Specification { get }
     func makeInstructions() throws -> String
-    func result(from response: String) throws -> Result<String, NSError>
 }

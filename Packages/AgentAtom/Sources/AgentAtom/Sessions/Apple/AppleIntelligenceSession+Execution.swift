@@ -22,7 +22,7 @@
             yield: @escaping @Sendable (String) throws -> Void
         ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
             if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
-            let input = operation.inputJSON.rawValue
+            let input = operation.spec.inputJSON.rawValue
             let instructions = try operation.makeInstructions()
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
             let options = GenerationOptions(
@@ -51,9 +51,23 @@
             }
             guard !response.isEmpty else { throw AgenticSessionError.incompleteGeneration }
             let metadata = metadata(duration: start.duration(to: clock.now), session: session)
-            let result = try operation.result(from: response)
+            let result = try result(from: response)
             if Task.isCancelled { throw AgenticSessionError.cancelled }
             return (content: result, metadata: metadata)
+        }
+
+        private func result(from response: String) throws -> Result<String, NSError> {
+            let json = try? JSONSerialization.jsonObject(with: Data(response.utf8), options: [.fragmentsAllowed])
+            guard let failure = json as? [String: Any], failure["domain"] as? String == "AgentAtom.Operation" else {
+                return .success(response)
+            }
+            guard Set(failure.keys) == ["domain", "code", "reason"],
+                failure["code"] as? Int == 422, let reason = failure["reason"] as? String
+            else {
+                throw AgenticSessionError.invalidResponse
+            }
+            return .failure(
+                NSError(domain: "AgentAtom.Operation", code: 422, userInfo: [NSLocalizedDescriptionKey: reason]))
         }
 
         private func metadata(duration: Duration, session: LanguageModelSession) -> AgenticExecutionMetadata? {

@@ -26,6 +26,9 @@ failure; these are programmer preconditions, not recoverable execution errors.
 
 ## Operations and results
 
+`AgenticOperationProtocol` exposes an associated Specification: Spec, its spec instance,
+and makeInstructions() only. The session reads input from that spec.
+
 `AgenticOperation` requests the spec's output. `FailableAgenticOperation` also
 permits the AI to decline with a reason. Both are structs conforming to
 `AgenticOperationProtocol`, and both can throw execution errors.
@@ -66,12 +69,11 @@ instructions. Success uses the spec's original schema unchanged. Failure uses:
 ```
 
 There is no combined schema or success envelope. The original JSONSchema type is
-unchanged. A failable operation recognizes only the reserved AgentAtom.Operation
+unchanged. The session recognizes the reserved AgentAtom.Operation
 failure domain and returns Foundation NSError with code 422 and the reason as its
 localized description. Invalid reserved failure responses throw invalidResponse.
 All other content is returned as the exact original success string, including
-malformed domain JSON for the caller to decode later. A spec using that reserved
-failure domain as ordinary output should use a normal operation.
+malformed domain JSON for the caller to decode later. That domain is reserved for error responses, rather than ordinary domain output.
 
 Operations use value semantics. Create one per request; there is no reuse tracking,
 defensive copying, or mutation policing. Keep reference-backed input and computed
@@ -155,7 +157,7 @@ Session errors conform to LocalizedError and CustomNSError with stable domain
 1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
 1007, rate limited 1008, execution failure 1009, invalid failure response 1010. Diagnostic
 messages do not copy provider prompts or input. AI-declared failure uses Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
-not an execution error. A normal operation never permits that result alternative.
+not an execution error. A normal operation does not instruct the AI to use that failure format.
 
 ## Structure and validation
 
