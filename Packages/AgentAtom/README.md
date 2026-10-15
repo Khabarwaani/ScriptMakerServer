@@ -26,8 +26,10 @@ failure; these are programmer preconditions, not recoverable execution errors.
 
 ## Operations and results
 
-`AgenticOperationProtocol` exposes an associated Specification: Spec, its spec instance,
-and makeInstructions() only. The session reads input from that spec.
+Operations depend only on `Spec`. `ModelledSpec` is one way to implement a spec;
+operations do not know or care how a spec is implemented. The operation protocol
+exposes its associated spec type, the spec instance, and `makeInstructions()` only.
+The session reads input from that spec.
 
 `AgenticOperation` requests the spec's output. `FailableAgenticOperation` also
 permits the AI to decline with a reason. Both are structs conforming to
