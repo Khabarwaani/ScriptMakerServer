@@ -42,7 +42,6 @@
                     try Task.checkCancellation()
                     try await yield(snapshot.content)
                 }
-                try Task.checkCancellation()
                 let response = try await stream.collect()
                 return try result(response.content)
             } catch {

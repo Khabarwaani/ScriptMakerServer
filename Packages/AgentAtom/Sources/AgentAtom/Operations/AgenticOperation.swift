@@ -34,7 +34,6 @@ public actor AgenticOperation<Specification: Spec, Session: AgenticSessionProtoc
         do {
             let response = await session.respond(
                 to: spec.inputJSON.rawValue, instructions: try instructions(), for: id)
-            guard !Task.isCancelled else { return .failure(.cancelled) }
             return strategy.result(from: response)
         } catch {
             return .failure(error)

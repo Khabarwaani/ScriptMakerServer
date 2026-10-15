@@ -140,6 +140,8 @@ instructions, input, and an operation ObjectIdentifier. Streaming forwards snaps
 nonescaping async callback and returns the final result. Sessions own provider access,
 configuration, per-run IDs, and execution records. Operations own lifecycle control
 and final failure interpretation.
+Sessions honor cancellation before admission and before returning success; operations
+use that result without checking cancellation again after the session returns.
 
 `AppleIntelligenceSession` is a final Sendable class, compiled only where FoundationModels is supported
 and is available on macOS/iOS/visionOS 26+. Its failable initializer checks device,

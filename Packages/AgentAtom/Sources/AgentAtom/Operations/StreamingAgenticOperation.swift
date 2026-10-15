@@ -42,7 +42,7 @@ public actor StreamingAgenticOperation<Specification: Spec, Session: AgenticSess
                     throw AgenticError.cancelled
                 }
             }
-            result = Task.isCancelled ? .failure(.cancelled) : strategy.result(from: response)
+            result = strategy.result(from: response)
         } catch {
             result = .failure(error)
         }
