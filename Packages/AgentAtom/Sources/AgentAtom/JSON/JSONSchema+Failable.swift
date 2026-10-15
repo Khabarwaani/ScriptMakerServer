@@ -1,9 +1,9 @@
 extension JSONSchema {
-    static func failable(success: JSONSchema) throws -> JSONSchema {
+    func allowingFailure() throws -> JSONSchema {
         try JSONSchema(
             node: .union([
                 .object(
-                    ["status": .choices(["success"]), "output": success.node],
+                    ["status": .choices(["success"]), "output": node],
                     required: ["status", "output"], closed: true),
                 .object(
                     [

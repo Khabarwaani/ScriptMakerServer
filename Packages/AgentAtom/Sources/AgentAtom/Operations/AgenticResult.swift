@@ -1,4 +1,3 @@
-public enum AgenticResult: Sendable, Equatable {
-    case success(String)
-    case failure(AgenticFailure)
-}
+import Foundation
+
+public typealias AgenticResult = Result<String, NSError>

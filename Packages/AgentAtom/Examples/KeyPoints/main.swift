@@ -34,7 +34,7 @@ struct KeyPointsExample {
             let envelope = try JSONDecoder().decode(KeyPointsSuccess.self, from: Data(responseString.utf8))
             try display(envelope.output)
         case .failure(let failure):
-            print("Unable to fulfill: \(failure.reason)")
+            print("Unable to fulfill: \(failure.localizedDescription)")
         }
     }
 
@@ -44,7 +44,7 @@ struct KeyPointsExample {
             let output = try JSONDecoder().decode(KeyPointsSpec.Output.self, from: Data(responseString.utf8))
             try display(output)
         case .failure(let failure):
-            print("Unable to fulfill: \(failure.reason)")
+            print("Unable to fulfill: \(failure.localizedDescription)")
         }
     }
 

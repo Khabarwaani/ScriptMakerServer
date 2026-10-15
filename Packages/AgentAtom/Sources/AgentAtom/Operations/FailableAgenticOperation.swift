@@ -19,7 +19,7 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
     public var inputJSON: JSONString { spec.inputJSON }
 
     public var outputSchema: JSONSchema {
-        get throws { try JSONSchema.failable(success: Specification.outputSchema) }
+        get throws { try Specification.outputSchema.allowingFailure() }
     }
 
     public var instructions: String {
@@ -50,7 +50,7 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
 
     private enum Envelope: Decodable {
         case success
-        case failure(AgenticFailure)
+        case failure(NSError)
 
         init(from decoder: any Decoder) throws {
             let container = try decoder.container(keyedBy: Key.self)
@@ -64,7 +64,10 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
                 guard Set(failure.allKeys.map(\.stringValue)) == ["reason"] else {
                     throw AgenticSessionError.invalidResponse
                 }
-                self = .failure(AgenticFailure(reason: try failure.decode(String.self, forKey: Key("reason"))))
+                self = .failure(
+                    NSError(
+                        domain: "AgentAtom.Operation", code: 1,
+                        userInfo: [NSLocalizedDescriptionKey: try failure.decode(String.self, forKey: Key("reason"))]))
             default:
                 throw AgenticSessionError.invalidResponse
             }

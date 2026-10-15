@@ -33,10 +33,7 @@ permits the AI to decline with a reason. Both are structs conforming to
 Execution returns `AgenticResponse` containing session metadata and `AgenticResult`:
 
 ```swift
-public enum AgenticResult {
-    case success(String)
-    case failure(AgenticFailure)
-}
+public typealias AgenticResult = Result<String, NSError>
 ```
 
 Successful content is the model's unchanged response text. The operation supplies
@@ -59,7 +56,7 @@ case .success(let json):
     let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
     // Retain and validate output in the caller.
 case .failure(let failure):
-    print(failure.reason)
+    print(failure.localizedDescription)
 }
 ```
 
@@ -76,7 +73,7 @@ outcomes:
 ```
 
 On success, the **whole original envelope string** is preserved, including the
-output field. On failure, the reason is returned as AgenticFailure. The caller may
+output field. On failure, the reason is returned as a Foundation NSError in domain AgentAtom.Operation, code 1. The caller may
 decode a success envelope into a local Decodable type with an `output` property.
 Envelope parsing rejects missing, contradictory, unknown-status, and unknown-key
 outcomes. It never interprets the nested success output. Invalid envelopes throw
@@ -162,7 +159,7 @@ Session errors conform to LocalizedError and CustomNSError with stable domain
 `AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
 1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
 1007, rate limited 1008, execution failure 1009, invalid envelope 1010. Diagnostic
-messages do not copy provider prompts or input. AI-declared failure is result data,
+messages do not copy provider prompts or input. AI-declared failure uses Foundation NSError (domain AgentAtom.Operation, code 1) as result data,
 not an execution error. A normal operation never permits that result alternative.
 
 ## Structure and validation
@@ -171,7 +168,7 @@ Protocols have their own files. Concrete implementations and default extensions
 are separate. The spec, example execution, and caller decoding are separated too.
 
 The remaining types have distinct roles: two operation structs describe their
-allowed outcomes; the result and failure payload carry string-or-failure data; the
+allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
 response and metadata carry execution details; the Apple actor/configuration own
 provider execution; the stream class owns asynchronous completion and cancellation.
 There are no transport content wrappers, schema translator, backend class, or
