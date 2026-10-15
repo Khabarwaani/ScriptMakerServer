@@ -1,137 +1,236 @@
 # AgentAtom
 
-A standalone Swift package for provider-independent agent specifications. This
-directory can move to a separate repository without changing its source or dependency
-paths. It has no dependency on AgentServer or sibling packages.
+Swift specifications, reusable operations, and sessions.
 
-## Public contract
+## Specifications
 
-`Spec` exposes static `Identity` (id, name, version), role, and output schema.
-Each instance supplies instructions and validated input JSON. Both JSON properties
-are non-optional and non-throwing.
+`Spec` supplies identity, role, instructions, input JSON, and the expected output
+JSON schema. `ModelledSpec<Input, Output>` derives JSON from an Encodable input and
+schema from a Decodable output. Outputs need neither Encodable nor `@Generable`.
+The spec's optional output storage is caller-owned; execution never writes to it.
 
-`ModelledSpec<Input, Output>` adds an `Encodable & Sendable` input and a
-`Decodable & Sendable` output and supplies both JSON properties by default.
-Output models need no additional schema protocol, annotation, or Encodable conformance.
-Conformers own a mutable optional output property, initially nil, to retain a decoded result.
+`JSONString` preserves validated JSON text. Its dynamic initializer is failable;
+invalid string literals are programmer errors. Foundation parsing accepts scalars
+and null, and can accept extensions such as trailing commas on Apple platforms.
 
-```swift
-import AgentAtom
+`JSONSchema` derives supported primitive, object, array, string-keyed dictionary,
+and optional shapes through pinned TypeDecoder. Objects allow additional domain
+keys; optional properties may be absent or null. Recursive/unsupported shapes and
+excessive nesting fail derivation. Arbitrary raw-schema construction is not public.
+Custom Decodable implementations are not guaranteed to be described completely by
+model inspection. Domain validation, enum cases, and numeric-width rules are not
+inferred. Existing ModelledSpec defaults use preconditionFailure on conversion
+failure; these are programmer preconditions, not recoverable execution errors.
 
-struct SummaryInput: Encodable, Sendable {
-    let article: String
-}
+## Operations and results
 
-struct SummaryOutput: Decodable, Sendable {
-    let summary: String
-    let sources: [String]?
-}
+Operations depend on `Spec` and an injected generic `AgenticSessionProtocol`.
+They do not depend on `ModelledSpec` or decode domain output. Each operation
+conforms to Swift's `Identifiable` and exposes its spec, `state`, `instructions()`,
+and associated `Result` through `AgenticOperationProtocol`.
 
-struct Summariser: ModelledSpec {
-    typealias Input = SummaryInput
-    typealias Output = SummaryOutput
+| Operation | `execute()` result | AI-declared failure allowed |
+| --- | --- | --- |
+| `AgenticOperation` | `Result<String, AgenticError>` | No |
+| `FailableAgenticOperation` | `Result<String, AgenticError>` | Yes |
+| `StreamingAgenticOperation` | `AsyncStream<Result<String, AgenticError>>` | No |
+| `FailableStreamingAgenticOperation` | `AsyncStream<Result<String, AgenticError>>` | Yes |
 
-    static let identity = Identity(
-        id: "summariser",
-        name: "Summariser",
-        version: "1.0.0"
-    )
-
-    let input: SummaryInput
-    var output: SummaryOutput? = nil
-    static let role = "You summarise articles."
-    let instructions = "Produce a concise, factual summary."
-}
-
-let spec = Summariser(input: SummaryInput(article: "Article text"))
-let inputText = spec.inputJSON.rawValue
-let schemaText = Summariser.outputSchema.rawValue
-```
-
-Consumers can decode the response into `Summariser.Output` using Foundation's
-JSONDecoder and assign it to a mutable spec's output property. The package does not
-execute providers or add a decoding method to Spec.
-
-## JSON construction
-
-JSONString's failable string initializer uses Foundation JSONSerialization,
-preserves the original text, and accepts JSON objects, arrays, scalars, and null.
-Acceptance follows Foundation's parser, which can accept extensions such as
-trailing commas on Apple platforms. It is not a separate strict JSON grammar check.
-JSONString also supports string literals; an invalid literal is a programming
-error and terminates execution.
-
-JSONSchema has a failable model-type initializer. It constructs standard schema
-keywords from supported model shapes and uses Foundation to check the serialized
-JSON. There is no public schema initializer from raw text or dialect selection.
+All four can encounter provider errors or cancellation. Successful final content
+is the model's unchanged response text. The caller decodes and validates domain
+output afterward; the package never repairs JSON, strips fences, unwraps success
+envelopes, re-encodes output, or translates schemas into an Apple-specific schema.
+Prompted schema adherence does not guarantee that arbitrary model output decodes.
 
 ```swift
-let literal: JSONString = #"{"message":"Hello"}"#
-let dynamic = JSONString(receivedText) // JSONString?
-let schema = JSONSchema(SummaryOutput.self) // JSONSchema?
+if #available(macOS 26, iOS 26, visionOS 26, *) {
+    guard let session = AppleIntelligenceSession(configuration: .init(
+        metadata: [.duration, .modelIdentifier]
+    )) else {
+        return
+    }
+
+    let operation = AgenticOperation(spec: spec, session: session)
+    let response = await operation.execute()
+    switch response {
+    case .success(let json):
+        let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
+        // Retain and validate output in the caller.
+    case .failure(let error):
+        print(error.localizedDescription)
+    }
+
+    let nextResponse = await operation.execute()
+    let records = session.executionMetadata
+    // Same operation.id; each admitted run has a distinct records entry and executionID.
+}
 ```
 
-Both types conform to CustomStringConvertible and CustomDebugStringConvertible.
-Print and debugger inspection use Foundation's pretty-printed JSON formatting;
-rawValue retains the compact provider representation (or original input text).
+## Reuse, identity, and lifecycle
 
-ModelledSpec uses Foundation JSONEncoder directly, with default strategies,
-compact output, and sorted keys. Default getters terminate with preconditionFailure
-when conversion or derivation fails. They do not return empty or permissive JSON,
-and failure messages do not include input or prompt text. Conformers can replace
-either inherited property with their own implementation.
+Operations use Identifiable's default ObjectIdentifier, stable for the object's
+lifetime across runs. This identity is process-local and may be reused after the
+object is deallocated; retain the operation when correlating its records.
+Each operation is an actor retaining its immutable spec and session reference.
+It owns its active task and execution state directly; callers need no task handle. Assigning another reference
+preserves the same operation, identity, and active execution. Construct another
+operation for independent identity and lifecycle control. There is no runner.
 
-## Schema derivation
+Call `execute()` again after completion or cancellation cleanup to start another
+run. An overlapping call on the same operation returns `busy`. Only the active
+producer Task is retained; operations store neither execution IDs nor result history.
+They do not enqueue requests or retry automatically.
 
-The package delegates model inspection to the pinned open-source
-[TypeDecoder](https://github.com/Kitura/TypeDecoder) library and maps its type
-information into a small Encodable schema representation. Foundation JSONEncoder
-serializes it; JSONString checks the emitted JSON syntax. Schema structure is
-constructed from known shapes: type, properties, required, items,
-additionalProperties, and nullable alternatives. There is no meta-schema engine.
+The session assigns a fresh execution UUID when it admits a run. Its read-only,
+thread-safe `executionMetadata` array records the operation's ObjectIdentifier
+and execution UUID after that run finishes, including provider failure and cancellation.
+Identity is always recorded; configured metrics are optional. Admission failures
+and instruction-assembly failures do not create an execution ID or record.
 
-Ordinary model shapes include primitive fields, nested models, CodingKeys, arrays,
-string-keyed dictionaries, and optionals. Optional fields can be absent or null;
-non-optional fields are required. Generated object schemas permit additional keys,
-matching JSONDecoder's ordinary behavior.
-Empty structs are supported through a guarded empty-object decoding fallback.
+```swift
+let latest = session.executionMetadata.last
+let id = operation.id
+let runs = session.executionMetadata.filter { $0.operationID == id }
+```
 
-Foundation Date, Data, UUID, URL, and Decimal representations follow JSONDecoder's
-default strategies. Derivation does not infer domain validation rules, enum cases,
-or integer-width bounds. Unsupported, opaque, and recursive type information fails
-construction. Schema conversion is limited to 64 levels; model inspection behavior
-is delegated to TypeDecoder.
+`await operation.cancel()` cooperatively cancels the active producer. Cancellation
+of a task awaiting a non-streaming operation also cancels its producer. Cancellation
+does not free the session until its provider call returns and cleanup completes.
+Cancelling an idle operation is a no-op and does not prevent a later execution.
 
-TypeDecoder probes Decodable initializers using dummy values. Custom decoding can
-fail or describe only one execution path, so inferred schemas are not proof of
-equivalence to arbitrary custom decoding. Property wrappers and macros would require
-model annotations or added metadata; they are not imposed on the Decodable-only API.
+`try await operation.pause()` and `resume()` delegate to the session for the active
+operation. They throw `notRunning` when idle. Unsupported sessions throw
+`unsupported` without changing the active execution.
+`state` is ready, running, paused, cancelling, completed, cancelled, or failed.
+Cancelling reserves the active slot until cleanup finishes. Terminal states permit
+another execution. Pause/resume recheck the active task after suspension so a late
+provider response cannot change a later run's state.
+The Apple session has no native generation pause/resume support and uses these
+explicit unsupported errors.
 
-This package generates model schemas; it does not validate arbitrary external
-schemas or responses. Provider-specific compatibility belongs in adapters.
-No provider integration is tested here. Adapters must check their provider's
-supported keywords and object restrictions, including nullable `anyOf`, formats,
-`contentEncoding`, and additional keys, before submitting a generated schema.
+## Instructions and declared failures
 
-## Readability guidance
+Operations assemble final instructions on every call using the generic
+strategy implementations; no forwarding-only assembler wrapper is needed. They send the spec role, rules, and original output
+schema as provider instructions, with input JSON sent separately as prompt data.
+A String input retains its JSON quoting and escaping. Session configuration does
+not own roles, rules, or instruction overrides.
 
-Use names that explain a type's responsibility and a value's meaning. Keep control
-flow explicit, format branches consistently, and scope implementation helpers to
-their owning type or file. Group protocol implementations in separate extensions.
-Keep comments short; add them for a behavior boundary or useful example rather
-than narrating the code. Prefer Foundation APIs over duplicate infrastructure.
+Failable operations append an alternative failure schema derived from a
+Decodable shape. The model must use this reserved failure format:
 
-Third-party imports are internal; implementation helpers are private or fileprivate.
-Access control defines these boundaries without an Internal folder.
+```json
+{"domain":"AgentAtom.Operation","code":422,"reason":"The input is insufficient."}
+```
 
-## Build and validation
+The original success schema remains unchanged. Failable operations convert a valid
+reserved failure response into `generationFailed(reason:)`; standard operations
+return `operationFailed` for it. Malformed reserved failure responses are also
+invalid. All other final text passes through unchanged, including malformed domain
+JSON for the caller to decode. Failure inspection uses one JSONDecoder pass. Malformed reserved failures remain
+errors; unrelated domain output still passes through unchanged.
+Intermediate streaming snapshots are not decoded.
 
-Run `swift build` and `swift test` from this directory. Swift Testing suites cover public contracts,
-ordinary model derivation, the 64-level conversion limit, unsupported models,
-Foundation representations, and formatting. On macOS and Linux, a test-only
-`FailureProbe` executable checks invalid literals and failing default conversions
-in separate processes. No real server or AI provider is started.
+Keep reference-backed spec input and computed request values stable during a run.
+Domain constraints, fact checking, output decoding, and retry decisions belong to
+the caller.
 
-The tests use `@testable import AgentAtom`, including Encodable-only inputs and
-Decodable-only outputs. Schema assertions check generated keyword structures;
-they do not constitute meta-schema validation or prove arbitrary custom decoding.
+## Sessions and configuration
+
+The class-bound, Sendable session protocol supplies generation primitives accepting finalized
+instructions, input, and an operation ObjectIdentifier. Streaming forwards snapshots through a
+nonescaping async callback and returns the final result. Sessions own provider access,
+configuration, per-run IDs, and execution records. Operations own lifecycle control
+and final failure interpretation.
+Sessions reject cancellation before admission and rely on provider cancellation during generation; operations
+use that result without checking cancellation again after the session returns.
+Non-streaming caller cancellation reaches the worker through a cancellation handler.
+Streaming checks the caller before launching its independent producer; provider
+stream cancellation and consumer termination handle the active run without snapshot polling.
+
+`AppleIntelligenceSession` is a final Sendable class, compiled only where FoundationModels is supported
+and is available on macOS/iOS/visionOS 26+. Its failable initializer checks device,
+settings, and model readiness once. It uses `SystemLanguageModel.default` and one
+file-level platform guard. The package retains its older deployment minimums.
+
+Normal and streaming generation call the provider directly and share admission,
+per-run identity, result checks, error mapping, and metadata helpers.
+A mutex protects admission and record snapshots; provider work and callbacks run
+outside the lock. The session does not create producer tasks.
+
+One Apple session admits one generation at a time; overlap returns `busy`. Use
+independent sessions for concurrency. Every run uses a fresh provider conversation;
+execution records are diagnostic metadata, not conversation history.
+
+Configuration is fixed at initialization. Temperature defaults to 1 and clamps to
+0...1 using Swift's min/max; NaN uses the default and infinities
+clamp to the bounds. Response length follows the provider context limit.
+
+`AgenticExecutionMetadata.Fields` is an OptionSet selecting independent metrics,
+for example `metadata: [.duration, .tokenUsage]`. Optional metrics default to disabled.
+Apple can collect model identifier, monotonic
+generation duration, and token usage. Token counts use the guarded OS 27 SDK API;
+unavailable counts stay absent and actual zero is preserved. The identifier is
+`SystemLanguageModel.default`, not an invented model version. Unpopulated tier,
+reasoning-effort, and finish-reason fields are omitted.
+
+## Streaming
+
+```swift
+let operation = FailableStreamingAgenticOperation(spec: spec, session: session)
+let stream = await operation.execute()
+for await result in stream {
+    switch result {
+    case .success(let snapshot):
+        print(snapshot) // Replace display content with the cumulative text.
+    case .failure(let error):
+        print(error.localizedDescription)
+    }
+}
+```
+
+Each stream has one consumer and buffers only its newest result. Intermediate
+successes contain cumulative snapshots and can coalesce; they need not be prefix
+extensions. After normal completion, the last element is the final success or
+failure. Do not decode a partial snapshot as a completed result.
+
+Call `await operation.cancel()` to stop generation without losing the consumer's
+ability to receive the final cancellation failure. Cancelling the consuming task
+also cancels the producer but terminates delivery, so its last received snapshot
+might remain partial. Breaking the loop alone does not guarantee prompt cancellation.
+Call `await operation.cancel()` before breaking early when generation should stop.
+A rerun is available after the producer finishes cleanup.
+
+## Errors and validation
+
+`AgenticError` is a Sendable, Equatable Swift error with LocalizedError
+descriptions. Its six cases are operationFailed(reason:), generationFailed(reason:), cancelled,
+busy, notRunning, and unsupported. Provider, instruction, and response failures use
+operationFailed with a diagnostic reason; AI-declared failure retains its reason separately. Public results do not require
+NSError. Provider errors are mapped
+once at the session boundary; the operation interprets only the reserved final
+model-failure format.
+
+Protocol extensions live with their declarations. Concrete implementations and
+the typed error occupy separate files.
+Each worker completes its lifecycle and releases its task before returning a result.
+The four operation actors own their tasks directly; an internal actor protocol shares
+lifecycle and execution defaults without adding a controller. Normal and streaming
+execution each have one implementation; concrete actors only provide their stored
+state, strategy, and a forwarding execute() method. Immutable generic strategies
+share instruction assembly and final failure interpretation. The final session
+class shares admission and completion helpers; it has no runner or unchecked Sendable conformance.
+Concrete Result aliases witness the protocol using native Result or AsyncStream.
+No public execution handle, response wrapper, queue, or schema translator is introduced.
+Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
+
+Run `swift build --package-path Packages/AgentAtom` to compile. Automated operation,
+session, cancellation, platform, and live-model tests remain a separate task:
+[#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88). Coverage must include
+reruns with distinct execution IDs, shared operation identity, overlap rejection,
+cancellation cleanup, unsupported lifecycle controls, and all four result modes.
+
+Implementation [PR #89](https://github.com/Khabarwaani/ScriptMakerServer/pull/89)
+addresses [#87](https://github.com/Khabarwaani/ScriptMakerServer/issues/87). It must
+remain unmerged until the user explicitly authorizes that PR's merge in chat,
+with the authorization verified twice. Checks and inferred intent are insufficient.
