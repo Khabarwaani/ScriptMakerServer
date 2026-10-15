@@ -108,7 +108,12 @@ independent sessions for concurrency. Each execution uses a fresh provider
 conversation. History-enabled behavior is a separate feature.
 
 Concrete configuration selects generation temperature, response token budget, and
-which metadata fields to return. All operations here request JSON and expose
+which metadata fields to return. Temperature is non-optional, defaults to 1, and
+uses an internal property wrapper to clamp to 0...1. NaN uses the default; infinities
+clamp to their respective bounds. An unspecified response token budget remains nil
+to preserve the provider's context-based limit. See
+[Apple's temperature documentation](https://developer.apple.com/documentation/foundationmodels/generationoptions/temperature).
+All operations here request JSON and expose
 strings; provider-specific image generation is outside this implementation.
 
 Metadata belongs exclusively to the session response and is disabled by default.

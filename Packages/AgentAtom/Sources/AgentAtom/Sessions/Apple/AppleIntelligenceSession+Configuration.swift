@@ -1,20 +1,20 @@
 extension AppleIntelligenceSession {
     public struct Configuration: Sendable {
         public let metadata: Set<AgenticMetadataField>
-        public let temperature: Double?
+        @ClampedTemperature private var temperatureValue: Double = 1
+        public var temperature: Double { temperatureValue }
         public let maximumResponseTokens: Int?
 
         public init(
-            metadata: Set<AgenticMetadataField> = [], temperature: Double? = nil,
+            metadata: Set<AgenticMetadataField> = [], temperature: Double = 1,
             maximumResponseTokens: Int? = nil
         ) {
             self.metadata = metadata
-            self.temperature = temperature
+            self._temperatureValue = ClampedTemperature(wrappedValue: temperature)
             self.maximumResponseTokens = maximumResponseTokens
         }
 
         var isValid: Bool {
-            if let temperature, !temperature.isFinite || !(0...2).contains(temperature) { return false }
             if let maximumResponseTokens, maximumResponseTokens <= 0 { return false }
             return true
         }
