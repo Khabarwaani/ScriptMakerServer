@@ -127,7 +127,7 @@ The original success schema remains unchanged. Failable operations convert a val
 reserved failure response into `generationFailed(reason:)`; standard operations
 return `operationFailed` for it. Malformed reserved failure responses are also
 invalid. All other final text passes through unchanged, including malformed domain
-JSON for the caller to decode. Intermediate streaming snapshots are not decoded.
+JSON for the caller to decode. Failure inspection uses one JSONDecoder pass. Malformed reserved failures remain\nerrors; unrelated domain output still passes through unchanged.\nIntermediate streaming snapshots are not decoded.
 
 Keep reference-backed spec input and computed request values stable during a run.
 Domain constraints, fact checking, output decoding, and retry decisions belong to
@@ -196,7 +196,7 @@ Call `await operation.cancel()` to stop generation without losing the consumer's
 ability to receive the final cancellation failure. Cancelling the consuming task
 also cancels the producer but terminates delivery, so its last received snapshot
 might remain partial. Breaking the loop alone does not guarantee prompt cancellation.
-A rerun is available after the producer finishes cleanup.
+Call await operation.cancel() before breaking early when generation should stop.\nA rerun is available after the producer finishes cleanup.
 
 ## Errors and validation
 
@@ -211,10 +211,10 @@ model-failure format.
 Protocol extensions live with their declarations. Concrete implementations and
 the typed error occupy separate files.
 Each worker completes its lifecycle and releases its task before returning a result.\nThe four operation actors own their tasks directly; an internal actor protocol shares
-lifecycle defaults without adding a controller. Immutable generic strategies
+lifecycle and execution defaults without adding a controller. Normal and streaming\nexecution each have one implementation; concrete actors only provide their stored\nstate, strategy, and a forwarding execute() method. Immutable generic strategies
 share instruction assembly and final failure interpretation. The final session
 class shares admission and completion helpers; it has no runner or unchecked Sendable conformance.
-No public execution handle, response wrapper, result alias, queue, or schema translator is introduced.
+Concrete Result aliases witness the protocol using native Result or AsyncStream.\nNo public execution handle, response wrapper, queue, or schema translator is introduced.
 Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 
 Run `swift build --package-path Packages/AgentAtom` to compile. Automated operation,

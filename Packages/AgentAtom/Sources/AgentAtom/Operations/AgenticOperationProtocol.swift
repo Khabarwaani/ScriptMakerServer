@@ -72,3 +72,72 @@ extension OperationLifecycle {
         }
     }
 }
+
+extension OperationLifecycle where Result == Swift.Result<String, AgenticError>, Success == Result {
+    func start() async -> Swift.Result<String, AgenticError> {
+        guard state.canStart else { return .failure(.busy) }
+        let work = Task { await run() }
+        task = work
+        state = .running
+        return await withTaskCancellationHandler {
+            await work.value
+        } onCancel: {
+            work.cancel()
+        }
+    }
+
+    private func run() async -> Swift.Result<String, AgenticError> {
+        let result: Swift.Result<String, AgenticError>
+        do {
+            let response = await session.respond(
+                to: spec.inputJSON.rawValue, instructions: try instructions(), for: id)
+            result = strategy.result(from: response)
+        } catch {
+            result = .failure(error)
+        }
+        finish(result)
+        return result
+    }
+}
+
+extension OperationLifecycle where Result == AsyncStream<Swift.Result<String, AgenticError>>, Success == Void {
+    func start() async -> AsyncStream<Swift.Result<String, AgenticError>> {
+        guard state.canStart else { return failed(.busy) }
+        guard !Task.isCancelled else { return failed(.cancelled) }
+        let (stream, output) = AsyncStream<Swift.Result<String, AgenticError>>.makeStream(
+            bufferingPolicy: .bufferingNewest(1))
+        let work = Task { await run(into: output) }
+        task = work
+        state = .running
+        output.onTermination = { reason in
+            if case .cancelled = reason { work.cancel() }
+        }
+        return stream
+    }
+
+    private func run(into output: AsyncStream<Swift.Result<String, AgenticError>>.Continuation) async {
+        defer { output.finish() }
+        let result: Swift.Result<String, AgenticError>
+        do {
+            let response = await session.stream(
+                to: spec.inputJSON.rawValue, instructions: try instructions(), for: id
+            ) { text in
+                if case .terminated = output.yield(.success(text)) {
+                    throw AgenticError.cancelled
+                }
+            }
+            result = strategy.result(from: response)
+        } catch {
+            result = .failure(error)
+        }
+        finish(result)
+        output.yield(result)
+    }
+
+    private func failed(_ error: AgenticError) -> AsyncStream<Swift.Result<String, AgenticError>> {
+        AsyncStream { output in
+            output.yield(.failure(error))
+            output.finish()
+        }
+    }
+}

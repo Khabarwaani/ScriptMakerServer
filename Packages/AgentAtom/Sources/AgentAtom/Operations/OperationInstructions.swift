@@ -4,6 +4,21 @@ struct OperationFailure: Decodable {
     let domain: String
     let code: Int
     let reason: String
+
+    private enum CodingKeys: String, CodingKey { case domain, code, reason }
+
+    init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        domain = try values.decode(String.self, forKey: .domain)
+        do {
+            code = try values.decode(Int.self, forKey: .code)
+            reason = try values.decode(String.self, forKey: .reason)
+        } catch {
+            // Malformed reserved failures must not pass through as successful output.
+            if domain == "AgentAtom.Operation" { throw AgenticError.operationFailed }
+            throw error
+        }
+    }
 }
 
 struct InstructionAssembler<Strategy: OperationStrategy> {
