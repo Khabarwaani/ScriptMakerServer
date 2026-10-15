@@ -53,7 +53,8 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
             arguments += ["--model", model]
         }
         arguments += configuration.extraArguments
-        arguments.append(engine.formatPrompt(input: input, instructions: instructions))
+        let prompt = "\(instructions)\n\nInput:\n\(input)"
+        arguments.append(prompt)
 
         do {
             var finalStructuredOutput = ""
@@ -96,13 +97,11 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
             }
 
             if !finalStructuredOutput.isEmpty {
-                engine.recordTurn(input: input, output: finalStructuredOutput)
                 return .success(finalStructuredOutput)
             }
 
             let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedStdout.isEmpty {
-                engine.recordTurn(input: input, output: trimmedStdout)
                 return .success(trimmedStdout)
             }
 

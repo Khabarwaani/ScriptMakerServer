@@ -69,7 +69,7 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
         for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
-        let prompt = engine.formatPrompt(input: input, instructions: instructions)
+        let prompt = "\(instructions)\n\nInput:\n\(input)"
         let args = argumentBuilder(input, prompt, schema, configuration)
         do {
             var structuredOutput = ""
@@ -94,13 +94,11 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
             }
 
             if !structuredOutput.isEmpty {
-                engine.recordTurn(input: input, output: structuredOutput)
                 return .success(structuredOutput)
             }
 
             let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedStdout.isEmpty {
-                engine.recordTurn(input: input, output: trimmedStdout)
                 return .success(trimmedStdout)
             }
 

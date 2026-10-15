@@ -48,12 +48,12 @@ final class TerminalProcessRunner: Sendable {
         return ExecutionResult(stdout: stdout, stderr: stderr, exitCode: process.terminationStatus)
     }
 
-    /// Resolves executable in system PATH if url does not exist directly.
-    func resolveExecutable(named name: String) -> URL? {
+    /// Resolves executable in system PATH and additional search paths if url does not exist directly.
+    func resolveExecutable(named name: String, additionalSearchPaths: [String] = []) -> URL? {
         if isExplicitPath(name) {
             return searchExtensions(basePath: name)
         }
-        return searchSystemPath(named: name)
+        return searchSystemPath(named: name, additionalSearchPaths: additionalSearchPaths)
     }
 
     // MARK: - Private Decomposed Helpers
@@ -158,9 +158,10 @@ final class TerminalProcessRunner: Sendable {
         return nil
     }
 
-    private func searchSystemPath(named name: String) -> URL? {
+    private func searchSystemPath(named name: String, additionalSearchPaths: [String] = []) -> URL? {
         let envPath = ProcessInfo.processInfo.environment["PATH"] ?? defaultSystemPath
-        let searchPaths = envPath.split(separator: pathSeparator).map(String.init)
+        let envSearchPaths = envPath.split(separator: pathSeparator).map(String.init)
+        let searchPaths = additionalSearchPaths + envSearchPaths
         for searchPath in searchPaths {
             for ext in executableExtensions {
                 let fullName = ext.isEmpty ? name : name + ext

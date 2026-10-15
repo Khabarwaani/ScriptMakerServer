@@ -11,12 +11,12 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
     public var workingDirectory: URL?
     /// Additional CLI arguments passed directly to the tool.
     public var extraArguments: [String]
+    /// Custom search paths to prepend when resolving the CLI binary.
+    public var additionalSearchPaths: [String]
     /// Metadata tracking preferences.
     public var metadata: AgenticExecutionMetadata.Fields
     /// Optional conversation identifier to resume/maintain context across executions.
     public var conversationID: String?
-    /// Whether the session should automatically preserve conversation context between executions.
-    public var preservesContext: Bool
     /// Pre-resolved URL of the binary, computed on initialization.
     var resolvedURL: URL?
 
@@ -25,17 +25,17 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
         model: String? = nil,
         workingDirectory: URL? = nil,
         extraArguments: [String] = [],
+        additionalSearchPaths: [String] = [],
         metadata: AgenticExecutionMetadata.Fields = [],
-        conversationID: String? = nil,
-        preservesContext: Bool = true
+        conversationID: String? = nil
     ) {
         self.executablePath = executablePath
         self.model = model
         self.workingDirectory = workingDirectory
         self.extraArguments = extraArguments
+        self.additionalSearchPaths = additionalSearchPaths
         self.metadata = metadata
         self.conversationID = conversationID
-        self.preservesContext = preservesContext
         self.resolvedURL = nil
     }
 }

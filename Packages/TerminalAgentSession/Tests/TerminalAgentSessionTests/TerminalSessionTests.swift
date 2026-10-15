@@ -212,18 +212,17 @@ struct TerminalSessionTests {
         #expect(streamedChunks.contains("{\"reply\":\"Done\"}"))
     }
 
-    @Test("TerminalSession preserves conversational context across multiple turns")
+    @Test("TerminalSession tracks execution metadata and clearMemory resets it")
     func testContextPreservationAcrossTurns() async throws {
         let script = """
         #!/bin/bash
-        # Echo back received arguments including prior context in reply
         echo "{\\"reply\\":\\"Seen Turn\\"}"
         exit 0
         """
         let scriptURL = try createMockExecutable(script: script)
         defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
 
-        let config = TerminalAgentConfiguration(executablePath: scriptURL.path, preservesContext: true)
+        let config = TerminalAgentConfiguration(executablePath: scriptURL.path)
         let session = CodexTerminalSession(configuration: config)!
 
         // Turn 1
@@ -237,10 +236,38 @@ struct TerminalSessionTests {
 
         // Clear memory explicitly
         session.clearMemory()
+        #expect(session.executionMetadata.isEmpty)
 
         // Turn 3 starts with cleared memory
         _ = try await session.execute(MockEchoSpec(message: "Fresh start"))
-        #expect(session.executionMetadata.count == 3)
+        #expect(session.executionMetadata.count == 1)
+    }
+
+    @Test("TerminalSession discovers binaries in additionalSearchPaths")
+    func testAdditionalSearchPathsDiscovery() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let customBinary = tempDir.appendingPathComponent("custom-agent-cli")
+        let script = """
+        #!/bin/bash
+        echo "{\\"reply\\":\\"from custom path\\"}"
+        """
+        try script.write(to: customBinary, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: customBinary.path)
+
+        // Without additionalSearchPaths, resolving "custom-agent-cli" fails
+        let configWithout = TerminalAgentConfiguration(executablePath: "custom-agent-cli")
+        #expect(GenericTerminalSession(configuration: configWithout) == nil)
+
+        // With additionalSearchPaths, resolving succeeds
+        let configWith = TerminalAgentConfiguration(
+            executablePath: "custom-agent-cli",
+            additionalSearchPaths: [tempDir.path]
+        )
+        let session = GenericTerminalSession(configuration: configWith)
+        #expect(session != nil)
     }
 }
 

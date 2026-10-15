@@ -13,12 +13,6 @@ final class TerminalSessionEngine: Sendable {
         var isBusy = false
         var records: [AgenticExecutionMetadata] = []
         var activeConversationID: String?
-        var conversationHistory: [Message] = []
-    }
-
-    struct Message: Sendable {
-        let input: String
-        let output: String
     }
 
     var executionMetadata: [AgenticExecutionMetadata] {
@@ -30,7 +24,10 @@ final class TerminalSessionEngine: Sendable {
     }
 
     init?(configuration: TerminalAgentConfiguration, runner: TerminalProcessRunner = TerminalProcessRunner()) {
-        guard let resolvedURL = runner.resolveExecutable(named: configuration.executablePath) else {
+        guard let resolvedURL = runner.resolveExecutable(
+            named: configuration.executablePath,
+            additionalSearchPaths: configuration.additionalSearchPaths
+        ) else {
             return nil
         }
         var updated = configuration
@@ -47,37 +44,11 @@ final class TerminalSessionEngine: Sendable {
         state.withLock { $0.activeConversationID = id }
     }
 
-    /// Records completed turn in conversation memory.
-    func recordTurn(input: String, output: String) {
-        state.withLock {
-            $0.conversationHistory.append(Message(input: input, output: output))
-        }
-    }
-
-    /// Clears recorded conversation context from memory.
+    /// Clears any cached session state or history.
     func clearMemory() {
         state.withLock {
-            $0.conversationHistory.removeAll()
+            $0.records.removeAll()
         }
-    }
-
-    /// Formats prompt prepending conversation history if context preservation is active.
-    func formatPrompt(input: String, instructions: String) -> String {
-        guard configuration.preservesContext else {
-            return "\(instructions)\n\nInput:\n\(input)"
-        }
-
-        let history = state.withLock { $0.conversationHistory }
-        guard !history.isEmpty else {
-            return "\(instructions)\n\nInput:\n\(input)"
-        }
-
-        var prompt = "\(instructions)\n\n### Prior Conversation Context:\n"
-        for (idx, turn) in history.enumerated() {
-            prompt += "Turn \(idx + 1):\nUser: \(turn.input)\nAssistant: \(turn.output)\n\n"
-        }
-        prompt += "### Current Turn:\nInput:\n\(input)"
-        return prompt
     }
 
     /// Executes CLI arguments with single-run admission, timing metadata recording, and streaming callback.
