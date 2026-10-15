@@ -19,15 +19,18 @@
 
         func perform(
             _ operation: any AgenticOperationProtocol, streaming: Bool,
-            yield: @escaping @Sendable (String) throws -> Void
-        ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+            yield: @escaping @Sendable (String) throws(AgenticSessionError) -> Void
+        ) async throws(AgenticSessionError) -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
             if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
             let input = operation.spec.inputJSON.rawValue
-            let instructions = try operation.makeInstructions()
+            let instructions: String
+            do {
+                instructions = try operation.makeInstructions()
+            } catch {
+                throw Self.map(error)
+            }
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
-            let options = GenerationOptions(
-                temperature: configuration.temperature,
-                maximumResponseTokens: configuration.maximumResponseTokens)
+            let options = GenerationOptions(temperature: configuration.temperature)
             let clock = ContinuousClock()
             let start = clock.now
             let response: String
@@ -56,7 +59,7 @@
             return (content: result, metadata: metadata)
         }
 
-        private func result(from response: String) throws -> Result<String, NSError> {
+        private func result(from response: String) throws(AgenticSessionError) -> Result<String, NSError> {
             let json = try? JSONSerialization.jsonObject(with: Data(response.utf8), options: [.fragmentsAllowed])
             guard let failure = json as? [String: Any], failure["domain"] as? String == "AgentAtom.Operation" else {
                 return .success(response)

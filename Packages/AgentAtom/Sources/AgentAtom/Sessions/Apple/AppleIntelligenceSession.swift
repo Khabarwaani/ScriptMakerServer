@@ -1,20 +1,21 @@
 import Foundation
 
+@available(macOS 26, iOS 26, visionOS 26, *)
 public actor AppleIntelligenceSession: AgenticSessionProtocol {
+    public typealias SessionError = AgenticSessionError
     public nonisolated let configuration: Configuration
     private var isBusy = false
 
     public init?(configuration: Configuration = Configuration()) {
-        guard configuration.isValid else { return nil }
         #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
-            guard #available(macOS 26, iOS 26, visionOS 26, *), Self.modelUnavailableReason == nil else { return nil }
+            guard Self.modelUnavailableReason == nil else { return nil }
             self.configuration = configuration
         #else
             return nil
         #endif
     }
 
-    public func execute(_ operation: any AgenticOperationProtocol) async throws -> (
+    public func execute(_ operation: any AgenticOperationProtocol) async throws(AgenticSessionError) -> (
         content: Result<String, NSError>, metadata: AgenticExecutionMetadata?
     ) {
         try admit()
@@ -22,7 +23,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         return try await generate(operation, streaming: false, yield: { _ in })
     }
 
-    public func stream(_ operation: any AgenticOperationProtocol) async throws -> (
+    public func stream(_ operation: any AgenticOperationProtocol) async throws(AgenticSessionError) -> (
         snapshots: AsyncThrowingStream<String, any Error>,
         result: Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), any Error>
     ) {
@@ -32,7 +33,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         let completion = Task {
             defer { isBusy = false }
             do {
-                let response = try await generate(operation, streaming: true) { snapshot in
+                let response = try await generate(operation, streaming: true) { snapshot throws(AgenticSessionError) in
                     if case .terminated = continuation.yield(snapshot) {
                         throw AgenticSessionError.cancelled
                     }
@@ -50,7 +51,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         return (snapshots: snapshots, result: completion)
     }
 
-    private func admit() throws {
+    private func admit() throws(AgenticSessionError) {
         if Task.isCancelled { throw AgenticSessionError.cancelled }
         guard !isBusy else { throw AgenticSessionError.busy }
         isBusy = true
@@ -58,13 +59,12 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
 
     private func generate(
         _ operation: any AgenticOperationProtocol, streaming: Bool,
-        yield: @escaping @Sendable (String) throws -> Void
-    ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+        yield: @escaping @Sendable (String) throws(AgenticSessionError) -> Void
+    ) async throws(AgenticSessionError) -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
         #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
-            if #available(macOS 26, iOS 26, visionOS 26, *) {
-                return try await perform(operation, streaming: streaming, yield: yield)
-            }
+            return try await perform(operation, streaming: streaming, yield: yield)
+        #else
+            throw AgenticSessionError.modelUnavailable(reason: "FoundationModels is unavailable on this platform or OS.")
         #endif
-        throw AgenticSessionError.modelUnavailable(reason: "FoundationModels is unavailable on this platform or OS.")
     }
 }

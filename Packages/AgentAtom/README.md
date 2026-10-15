@@ -46,19 +46,21 @@ or otherwise format the answer. Prompted schema adherence is an expectation, not
 a guarantee that arbitrary output will decode. The caller decodes it afterward.
 
 ```swift
-guard let session = AppleIntelligenceSession(configuration: .init(
-    metadata: [.duration, .modelIdentifier], maximumResponseTokens: 512
-)) else {
-    return // Unsupported OS/device, unavailable model, or invalid configuration.
-}
+if #available(macOS 26, iOS 26, visionOS 26, *) {
+    guard let session = AppleIntelligenceSession(configuration: .init(
+        metadata: [.duration, .modelIdentifier]
+    )) else {
+        return // This device or its local model is unavailable.
+    }
 
-let response = try await session.execute(AgenticOperation(spec: spec))
-switch response.content {
-case .success(let json):
-    let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
-    // Retain and validate output in the caller.
-case .failure(let failure):
-    print(failure.localizedDescription)
+    let response = try await session.execute(AgenticOperation(spec: spec))
+    switch response.content {
+    case .success(let json):
+        let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
+        // Retain and validate output in the caller.
+    case .failure(let failure):
+        print(failure.localizedDescription)
+    }
 }
 ```
 
@@ -96,26 +98,27 @@ it does not prove model obedience.
 
 ## Sessions and configuration
 
-`AgenticSessionProtocol` directly executes an operation. Callers initialize and
-inject the concrete session they want; there is no singleton or shared scheduling.
-The protocol has no common configuration type. Default streaming throws an explicit
+`AgenticSessionProtocol` directly executes an operation and associates its own
+configuration type. Callers initialize and inject the concrete session they want;
+there is no singleton or shared scheduling. Default streaming throws an explicit
 unsupported-streaming error for implementations that do not provide it.
 
-`AppleIntelligenceSession.init?` returns nil if configuration, SDK, OS, device,
-Apple Intelligence settings, or local model availability prevent initialization.
-It uses only `SystemLanguageModel.default`, requires macOS/iOS/visionOS 26+, and
-rechecks model availability during execution. The package retains its older
-deployment minimums. There is no automatic provider fallback.
+`AppleIntelligenceSession` is available at compile time on macOS/iOS/visionOS 26+.
+Its failable initializer returns nil if the device, Apple Intelligence settings,
+or local model availability prevent initialization. It uses only
+`SystemLanguageModel.default` and rechecks model availability during execution.
+The package retains its older deployment minimums. There is no automatic provider
+fallback.
 
 Each Apple session handles one active operation; overlap throws busy. Create
 independent sessions for concurrency. Each execution uses a fresh provider
 conversation. History-enabled behavior is a separate feature.
 
-Concrete configuration selects generation temperature, response token budget, and
-which metadata fields to return. Temperature is non-optional, defaults to 1, and
-uses a private generic property wrapper in the configuration file to clamp to 0...1. NaN uses the default; infinities
-clamp to their respective bounds. An unspecified response token budget remains nil
-to preserve the provider's context-based limit. See
+Apple configuration selects generation temperature and which metadata fields to
+return. Temperature is non-optional, defaults to 1, and uses a private generic
+property wrapper in the configuration file to clamp to 0...1. NaN uses the default;
+infinities clamp to their respective bounds. Response length uses the provider's
+context-based limit. See
 [Apple's temperature documentation](https://developer.apple.com/documentation/foundationmodels/generationoptions/temperature).
 All operations here request JSON and expose
 strings; provider-specific image generation is outside this implementation.
@@ -150,8 +153,7 @@ Swift Task for the final response. Cancel stream.result directly to stop work,
 including when abandoning iteration. Cancellation of the snapshot iterator also
 cancels the producer. Awaiting Task.value alone does not propagate cancellation
 from the waiter; the caller owns cancellation of that result Task. The session stays busy until its provider call
-returns. Buffering bounds snapshot count, not the final string size; configure a
-response token budget appropriate to the application.
+returns. Buffering bounds snapshot count, not the final string size.
 
 ## Errors
 
@@ -159,7 +161,9 @@ Session errors conform to LocalizedError and CustomNSError with stable domain
 `AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
 1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
 1007, rate limited 1008, execution failure 1009, invalid failure response 1010. Diagnostic
-messages do not copy provider prompts or input. AI-declared failure uses Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
+messages do not copy provider prompts or input. `AgenticSessionProtocol` associates
+its execution error type; Apple uses `AgenticSessionError`. AI-declared failure uses
+Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
 not an execution error. A normal operation does not instruct the AI to use that failure format.
 
 ## Structure and validation

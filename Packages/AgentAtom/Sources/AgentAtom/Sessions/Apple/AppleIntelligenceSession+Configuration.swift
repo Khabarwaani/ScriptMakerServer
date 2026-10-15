@@ -1,22 +1,13 @@
+@available(macOS 26, iOS 26, visionOS 26, *)
 extension AppleIntelligenceSession {
     public struct Configuration: Sendable {
         public let metadata: Set<AgenticMetadataField>
         @Clamped(0...1, default: 1) private var temperatureValue: Double
         public var temperature: Double { temperatureValue }
-        public let maximumResponseTokens: Int?
 
-        public init(
-            metadata: Set<AgenticMetadataField> = [], temperature: Double = 1,
-            maximumResponseTokens: Int? = nil
-        ) {
+        public init(metadata: Set<AgenticMetadataField> = [], temperature: Double = 1) {
             self.metadata = metadata
-            self.maximumResponseTokens = maximumResponseTokens
             self.temperatureValue = temperature
-        }
-
-        var isValid: Bool {
-            if let maximumResponseTokens, maximumResponseTokens <= 0 { return false }
-            return true
         }
     }
 }
