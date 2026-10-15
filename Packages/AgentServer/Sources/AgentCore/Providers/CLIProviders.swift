@@ -84,6 +84,10 @@ public struct CLIProvider: AIProvider {
                     "provider_initialization_failed",
                     "Provider authentication is required. Authenticate using its CLI first.")
             }
+        } catch let error as AgentError {
+            throw AgentError(
+                "provider_initialization_failed", "\(id) readiness check failed: \(error.message)",
+                details: error.details)
         } catch {
             throw AgentError(
                 "provider_initialization_failed",

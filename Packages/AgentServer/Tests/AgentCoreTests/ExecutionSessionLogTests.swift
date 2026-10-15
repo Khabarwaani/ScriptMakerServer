@@ -47,3 +47,25 @@ import Testing
     let permissions = try FileManager.default.attributesOfItem(atPath: log.url.path)[.posixPermissions] as? Int
     #expect(permissions == 0o600)
 }
+
+@Test(arguments: ["exit", "signal"])
+func retainedProcessDiagnosticsExcludeArbitraryProviderDetails(reason: String) throws {
+    let key = reason == "exit" ? "exit_code" : "signal"
+    var record = ExecutionRecord(execution_id: "exec_failure", status: "failed", started_at: Date())
+    record.error = AgentError("provider_execution_failed", "Process failed.", details: .object([
+        "termination_reason": .string(reason), key: .number(2), "stderr": .string("secret-token"),
+    ]))
+    record.retainOnlyStateTimingAndError()
+    #expect(record.error?.details == .object(["termination_reason": .string(reason), key: .number(2)]))
+    let encoded = String(decoding: try JSONEncoder().encode(record), as: UTF8.self)
+    #expect(!encoded.contains("secret-token"))
+}
+
+@Test func retainedProcessDiagnosticsRejectNonNumericStatus() {
+    var record = ExecutionRecord(execution_id: "exec_failure", status: "failed", started_at: Date())
+    record.error = AgentError("provider_execution_failed", "Process failed.", details: .object([
+        "termination_reason": .string("exit"), "exit_code": .string("secret-token"),
+    ]))
+    record.retainOnlyStateTimingAndError()
+    #expect(record.error?.details == nil)
+}

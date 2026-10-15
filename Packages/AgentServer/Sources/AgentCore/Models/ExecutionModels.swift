@@ -51,11 +51,22 @@ public struct ExecutionRecord: Codable, Sendable {
             // Bound retained diagnostics even if a provider supplies a large error.
             self.error = AgentError(
                 String(error.code.prefix(128)), String(error.message.prefix(1024)),
-                executionID: execution_id)
+                executionID: execution_id, details: Self.processDetails(error))
         }
         schema_validated = nil
         process_id = nil
         resident_memory_bytes = nil
+    }
+
+    private static func processDetails(_ error: AgentError) -> JSONValue? {
+        guard error.code == "provider_execution_failed" || error.code == "provider_initialization_failed",
+              let reason = error.details?["termination_reason"]?.string,
+              reason == "exit" || reason == "signal" else { return nil }
+        let key = reason == "exit" ? "exit_code" : "signal"
+        guard case .number(let status) = error.details?[key], status.isFinite,
+              status.rounded() == status, status >= Double(Int32.min), status <= Double(Int32.max)
+        else { return nil }
+        return .object(["termination_reason": .string(reason), key: .number(status)])
     }
 }
 

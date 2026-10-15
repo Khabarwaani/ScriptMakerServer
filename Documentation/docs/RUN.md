@@ -135,8 +135,18 @@ The server inherits the user environment and reuses existing Codex, Antigravity 
 Grok CLI logins. There is no new server login. Configure absolute executable paths
 if Xcode's PATH does not include them, and optional model IDs to override CLI defaults.
 Codex checks cached login status. Antigravity/Grok perform local initialization checks
-without querying remote model lists; expired or inaccessible credentials are reported
+using `--help`, which verifies CLI startup, not authentication or model access.
+Without querying remote model lists, expired or inaccessible credentials are reported
 when the actual provider attempts execution.
+
+A nonzero process exit retains `provider_execution_failed` and reports its actual
+exit status, or its termination signal, in the message and structured `details`.
+This alone does not diagnose authentication, configuration, quota or network
+failures. Inspect the provider's local diagnostic logs for the underlying cause
+(for Antigravity, `~/.gemini/antigravity-cli/log/`). Early login warnings can precede
+successful silent authentication; check the full session outcome. Raw stderr is
+drained but never copied into API responses or default server logs. Readiness
+failures preserve the same bounded exit details under `provider_initialization_failed`.
 
 Test ScriptRefiner with a sample script using each provider:
 
