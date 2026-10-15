@@ -17,7 +17,7 @@ extension OperationStrategy {
         guard allowsFailure,
               let failure = try? JSONDecoder().decode(OperationFailure.self, from: data),
               failure.code == 422 else {
-            return .failure(.invalidResponse)
+            return .failure(.operationFailed)
         }
         return .failure(.generationFailed(reason: failure.reason))
     }

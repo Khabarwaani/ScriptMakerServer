@@ -1,3 +1,4 @@
+/// Provider access that honors cancellation before admission and successful completion.
 public protocol AgenticSessionProtocol: AnyObject, Sendable {
     associatedtype Configuration: Sendable
     var configuration: Configuration { get }
@@ -21,14 +22,14 @@ extension AgenticSessionProtocol {
         to input: String, instructions: String, for operation: ObjectIdentifier,
         yield: @Sendable (String) async throws -> Void
     ) async -> Result<String, AgenticError> {
-        .failure(.unsupportedStreaming)
+        .failure(.unsupported)
     }
 
     public func pause(_ operation: ObjectIdentifier) async throws(AgenticError) {
-        throw .cannotPause
+        throw .unsupported
     }
 
     public func resume(_ operation: ObjectIdentifier) async throws(AgenticError) {
-        throw .cannotResume
+        throw .unsupported
     }
 }

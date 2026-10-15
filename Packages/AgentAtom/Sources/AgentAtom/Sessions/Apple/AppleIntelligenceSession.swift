@@ -39,7 +39,6 @@
                 defer { finish(run) }
                 let stream = run.model.streamResponse(to: input, options: run.options)
                 for try await snapshot in stream {
-                    try Task.checkCancellation()
                     try await yield(snapshot.content)
                 }
                 let response = try await stream.collect()
@@ -89,7 +88,7 @@
 
         private func result(_ text: String) throws(AgenticError) -> Result<String, AgenticError> {
             guard !Task.isCancelled else { throw .cancelled }
-            guard !text.isEmpty else { throw .incompleteGeneration }
+            guard !text.isEmpty else { throw .operationFailed }
             return .success(text)
         }
 
@@ -115,36 +114,8 @@
         }
 
         private func map(_ error: any Error) -> AgenticError {
-            if error is CancellationError || Task.isCancelled { return .cancelled }
-            if let error = error as? AgenticError { return error }
-            #if compiler(>=6.4)
-                if #available(macOS 27, iOS 27, visionOS 27, *) {
-                    if let error = error as? LanguageModelError {
-                        switch error {
-                        case .contextSizeExceeded: return .contextLengthExceeded
-                        case .rateLimited: return .rateLimited
-                        case .guardrailViolation, .refusal: return .refusal
-                        default: return .executionFailed
-                        }
-                    }
-                    if error is SystemLanguageModel.Error {
-                        return .modelUnavailable(reason: "The local model assets are unavailable.")
-                    }
-                    if let error = error as? LanguageModelSession.Error, error == .concurrentRequests { return .busy }
-                }
-            #endif
-            if let error = error as? LanguageModelSession.GenerationError {
-                switch error {
-                case .exceededContextWindowSize: return .contextLengthExceeded
-                case .assetsUnavailable: return .modelUnavailable(reason: "The local model assets are unavailable.")
-                case .guardrailViolation, .refusal: return .refusal
-                case .decodingFailure: return .incompleteGeneration
-                case .rateLimited: return .rateLimited
-                case .concurrentRequests: return .busy
-                default: return .executionFailed
-                }
-            }
-            return .executionFailed
+            if error is CancellationError { return .cancelled }
+            return (error as? AgenticError) ?? .operationFailed
         }
     }
 #endif

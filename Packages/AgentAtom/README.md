@@ -72,7 +72,7 @@ Operations use Identifiable's default ObjectIdentifier, stable for the object's
 lifetime across runs. This identity is process-local and may be reused after the
 object is deallocated; retain the operation when correlating its records.
 Each operation is an actor retaining its immutable spec and session reference.
-It owns its active task and execution state directly. Assigning another reference
+It owns its active task and execution state directly; callers need no task handle. Assigning another reference
 preserves the same operation, identity, and active execution. Construct another
 operation for independent identity and lifecycle control. There is no runner.
 
@@ -100,7 +100,7 @@ Cancelling an idle operation is a no-op and does not prevent a later execution.
 
 `try await operation.pause()` and `resume()` delegate to the session for the active
 operation. They throw `notRunning` when idle. Unsupported sessions throw
-`cannotPause` or `cannotResume` without changing the active execution.
+`unsupported` without changing the active execution.
 `state` is ready, running, paused, cancelling, completed, cancelled, or failed.
 Cancelling reserves the active slot until cleanup finishes. Terminal states permit
 another execution. Pause/resume recheck the active task after suspension so a late
@@ -125,7 +125,7 @@ Decodable shape. The model must use this reserved failure format:
 
 The original success schema remains unchanged. Failable operations convert a valid
 reserved failure response into `generationFailed(reason:)`; standard operations
-return `invalidResponse` for it. Malformed reserved failure responses are also
+return `operationFailed` for it. Malformed reserved failure responses are also
 invalid. All other final text passes through unchanged, including malformed domain
 JSON for the caller to decode. Intermediate streaming snapshots are not decoded.
 
@@ -142,6 +142,9 @@ configuration, per-run IDs, and execution records. Operations own lifecycle cont
 and final failure interpretation.
 Sessions honor cancellation before admission and before returning success; operations
 use that result without checking cancellation again after the session returns.
+Non-streaming caller cancellation reaches the worker through a cancellation handler.
+Streaming checks the caller before launching its independent producer; provider
+stream cancellation and consumer termination handle the active run without snapshot polling.
 
 `AppleIntelligenceSession` is a final Sendable class, compiled only where FoundationModels is supported
 and is available on macOS/iOS/visionOS 26+. Its failable initializer checks device,
@@ -198,14 +201,17 @@ A rerun is available after the producer finishes cleanup.
 ## Errors and validation
 
 `AgenticError` is a Sendable, Equatable Swift error with LocalizedError
-descriptions. It covers model-declared generation failure with a reason, provider
-failures, cancellation, busy admission, invalid instructions/responses, and lifecycle
-capability errors. Public results do not require NSError. Provider errors are mapped
+descriptions. Its six cases are operationFailed, generationFailed(reason:), cancelled,
+busy, notRunning, and unsupported. Provider, instruction, and response failures use
+operationFailed; AI-declared failure retains its reason. Public results do not require
+NSError. Provider errors are mapped
 once at the session boundary; the operation interprets only the reserved final
 model-failure format.
 
-Protocol extensions live with their declarations. Concrete implementations and\nthe typed error occupy separate files.
-The four operation actors own their tasks directly. Immutable generic strategies
+Protocol extensions live with their declarations. Concrete implementations and
+the typed error occupy separate files.
+The four operation actors own their tasks directly; an internal actor protocol shares
+lifecycle defaults without adding a controller. Immutable generic strategies
 share instruction assembly and final failure interpretation. The final session
 class shares admission and completion helpers; it has no runner or unchecked Sendable conformance.
 No public execution handle, response wrapper, result alias, queue, or schema translator is introduced.
