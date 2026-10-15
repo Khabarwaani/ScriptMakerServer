@@ -5,8 +5,15 @@ public protocol AgenticSessionProtocol: Sendable {
     var configuration: SessionConfiguration { get }
     var executionMetadata: [AgenticExecutionMetadata] { get async }
 
-    func execute<Operation: AgenticOperationProtocol>(_ operation: Operation) async -> Result<String, NSError>
-    func stream<Operation: AgenticOperationProtocol>(
-        _ operation: Operation
-    ) async -> AsyncStream<Result<String, NSError>>
+    func generate(
+        input: String, instructions: String, operationID: UUID
+    ) async -> Result<String, AgenticOperationError>
+
+    func stream(
+        input: String, instructions: String, operationID: UUID,
+        yield: @Sendable (String) async throws -> Void
+    ) async -> Result<String, AgenticOperationError>
+
+    func pause(operationID: UUID) async throws(AgenticOperationError)
+    func resume(operationID: UUID) async throws(AgenticOperationError)
 }

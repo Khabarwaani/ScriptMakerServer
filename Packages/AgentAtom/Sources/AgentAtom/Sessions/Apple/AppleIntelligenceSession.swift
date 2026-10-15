@@ -13,51 +13,47 @@
             guard case .available = SystemLanguageModel.default.availability else { return nil }
         }
 
-        public func execute<Operation: AgenticOperationProtocol>(_ operation: Operation) async -> Result<String, NSError> {
+        public func generate(
+            input: String, instructions: String, operationID: UUID
+        ) async -> Result<String, AgenticOperationError> {
+            if let failure = admit() { return .failure(failure) }
+            let executionID = UUID()
+            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+            let clock = ContinuousClock()
+            let start = clock.now
+            defer {
+                executionMetadata.append(metadata(
+                    operationID: operationID, executionID: executionID,
+                    duration: start.duration(to: clock.now), session: session))
+                isBusy = false
+            }
             do {
-                try admit()
-                defer { isBusy = false }
-                return try await perform(operation)
+                return .success(try await perform(input: input, session: session))
             } catch {
-                let failure = map(error)
-                return .failure(failure as NSError)
+                return .failure(map(error))
             }
         }
 
-        public func stream<Operation: AgenticOperationProtocol>(
-            _ operation: Operation
-        ) async -> AsyncStream<Result<String, NSError>> {
-            let (results, continuation) = AsyncStream<Result<String, NSError>>.makeStream(
-                bufferingPolicy: .bufferingNewest(1))
+        public func stream(
+            input: String, instructions: String, operationID: UUID,
+            yield: @Sendable (String) async throws -> Void
+        ) async -> Result<String, AgenticOperationError> {
+            if let failure = admit() { return .failure(failure) }
+            let executionID = UUID()
+            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+            let clock = ContinuousClock()
+            let start = clock.now
+            defer {
+                executionMetadata.append(metadata(
+                    operationID: operationID, executionID: executionID,
+                    duration: start.duration(to: clock.now), session: session))
+                isBusy = false
+            }
             do {
-                try admit()
+                return .success(try await performStream(input: input, session: session, yield: yield))
             } catch {
-                let failure = map(error)
-                continuation.yield(.failure(failure as NSError))
-                continuation.finish()
-                return results
+                return .failure(map(error))
             }
-            let producer = Task {
-                defer {
-                    isBusy = false
-                    continuation.finish()
-                }
-                do {
-                    let response = try await performStream(operation) { snapshot in
-                        if case .terminated = continuation.yield(.success(snapshot)) {
-                            throw AgenticSessionError.cancelled
-                        }
-                    }
-                    continuation.yield(response)
-                } catch {
-                    let failure = map(error)
-                    continuation.yield(.failure(failure as NSError))
-                }
-            }
-            continuation.onTermination = { termination in
-                if case .cancelled = termination { producer.cancel() }
-            }
-            return results
         }
 
         public struct Configuration: Sendable {
@@ -71,77 +67,44 @@
             }
         }
 
-        private func admit() throws {
-            if Task.isCancelled { throw AgenticSessionError.cancelled }
-            guard !isBusy else { throw AgenticSessionError.busy }
+        private func admit() -> AgenticOperationError? {
+            if Task.isCancelled { return .cancelled }
+            guard !isBusy else { return .busy }
             isBusy = true
+            return nil
         }
 
-        private func perform<Operation: AgenticOperationProtocol>(
-            _ operation: Operation
-        ) async throws -> Result<String, NSError> {
-            let input = operation.spec.inputJSON.rawValue
-            let instructions: String
-            instructions = try operation.makeInstructions()
-            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
-            let options = GenerationOptions(temperature: configuration.temperature)
-            let clock = ContinuousClock()
-            let start = clock.now
-            let response: String
+        private func perform(input: String, session: LanguageModelSession) async throws -> String {
             try Task.checkCancellation()
-            response = try await session.respond(to: input, options: options).content
+            let response = try await session.respond(
+                to: input, options: GenerationOptions(temperature: configuration.temperature)).content
             try Task.checkCancellation()
-            guard !response.isEmpty else { throw AgenticSessionError.incompleteGeneration }
-            let responseMetadata = metadata(duration: start.duration(to: clock.now), session: session)
-            let result = try result(from: response)
-            try Task.checkCancellation()
-            if let responseMetadata { executionMetadata.append(responseMetadata) }
-            return result
+            guard !response.isEmpty else { throw AgenticOperationError.incompleteGeneration }
+            return response
         }
 
-        private func performStream<Operation: AgenticOperationProtocol>(
-            _ operation: Operation, yield: @Sendable (String) async throws -> Void
-        ) async throws -> Result<String, NSError> {
-            let input = operation.spec.inputJSON.rawValue
-            let instructions = try operation.makeInstructions()
-            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
-            let options = GenerationOptions(temperature: configuration.temperature)
-            let clock = ContinuousClock()
-            let start = clock.now
-            let response: String
+        private func performStream(
+            input: String, session: LanguageModelSession,
+            yield: @Sendable (String) async throws -> Void
+        ) async throws -> String {
             try Task.checkCancellation()
-            let stream = session.streamResponse(to: input, options: options)
+            let stream = session.streamResponse(
+                to: input, options: GenerationOptions(temperature: configuration.temperature))
             for try await snapshot in stream {
                 try Task.checkCancellation()
                 try await yield(snapshot.content)
             }
             try Task.checkCancellation()
-            response = try await stream.collect().content
+            let response = try await stream.collect().content
             try Task.checkCancellation()
-            guard !response.isEmpty else { throw AgenticSessionError.incompleteGeneration }
-            let responseMetadata = metadata(duration: start.duration(to: clock.now), session: session)
-            let result = try result(from: response)
-            try Task.checkCancellation()
-            if let responseMetadata { executionMetadata.append(responseMetadata) }
-            return result
+            guard !response.isEmpty else { throw AgenticOperationError.incompleteGeneration }
+            return response
         }
 
-        private func result(from response: String) throws -> Result<String, NSError> {
-            guard let data = response.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  json["domain"] as? String == "AgentAtom.Operation" else {
-                return .success(response)
-            }
-            guard let failure = try? JSONDecoder().decode(OperationFailure.self, from: data), failure.code == 422 else {
-                throw AgenticSessionError.invalidResponse
-            }
-            return .failure(
-                NSError(domain: failure.domain, code: failure.code, userInfo: [NSLocalizedDescriptionKey: failure.reason]))
-        }
-
-        private func metadata(duration: Duration, session: LanguageModelSession) -> AgenticExecutionMetadata? {
+        private func metadata(
+            operationID: UUID, executionID: UUID, duration: Duration, session: LanguageModelSession
+        ) -> AgenticExecutionMetadata {
             let fields = configuration.metadata
-            guard !fields.isEmpty else { return nil }
             var promptTokens: Int?
             var completionTokens: Int?
             #if compiler(>=6.4)
@@ -151,15 +114,16 @@
                 }
             #endif
             return AgenticExecutionMetadata(
+                operationID: operationID, executionID: executionID,
                 modelIdentifier: fields.contains(.modelIdentifier) ? "SystemLanguageModel.default" : nil,
                 duration: fields.contains(.duration) ? duration : nil,
                 promptTokens: promptTokens, completionTokens: completionTokens
             )
         }
 
-        private func map(_ error: any Error) -> AgenticSessionError {
+        private func map(_ error: any Error) -> AgenticOperationError {
             if error is CancellationError || Task.isCancelled { return .cancelled }
-            if let error = error as? AgenticSessionError { return error }
+            if let error = error as? AgenticOperationError { return error }
             #if compiler(>=6.4)
                 if #available(macOS 27, iOS 27, visionOS 27, *) {
                     if let error = error as? LanguageModelError {

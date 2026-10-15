@@ -1,8 +1,6 @@
 # AgentAtom
 
-Standalone Swift specifications, operations, and sessions. This package has no
-dependency on AgentServer, the Mac app, or sibling packages and can move to its own
-repository.
+Swift specifications, reusable operations, and sessions.
 
 ## Specifications
 
@@ -26,181 +24,181 @@ failure; these are programmer preconditions, not recoverable execution errors.
 
 ## Operations and results
 
-Operations depend only on `Spec`. `ModelledSpec` is one way to implement a spec;
-operations do not know or care how a spec is implemented. The operation protocol
-exposes its associated spec type, the spec instance, and `makeInstructions()` only.
-The session reads input from that spec.
+Operations depend on `Spec` and an injected generic `AgenticSessionProtocol`.
+They do not depend on `ModelledSpec` or decode domain output. Each operation
+exposes its UUID, spec, `isExecuting`, final-instruction method, and an associated
+execution-result type through `AgenticOperationProtocol`.
 
-`AgenticOperation` requests the spec's output. `FailableAgenticOperation` also
-permits the AI to decline with a reason. Both are structs conforming to
-`AgenticOperationProtocol`, and both can throw execution errors.
+| Operation | `execute()` result | AI-declared failure allowed |
+| --- | --- | --- |
+| `AgenticOperation` | `Result<String, AgenticOperationError>` | No |
+| `FailableAgenticOperation` | `Result<String, AgenticOperationError>` | Yes |
+| `StreamingAgenticOperation` | `AsyncStream<Result<String, AgenticOperationError>>` | No |
+| `FailableStreamingAgenticOperation` | `AsyncStream<Result<String, AgenticOperationError>>` | Yes |
 
-Execution returns a native tuple containing session metadata and the built-in
-`Result<String, NSError>` directly, without a custom result type or typealias.
-
-Successful content is the model's unchanged response text. The operation supplies
-the spec's JSON schema in its instructions; the model is expected to produce that
-JSON directly. The library does not translate the schema into an Apple-specific
-schema, decode domain output, unwrap success JSON, re-encode, repair, strip fences,
-or otherwise format the answer. Prompted schema adherence is an expectation, not
-a guarantee that arbitrary output will decode. The caller decodes it afterward.
+All four can encounter provider errors or cancellation. Successful final content
+is the model's unchanged response text. The caller decodes and validates domain
+output afterward; the package never repairs JSON, strips fences, unwraps success
+envelopes, re-encodes output, or translates schemas into an Apple-specific schema.
+Prompted schema adherence does not guarantee that arbitrary model output decodes.
 
 ```swift
 if #available(macOS 26, iOS 26, visionOS 26, *) {
     guard let session = AppleIntelligenceSession(configuration: .init(
         metadata: [.duration, .modelIdentifier]
     )) else {
-        return // This device or its local model is unavailable.
+        return
     }
 
-    let response = await session.execute(AgenticOperation(spec: spec))
+    let operation = AgenticOperation(spec: spec, session: session)
+    let response = await operation.execute()
     switch response {
     case .success(let json):
         let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
         // Retain and validate output in the caller.
-    case .failure(let failure):
-        print(failure.localizedDescription)
+    case .failure(let error):
+        print(error.localizedDescription)
     }
+
+    let nextResponse = await operation.execute()
+    let records = await session.executionMetadata
+    // Same operation.id; each admitted run has a distinct records entry and executionID.
 }
 ```
 
-A normal operation returns its response string without interpreting domain JSON.
-A failable operation appends the fixed failure schema while creating its final
-instructions. Success uses the spec's original schema unchanged. Failure uses:
+## Reuse, identity, and lifecycle
+
+An operation's UUID is assigned at initialization and remains stable across runs.
+Its immutable spec and session reference are retained. Operations are structs
+containing a shared private lifecycle actor: copying a value preserves the same
+logical operation, UUID, and active execution. Construct another operation for
+independent identity and lifecycle control.
+
+Call `execute()` again after completion or cancellation cleanup to start another
+run. An overlapping call on the same operation returns `busy`. Only the active
+producer Task is retained; operations store neither execution IDs nor result history.
+They do not enqueue requests or retry automatically.
+
+The session assigns a fresh execution UUID when it admits a run. Its read-only,
+asynchronously accessible `executionMetadata` array records the operation UUID
+and execution UUID after that run finishes, including provider failure and cancellation.
+Identity is always recorded; configured metrics are optional. Admission failures
+and instruction-assembly failures do not create an execution ID or record.
+
+```swift
+let latest = await session.executionMetadata.last
+let runs = await session.executionMetadata.filter { $0.operationID == operation.id }
+```
+
+`await operation.cancel()` cooperatively cancels the active producer. Cancellation
+of a task awaiting a non-streaming operation also cancels its producer. Cancellation
+does not free the session until its provider call returns and cleanup completes.
+Cancelling an idle operation is a no-op and does not prevent a later execution.
+
+`try await operation.pause()` and `resume()` delegate to the session for the active
+operation. They throw `notRunning` when idle. Unsupported sessions throw
+`cannotPause` or `cannotResume` without changing the active execution.
+`isExecuting` remains true while a run is active, including when a provider pauses it.
+The Apple session has no native generation pause/resume support and uses these
+explicit unsupported errors.
+
+## Instructions and declared failures
+
+Operations assemble final instructions on every call using the generic
+strategy-backed assembler. They send the spec role, rules, and original output
+schema as provider instructions, with input JSON sent separately as prompt data.
+A String input retains its JSON quoting and escaping. Session configuration does
+not own roles, rules, or instruction overrides.
+
+Failable operations append an alternative failure schema derived from a
+Decodable shape. The model must use this reserved failure format:
 
 ```json
 {"domain":"AgentAtom.Operation","code":422,"reason":"The input is insufficient."}
 ```
 
-There is no combined schema or success envelope. The original JSONSchema type is
-unchanged. The session recognizes the reserved AgentAtom.Operation
-failure domain and returns Foundation NSError with code 422 and the reason as its
-localized description. Invalid reserved failure responses return an invalidResponse failure.
-All other content is returned as the exact original success string, including
-malformed domain JSON for the caller to decode later. That domain is reserved for error responses, rather than ordinary domain output.
+The original success schema remains unchanged. Failable operations convert a valid
+reserved failure response into `generationFailed(reason:)`; standard operations
+return `invalidResponse` for it. Malformed reserved failure responses are also
+invalid. All other final text passes through unchanged, including malformed domain
+JSON for the caller to decode. Intermediate streaming snapshots are not decoded.
 
-Operations use value semantics. Create one per request; there is no reuse tracking,
-defensive copying, or mutation policing. Keep reference-backed input and computed
-request values stable during execution. Fact checking, list lengths, and other
-domain validation belong to the caller, as do retries.
-
-## Instructions
-
-Operations generate instructions through `makeInstructions()` before the session
-executes them. A strategy-backed assembler builds normal and failable instruction
-formats. Session configuration has no instructions, roles, or spec rules. The spec owns its
-initialized instructions. Operations accept only a spec; they add fixed JSON-format
-rules in code, without runtime base instructions or instruction overrides.
-
-The spec role, instructions, and output schema are sent as provider instructions.
-Input is sent separately as prompt data. A String spec input stays its JSON string
-literal, with its original escaping. Instruction assembly expresses precedence;
-it does not prove model obedience.
+Keep reference-backed spec input and computed request values stable during a run.
+Domain constraints, fact checking, output decoding, and retry decisions belong to
+the caller.
 
 ## Sessions and configuration
 
-`AgenticSessionProtocol` directly executes generic operations and associates its
-own configuration type. Callers initialize and inject the concrete session they
-want; there is no singleton or shared scheduling. Execution returns success or a
-mapped NSError. Streaming returns only AsyncStream<Result<String, NSError>>.
-A session without streaming support emits an unsupported-streaming failure and finishes.
+The session protocol supplies generation primitives accepting finalized
+instructions, input, and an operation UUID. Streaming forwards snapshots through a
+nonescaping async callback and returns the final result. Sessions own provider access,
+configuration, per-run IDs, and execution records. Operations own lifecycle control
+and final failure interpretation.
 
-`AppleIntelligenceSession` is available at compile time on macOS/iOS/visionOS 26+.
-Its failable initializer returns nil if the device, Apple Intelligence settings,
-or local model availability prevent initialization. It uses only
-`SystemLanguageModel.default`.
-The package retains its older deployment minimums. There is no automatic provider
-fallback.
+`AppleIntelligenceSession` is compiled only where FoundationModels is supported
+and is available on macOS/iOS/visionOS 26+. Its failable initializer checks device,
+settings, and model readiness once. It uses `SystemLanguageModel.default` and one
+file-level platform guard. The package retains its older deployment minimums.
 
-Each Apple session handles one active operation; overlap returns a busy failure. Create
-independent sessions for concurrency. Each execution uses a fresh provider
-conversation. History-enabled behavior is a separate feature.
+One Apple session admits one generation at a time; overlap returns `busy`. Use
+independent sessions for concurrency. Every run uses a fresh provider conversation;
+execution records are diagnostic metadata, not conversation history.
 
-Apple configuration selects generation temperature and which metadata fields to
-collect internally. Temperature is non-optional, defaults to 1, and uses a private generic
-property wrapper in the session implementation to clamp to 0...1. NaN uses the default;
-infinities clamp to their respective bounds. Response length uses the provider's
-context-based limit. See
-[Apple's temperature documentation](https://developer.apple.com/documentation/foundationmodels/generationoptions/temperature).
-All operations here request JSON and expose
-strings; provider-specific image generation is outside this implementation.
+Configuration is fixed at initialization. Temperature defaults to 1 and clamps to
+0...1 using a private generic property wrapper; NaN uses the default and infinities
+clamp to the bounds. Response length follows the provider context limit.
 
-Metadata belongs to the session and is disabled by default. The protocol exposes
-an asynchronously readable, read-only `executionMetadata` array, ordered by completion.
-Completed generations append configured metadata, including AI-declared failures.
-Rejected requests and provider errors leave existing entries unchanged. Disabled
-collection leaves the array empty. Callers can read the latest entry through any
-session implementation:
+Optional metrics default to disabled. Apple can collect model identifier, monotonic
+generation duration, and token usage. Token counts use the guarded OS 27 SDK API;
+unavailable counts stay absent and actual zero is preserved. The identifier is
+`SystemLanguageModel.default`, not an invented model version. Other sessions can
+populate the portable tier, reasoning-effort, and finish-reason fields.
+
+## Streaming
 
 ```swift
-let latest = await session.executionMetadata.last
-```
-
-The Apple session can collect model identifier, duration, and token usage; token
-counts use the version-guarded OS 27 SDK usage API. Duration uses a monotonic clock
-for generation time, excluding instruction assembly and caller decoding. The model
-identifier reports `SystemLanguageModel.default`, not an invented version. The
-portable metadata type can carry model tier, reasoning effort, and finish reason
-when another session implementation can report them. The provider conversation
-contains exactly one request, so token counts are per-request; actual zero is kept.
-
-## Streaming and cancellation
-
-```swift
-let stream = await session.stream(AgenticOperation(spec: spec))
+let operation = FailableStreamingAgenticOperation(spec: spec, session: session)
+let stream = await operation.execute()
 for await result in stream {
     switch result {
     case .success(let snapshot):
-        print(snapshot) // Replace display content with this cumulative string.
+        print(snapshot) // Replace display content with the cumulative text.
     case .failure(let error):
         print(error.localizedDescription)
     }
 }
 ```
 
-Starting a stream starts generation. It has one consumer and buffers only the
-newest result. Intermediate successes contain cumulative snapshots and may coalesce;
-they need not be prefix extensions. After normal stream completion, the last element
-is the final success or failure. Partial JSON is not decoded or repaired. An error
-after a valid-looking snapshot produces a final failure.
+Each stream has one consumer and buffers only its newest result. Intermediate
+successes contain cumulative snapshots and can coalesce; they need not be prefix
+extensions. After normal completion, the last element is the final success or
+failure. Do not decode a partial snapshot as a completed result.
 
-The producer Task stays inside the session. Metadata is available separately through
-the protocol. Execution errors are
-mapped once and emitted as Result.failure before the stream finishes. Cancel the
-consuming task to terminate delivery and cancel the producer. Breaking out of the
-loop alone does not guarantee prompt producer cancellation. Cancellation ends
-delivery, so callers must not treat the last partial snapshot as a completed result.
-The session stays busy until its provider call returns. Buffering bounds result
-count, not the final string size.
+Call `await operation.cancel()` to stop generation without losing the consumer's
+ability to receive the final cancellation failure. Cancelling the consuming task
+also cancels the producer but terminates delivery, so its last received snapshot
+might remain partial. Breaking the loop alone does not guarantee prompt cancellation.
+A rerun is available after the producer finishes cleanup.
 
-## Errors
+## Errors and validation
 
-Session errors conform to LocalizedError and CustomNSError with stable domain
-`AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
-1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
-1007, rate limited 1008, execution failure 1009, invalid failure response 1010. Diagnostic
-messages do not copy provider prompts or input. Apple execution errors use
-`AgenticSessionError`. AI-declared failure uses
-Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
-not an execution error. A normal operation does not instruct the AI to use that failure format.
+`AgenticOperationError` is a Sendable, Equatable Swift error with LocalizedError
+descriptions. It covers model-declared generation failure with a reason, provider
+failures, cancellation, busy admission, invalid instructions/responses, and lifecycle
+capability errors. Public results do not require NSError. Provider errors are mapped
+once at the session boundary; the operation interprets only the reserved final
+model-failure format.
 
-## Structure and validation
+Protocols, implementations, defaults, and the typed error occupy separate files.
+The four operation structs share one private lifecycle actor. No public execution
+handle, response wrapper, result alias, queue, or schema translator is introduced.
+Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 
-New operation/session protocols have their own files, separate from their concrete
-implementations and defaults. Existing spec files remain untouched.
-
-The remaining types have distinct roles: two operation structs describe their
-allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
-portable metadata is read through the session protocol; the Apple actor/configuration own
-provider execution; the built-in stream returns only results and its producer Task is private.
-There are no response/result/stream wrapper types, result aliases, transport content wrappers, schema translator, backend class, or
-domain-output conversion layer.
-
-Run `swift build --target AgentAtom` to compile the library. Runnable examples and
-validation of generated results belong to consumers, rather than this package.
-Existing Phase 2 tests cover specs and schema derivation. New operation,
-session, cancellation, platform, and live-model tests are a separate task:
-[#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88).
+Run `swift build --package-path Packages/AgentAtom` to compile. Automated operation,
+session, cancellation, platform, and live-model tests remain a separate task:
+[#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88). Coverage must include
+reruns with distinct execution IDs, shared operation identity, overlap rejection,
+cancellation cleanup, unsupported lifecycle controls, and all four result modes.
 
 Implementation [PR #89](https://github.com/Khabarwaani/ScriptMakerServer/pull/89)
 addresses [#87](https://github.com/Khabarwaani/ScriptMakerServer/issues/87). It must
