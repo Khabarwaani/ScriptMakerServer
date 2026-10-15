@@ -19,22 +19,22 @@ public final class TerminalAgentSession: AgenticSessionProtocol, @unchecked Send
 
     /// Creates a session with automatic detection of available terminal providers in order: Codex -> Antigravity -> Grok.
     public convenience init?(workingDirectory: URL? = nil, metadata: AgenticExecutionMetadata.Fields = []) {
-        if let codex = CodexTerminalSession(configuration: .init(workingDirectory: workingDirectory, metadata: metadata)) {
-            self.init(provider: .codex, session: codex, configuration: .init(provider: .codex, workingDirectory: workingDirectory, metadata: metadata))
+        if let codex = CodexTerminalSession(configuration: .init(executablePath: "codex", workingDirectory: workingDirectory, metadata: metadata)) {
+            self.init(provider: .codex, session: codex, configuration: .init(provider: .codex, executablePath: "codex", workingDirectory: workingDirectory, metadata: metadata))
             return
         }
-        if let agy = AntigravityTerminalSession(configuration: .init(workingDirectory: workingDirectory, metadata: metadata)) {
-            self.init(provider: .antigravity, session: agy, configuration: .init(provider: .antigravity, workingDirectory: workingDirectory, metadata: metadata))
+        if let agy = AntigravityTerminalSession(configuration: .init(executablePath: "agy", workingDirectory: workingDirectory, metadata: metadata)) {
+            self.init(provider: .antigravity, session: agy, configuration: .init(provider: .antigravity, executablePath: "agy", workingDirectory: workingDirectory, metadata: metadata))
             return
         }
-        if let grok = GrokTerminalSession(configuration: .init(workingDirectory: workingDirectory, metadata: metadata)) {
-            self.init(provider: .grok, session: grok, configuration: .init(provider: .grok, workingDirectory: workingDirectory, metadata: metadata))
+        if let grok = GrokTerminalSession(configuration: .init(executablePath: "grok", workingDirectory: workingDirectory, metadata: metadata)) {
+            self.init(provider: .grok, session: grok, configuration: .init(provider: .grok, executablePath: "grok", workingDirectory: workingDirectory, metadata: metadata))
             return
         }
         return nil
     }
 
-    /// Creates a session explicitly for a given provider.
+    /// Creates a session explicitly for a given provider with optional custom configuration.
     public init?(provider: Provider, configuration: Configuration = Configuration()) {
         self.configuration = configuration
         switch provider {

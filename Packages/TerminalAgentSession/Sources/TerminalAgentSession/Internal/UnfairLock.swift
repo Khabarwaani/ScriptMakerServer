@@ -1,22 +1,14 @@
 import Foundation
 
-/// A lightweight, Sendable unfair lock for thread-safe state synchronization across supported macOS versions.
+/// A lightweight, Sendable thread-safe lock for state synchronization across macOS, Linux, and Windows.
 final class UnfairLock: @unchecked Sendable {
-    private let pointer: os_unfair_lock_t
+    private let lock = NSLock()
 
-    init() {
-        pointer = .allocate(capacity: 1)
-        pointer.initialize(to: os_unfair_lock())
-    }
-
-    deinit {
-        pointer.deinitialize(count: 1)
-        pointer.deallocate()
-    }
+    init() {}
 
     func withLock<R>(_ body: () throws -> R) rethrows -> R {
-        os_unfair_lock_lock(pointer)
-        defer { os_unfair_lock_unlock(pointer) }
+        lock.lock()
+        defer { lock.unlock() }
         return try body()
     }
 }

@@ -11,7 +11,9 @@ public final class GrokTerminalSession: AgenticSessionProtocol, @unchecked Senda
         state.withLock { stateStorage.records }
     }
 
-    public init?(configuration: Configuration = Configuration()) {
+    public typealias Configuration = TerminalAgentConfiguration
+
+    public init?(configuration: Configuration = Configuration(executablePath: "grok")) {
         guard let resolvedURL = TerminalProcessRunner.resolveExecutable(named: configuration.executablePath) else {
             return nil
         }
@@ -37,30 +39,6 @@ public final class GrokTerminalSession: AgenticSessionProtocol, @unchecked Senda
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
         await runSession(input: input, instructions: instructions, schema: schema, for: operation, yield: yield)
-    }
-
-    public struct Configuration: Sendable {
-        public var executablePath: String
-        public var model: String?
-        public var workingDirectory: URL?
-        public var extraArguments: [String]
-        public var metadata: AgenticExecutionMetadata.Fields
-        var resolvedURL: URL?
-
-        public init(
-            executablePath: String = "grok",
-            model: String? = nil,
-            workingDirectory: URL? = nil,
-            extraArguments: [String] = [],
-            metadata: AgenticExecutionMetadata.Fields = []
-        ) {
-            self.executablePath = executablePath
-            self.model = model
-            self.workingDirectory = workingDirectory
-            self.extraArguments = extraArguments
-            self.metadata = metadata
-            self.resolvedURL = nil
-        }
     }
 
     private struct State: Sendable {

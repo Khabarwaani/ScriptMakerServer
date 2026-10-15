@@ -115,16 +115,36 @@ enum TerminalProcessRunner {
 
     /// Resolves executable in system PATH if url does not exist directly.
     static func resolveExecutable(named name: String) -> URL? {
-        if name.hasPrefix("/") || name.hasPrefix("./") {
-            let url = URL(fileURLWithPath: name)
-            return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+        #if os(Windows)
+        let extensions = ["", ".exe", ".cmd", ".bat"]
+        let pathSeparator: Character = ";"
+        let defaultPath = "C:\\Windows\\System32;C:\\Windows"
+        #else
+        let extensions = [""]
+        let pathSeparator: Character = ":"
+        let defaultPath = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
+        #endif
+
+        if name.hasPrefix("/") || name.hasPrefix("./") || (name.count > 1 && name.contains(":")) {
+            for ext in extensions {
+                let candidatePath = ext.isEmpty ? name : name + ext
+                let url = URL(fileURLWithPath: candidatePath)
+                if FileManager.default.isExecutableFile(atPath: url.path) {
+                    return url
+                }
+            }
+            return nil
         }
-        let envPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
-        let searchPaths = envPath.split(separator: ":").map(String.init)
+
+        let envPath = ProcessInfo.processInfo.environment["PATH"] ?? defaultPath
+        let searchPaths = envPath.split(separator: pathSeparator).map(String.init)
         for searchPath in searchPaths {
-            let candidate = URL(fileURLWithPath: searchPath).appendingPathComponent(name)
-            if FileManager.default.isExecutableFile(atPath: candidate.path) {
-                return candidate
+            for ext in extensions {
+                let fullName = ext.isEmpty ? name : name + ext
+                let candidate = URL(fileURLWithPath: searchPath).appendingPathComponent(fullName)
+                if FileManager.default.isExecutableFile(atPath: candidate.path) {
+                    return candidate
+                }
             }
         }
         return nil
