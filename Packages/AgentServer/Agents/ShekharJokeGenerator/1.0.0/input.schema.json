@@ -2,9 +2,36 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ShekharJokeGeneratorInput",
   "type": "object",
-  "properties": {},
+  "properties": {
+    "output_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 1,
+      "description": "Number of winning news story joke packages to return in the items output array. Defaults to 1."
+    },
+    "news_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 3,
+      "description": "Number of verified Indian news stories to research and evaluate. Defaults to 3."
+    },
+    "jokes_per_category": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "default": 2,
+      "description": "Number of joke variations (e.g. short, long) to generate and evaluate for each story category. Defaults to 2."
+    }
+  },
   "additionalProperties": false,
   "examples": [
-    {}
+    {},
+    {
+      "output_count": 1,
+      "news_count": 3,
+      "jokes_per_category": 2
+    }
   ]
 }

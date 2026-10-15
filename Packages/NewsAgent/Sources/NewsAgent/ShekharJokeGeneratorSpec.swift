@@ -21,13 +21,11 @@ public struct ShekharJokeGeneratorSpec: ModelledSpec {
 
     ## OBJECTIVE
 
-    Find three verified Indian news stories published within the previous 24 hours. Create two jokes for each story: a short version of no more than 30 words and a longer version of no more than 60 words.
+    Find verified Indian news stories published within the previous 24 hours based on the requested `news_count` (default: 3). For each story, create joke versions according to `jokes_per_category` (default: 2 — Version 1: short joke max 30 words; Version 2: long joke max 60 words).
 
-    This produces six jokes internally.
+    Evaluate all jokes and select the winning stories matching `output_count` (default: 1) based on the quality of their humour and news connection.
 
-    Evaluate all six jokes and select the single best story based on the quality of its humour and news connection.
-
-    Final output: One winning news story with BOTH joke versions (30-word and 60-word limits).
+    Final output: An `items` array containing the requested number (`output_count`) of winning news stories with BOTH joke versions (30-word and 60-word limits) and formatted spoken Hindi scripts.
 
     The goal is to make people laugh while communicating the actual news through witty, indirect satire inspired by Shekhar Suman’s news-anchor style.
 
@@ -56,24 +54,24 @@ public struct ShekharJokeGeneratorSpec: ModelledSpec {
 
     ---
 
-    ## STEP 1: RESEARCH THREE NEWS STORIES
+    ## STEP 1: RESEARCH NEWS STORIES
 
-    Autonomously research and find exactly three distinct verified Indian news stories published within the previous 24 hours. The agent does not take topic or news source URL input; it discovers the freshest and most engaging real news independently.
+    Autonomously research and find verified Indian news stories published within the previous 24 hours according to `news_count` (default: 3 distinct stories). The agent discovers the freshest and most engaging real news independently.
 
-    Each story must represent a different selection category:
+    Distribute the researched stories across different selection categories:
 
     * **STORY A: MOST TRENDING**
-      Find the most widely trending or discussed Indian news story based on available evidence. Consider search interest, trending discussions, news coverage, and public attention. Do not claim a story is the most trending without supporting evidence.
+      Find widely trending or discussed Indian news stories based on available evidence. Consider search interest, trending discussions, news coverage, and public attention. Do not claim a story is trending without supporting evidence.
 
     * **STORY B: STRONGEST MEME POTENTIAL**
-      Find a fresh Indian news story that has generated substantial meme activity or has strong, evidence-based potential for memes. Look for unusual situations, irony, surprising developments, relatable frustrations, or contradictions between expectations and reality. This story must be different from Story A.
+      Find fresh Indian news stories that have generated substantial meme activity or has strong, evidence-based potential for memes. Look for unusual situations, irony, surprising developments, relatable frustrations, or contradictions between expectations and reality.
 
     * **STORY C: MOST IMPORTANT**
-      Find an Indian news story with meaningful implications for ordinary people. Prioritise government decisions, public policy, inflation, employment, personal finances, public transport, education, healthcare, and significant national developments. This story must be different from Stories A and B.
+      Find Indian news stories with meaningful implications for ordinary people. Prioritise government decisions, public policy, inflation, employment, personal finances, public transport, education, healthcare, and significant national developments.
 
     ---
 
-    ## STEP 2: VERIFY ALL THREE STORIES
+    ## STEP 2: VERIFY ALL STORIES
 
     For each story:
     1. Search current Indian news sources.
@@ -90,9 +88,9 @@ public struct ShekharJokeGeneratorSpec: ModelledSpec {
 
     ---
 
-    ## STEP 3: GENERATE TWO JOKE VERSIONS FOR EACH STORY
+    ## STEP 3: GENERATE JOKE VERSIONS FOR EACH STORY
 
-    Create exactly TWO versions of the joke for EACH of the three stories.
+    Create joke versions for EACH story according to `jokes_per_category` (default: 2 versions):
 
     * **VERSION 1: SHORT JOKE (Maximum 30 words)**
       - Include a recognisable detail from the actual news.
@@ -122,18 +120,18 @@ public struct ShekharJokeGeneratorSpec: ModelledSpec {
 
     ---
 
-    ## STEP 5: EVALUATE ALL SIX JOKES
+    ## STEP 5: EVALUATE JOKES & SELECT WINNERS
 
-    Compare all six jokes internally using these criteria:
+    Compare all generated jokes internally using these criteria:
     * Immediate humour and laugh potential: 30%
     * Clarity and recognisability of the news fact: 25%
     * Originality of the punchline: 20%
     * Relatability to ordinary Indians: 15%
     * Natural, witty delivery: 10%
 
-    Select the ONE winning story based on the strongest joke performance across its two versions.
-    Both joke versions belonging to that winning story must appear in the final output.
-    Do not include the other two stories, the four losing jokes, the scores, or the internal evaluation in the final output.
+    Rank the stories based on overall joke performance and select the top stories matching `output_count` (default: 1).
+    Both joke versions belonging to each selected winning story must appear in the final output.
+    Do not include the losing stories, losing jokes, scores, or internal evaluations in the final output.
 
     ---
 
@@ -145,11 +143,11 @@ public struct ShekharJokeGeneratorSpec: ModelledSpec {
     4. Prefer familiar Indian situations over abstract comparisons.
     5. Use situational irony instead of generic insults.
     6. Do not force a household comparison if another angle is funnier.
-    7. Avoid repeating the same joke structure across all six jokes.
+    7. Avoid repeating the same joke structure across stories.
     8. Give each short and long version a distinct comedic development.
     9. Never sacrifice factual accuracy for humour.
     10. Avoid hateful content and personal attacks.
-    11. Ensure both final jokes are original and memorable.
+    11. Ensure all final jokes are original and memorable.
     12. Do not reuse previously published jokes.
     13. Never provide placeholder, dummy, or example jokes or news; every joke, headline, and link must be freshly generated from authentic, verified news.
 
@@ -163,21 +161,22 @@ public struct ShekharJokeGeneratorSpec: ModelledSpec {
 
     ## STEP 8: FINAL VALIDATION & OUTPUT FORMAT
 
-    Output the single winning story and its TWO joke versions formatted cleanly in the structured schema:
-    - `title`: Winning news headline in Hindi.
-    - `date`: Verified publication date and time.
-    - `link`: Direct article URL.
-    - `category`: One of "Trending", "Meme Potential", or "Public Importance".
-    - `joke1`: Winning story's short Hindi joke (Devanagari, max 30 words).
-    - `joke2`: Winning story's long Hindi joke (Devanagari, max 60 words).
-    - `script`: Formatted plain-text presentation script delivered in authentic, punchy spoken Hindi (not bookish written Hindi), containing:
-      #1
-      title: [Winning news headline in conversational Hindi]
-      date: [Verified publication date and time]
-      link: [Direct article URL]
-      category: [Trending / Meme Potential / Public Importance]
-      joke1: [Winning story's short Hindi joke in everyday spoken Hindi, maximum 30 words]
-      joke2: [Winning story's long Hindi joke in everyday spoken Hindi, maximum 60 words]
+    Output the winning story packages in the `items` array matching `output_count`:
+    - `items`: Array of winning joke packages. Each item contains:
+      - `title`: Winning news headline in Hindi.
+      - `date`: Verified publication date and time.
+      - `link`: Direct article URL.
+      - `category`: One of "Trending", "Meme Potential", or "Public Importance".
+      - `joke1`: Winning story's short Hindi joke (Devanagari, max 30 words).
+      - `joke2`: Winning story's long Hindi joke (Devanagari, max 60 words).
+      - `script`: Formatted plain-text presentation script delivered in authentic, punchy spoken Hindi (not bookish written Hindi), containing:
+        #[index]
+        title: [Winning news headline in conversational Hindi]
+        date: [Verified publication date and time]
+        link: [Direct article URL]
+        category: [Trending / Meme Potential / Public Importance]
+        joke1: [Winning story's short Hindi joke in everyday spoken Hindi, maximum 30 words]
+        joke2: [Winning story's long Hindi joke in everyday spoken Hindi, maximum 60 words]
     """
 
     public static var role: String { defaultRole }
