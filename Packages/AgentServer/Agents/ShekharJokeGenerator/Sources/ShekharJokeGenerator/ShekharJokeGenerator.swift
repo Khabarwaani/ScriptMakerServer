@@ -6,10 +6,7 @@ extension ShekharJokeGeneratorInput: @retroactive JSONSchemaConvertible {
     public static func schema() -> SchemaDefinition {
         SchemaDefinition(
             title: "ShekharJokeGeneratorInput",
-            properties: [
-                SchemaProperty(name: "topic", type: "string", description: "Optional news topic or focus area to guide news selection."),
-                SchemaProperty(name: "news_source_url", type: "string", description: "Optional direct news article URL to include in curation.")
-            ],
+            properties: [],
             additionalProperties: false,
             examples: [
                 .object([:])

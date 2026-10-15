@@ -219,7 +219,9 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
                 }
                 throw AgentError(
                     "provider_execution_failed",
-                    "Provider execution failed. Check provider authentication and local configuration.")
+                    errString.isEmpty
+                        ? "Provider execution failed. Check provider authentication and local configuration."
+                        : "Provider execution failed: \(errString)")
             }
             return finalText
         } catch {

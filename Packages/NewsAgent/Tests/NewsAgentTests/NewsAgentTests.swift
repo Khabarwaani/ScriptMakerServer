@@ -30,11 +30,10 @@ struct NewsAgentTests {
 
     @Test
     func testInputSerialization() throws {
-        let input = ShekharJokeGeneratorInput(topic: "Railways", newsSourceURL: "https://example.com/railways")
+        let input = ShekharJokeGeneratorInput()
         let spec = ShekharJokeGeneratorSpec(input: input)
         let json = spec.inputJSON.rawValue
-        #expect(json.contains(#""topic":"Railways""#))
-        #expect(json.contains("news_source_url"))
+        #expect(json == "{}")
         let decoded = try JSONDecoder().decode(ShekharJokeGeneratorInput.self, from: Data(json.utf8))
         #expect(decoded == input)
     }
