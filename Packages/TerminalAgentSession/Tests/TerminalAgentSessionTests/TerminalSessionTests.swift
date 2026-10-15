@@ -114,23 +114,6 @@ struct TerminalSessionTests {
         #expect(output.reply == "Hello from Grok")
     }
 
-    @Test("Strict Schema Bridge sanitizes Draft 2020-12 schema for Codex")
-    func testCodexStrictSchemaBridge() throws {
-        let inputSchema = """
-        {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "type": "object",
-            "properties": {
-                "name": { "type": "string" },
-                "age": { "type": "integer" }
-            }
-        }
-        """
-        let strict = try CodexStrictSchemaBridge.convertToCodexStrict(schemaJSON: inputSchema)
-        #expect(!strict.contains("$schema"))
-        #expect(strict.contains("\"additionalProperties\":false"))
-        #expect(strict.contains("\"required\":[\"age\",\"name\"]"))
-    }
 
     @Test("TerminalAgentSession provider explicit selection")
     func testTerminalAgentSessionProviderSelection() throws {

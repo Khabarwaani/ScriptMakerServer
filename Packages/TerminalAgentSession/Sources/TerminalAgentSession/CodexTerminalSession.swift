@@ -98,10 +98,8 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         let schemaFile = tempDir.appendingPathComponent("schema.json")
         let outputFile = tempDir.appendingPathComponent("output.json")
 
-        let strictSchema: String
         do {
-            strictSchema = try CodexStrictSchemaBridge.convertToCodexStrict(schemaJSON: schema.rawValue)
-            try strictSchema.write(to: schemaFile, atomically: true, encoding: .utf8)
+            try schema.rawValue.write(to: schemaFile, atomically: true, encoding: .utf8)
         } catch {
             return .failure(.operationFailed(reason: "Failed to write output schema: \(error.localizedDescription)"))
         }
