@@ -26,6 +26,17 @@ public struct TerminalProvider: Sendable {
         self.factory = factory
     }
 
+    /// Convenience initializer to create a provider for ANY command-line agent tool (e.g. `muse`, `claude`, `ollama`).
+    public static func generic(
+        name: String,
+        executablePath: String,
+        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> [String])? = nil
+    ) -> TerminalProvider {
+        TerminalProvider(name: name, defaultExecutablePath: executablePath) { config in
+            GenericTerminalSession(configuration: config, argumentBuilder: argumentBuilder)
+        }
+    }
+
     /// Attempts to build a session instance using this provider with the given configuration.
     public func createSession(configuration: TerminalAgentConfiguration) -> (any TerminalSessionProtocol)? {
         factory(configuration)

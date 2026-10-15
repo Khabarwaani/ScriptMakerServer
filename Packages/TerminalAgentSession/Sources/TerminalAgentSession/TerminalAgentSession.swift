@@ -57,6 +57,22 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
         self.init(session: session)
     }
 
+    /// Convenience to instantiate ANY command-line agent tool (e.g. `muse`, `claude`, `ollama`) directly.
+    public convenience init?(
+        executablePath: String,
+        model: String? = nil,
+        workingDirectory: URL? = nil,
+        extraArguments: [String] = []
+    ) {
+        guard let session = GenericTerminalSession(
+            executablePath: executablePath,
+            model: model,
+            workingDirectory: workingDirectory,
+            extraArguments: extraArguments
+        ) else { return nil }
+        self.init(session: session)
+    }
+
     /// Wraps any existing `TerminalSessionProtocol` implementation (from this package or any external package).
     public init(session: any TerminalSessionProtocol) {
         self.underlying = session

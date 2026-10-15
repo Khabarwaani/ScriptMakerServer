@@ -134,14 +134,22 @@ struct TerminalSessionTests {
         let session = TerminalAgentSession(provider: customProvider, configuration: config)
         #expect(session != nil)
 
+        // Verify generic one-liner session for any current/future CLI tool (e.g. "muse")
+        let museSession = TerminalAgentSession(executablePath: scriptURL.path)
+        #expect(museSession != nil)
+        let genericDirectSession = GenericTerminalSession(executablePath: scriptURL.path)
+        #expect(genericDirectSession != nil)
+
         // Verify TerminalSessionProtocol polymorphism across all sessions
         let terminalSessions: [any TerminalSessionProtocol] = [
             session!,
+            museSession!,
+            genericDirectSession!,
             AntigravityTerminalSession(configuration: config)!,
             CodexTerminalSession(configuration: config)!,
             GrokTerminalSession(configuration: config)!
         ]
-        #expect(terminalSessions.count == 4)
+        #expect(terminalSessions.count == 6)
         for s in terminalSessions {
             #expect(!s.configuration.executablePath.isEmpty)
         }
