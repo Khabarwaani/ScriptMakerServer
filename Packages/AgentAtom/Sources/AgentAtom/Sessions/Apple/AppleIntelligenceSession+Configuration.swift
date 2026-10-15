@@ -1,11 +1,11 @@
 @available(macOS 26, iOS 26, visionOS 26, *)
 extension AppleIntelligenceSession {
     public struct Configuration: Sendable {
-        public let metadata: Set<AgenticMetadataField>
+        public let metadata: Set<AgenticExecutionMetadataField>
         @Clamped(0...1, default: 1) private var temperatureValue: Double
         public var temperature: Double { temperatureValue }
 
-        public init(metadata: Set<AgenticMetadataField> = [], temperature: Double = 1) {
+        public init(metadata: Set<AgenticExecutionMetadataField> = [], temperature: Double = 1) {
             self.metadata = metadata
             self.temperatureValue = temperature
         }

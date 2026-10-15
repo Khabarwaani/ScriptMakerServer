@@ -19,7 +19,7 @@
 
         func perform(
             _ operation: any AgenticOperationProtocol, streaming: Bool,
-            yield: @escaping @Sendable (String) throws(AgenticSessionError) -> Void
+            yield: @escaping @Sendable (String) async throws(AgenticSessionError) -> Void
         ) async throws(AgenticSessionError) -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
             if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
             let input = operation.spec.inputJSON.rawValue
@@ -40,11 +40,11 @@
                     let stream = session.streamResponse(to: input, options: options)
                     for try await snapshot in stream {
                         try Task.checkCancellation()
-                        try yield(snapshot.content)
+                        try await yield(snapshot.content)
                     }
                     try Task.checkCancellation()
                     response = try await stream.collect().content
-                    try yield(response)
+                    try await yield(response)
                 } else {
                     response = try await session.respond(to: input, options: options).content
                 }

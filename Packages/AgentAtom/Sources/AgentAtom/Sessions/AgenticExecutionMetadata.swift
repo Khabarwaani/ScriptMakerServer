@@ -1,4 +1,4 @@
-public enum AgenticMetadataField: Sendable, Hashable, CaseIterable {
+public enum AgenticExecutionMetadataField: Sendable, Hashable, CaseIterable {
     case modelIdentifier, duration, tokenUsage
 }
 

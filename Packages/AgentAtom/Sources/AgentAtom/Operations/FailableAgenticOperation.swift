@@ -5,7 +5,7 @@ public struct FailableAgenticOperation<Specification: Spec>: AgenticOperationPro
         self.spec = spec
     }
 
-    public func makeInstructions() -> String {
-        OperationInstructionAssembler(strategy: FailableInstructionStrategy()).assemble(spec: spec)
+    public func makeInstructions() throws -> String {
+        try OperationInstructionAssembler(strategy: FailableInstructionStrategy()).assemble(spec: spec)
     }
 }

@@ -33,7 +33,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         let completion = Task {
             defer { isBusy = false }
             do {
-                let response = try await generate(operation, streaming: true) { snapshot throws(AgenticSessionError) in
+                let response = try await generate(operation, streaming: true) { snapshot async throws(AgenticSessionError) in
                     if case .terminated = continuation.yield(snapshot) {
                         throw AgenticSessionError.cancelled
                     }
@@ -59,7 +59,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
 
     private func generate(
         _ operation: any AgenticOperationProtocol, streaming: Bool,
-        yield: @escaping @Sendable (String) throws(AgenticSessionError) -> Void
+        yield: @escaping @Sendable (String) async throws(AgenticSessionError) -> Void
     ) async throws(AgenticSessionError) -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
         #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
             return try await perform(operation, streaming: streaming, yield: yield)

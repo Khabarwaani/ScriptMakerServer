@@ -5,7 +5,7 @@ public struct AgenticOperation<Specification: Spec>: AgenticOperationProtocol {
         self.spec = spec
     }
 
-    public func makeInstructions() -> String {
-        OperationInstructionAssembler(strategy: JSONInstructionStrategy()).assemble(spec: spec)
+    public func makeInstructions() throws -> String {
+        try OperationInstructionAssembler(strategy: JSONInstructionStrategy()).assemble(spec: spec)
     }
 }
