@@ -1,14 +1,14 @@
 import Foundation
+import Synchronization
 import AgentAtom
 
 /// An `AgentAtom.AgenticSessionProtocol` implementation driving Antigravity CLI (`agy`).
-public final class AntigravityTerminalSession: TerminalSessionProtocol, @unchecked Sendable {
+public final class AntigravityTerminalSession: TerminalSessionProtocol {
     public let configuration: Configuration
-    private let state = UnfairLock()
-    private var stateStorage = State()
+    private let state = Mutex(State())
 
     public var executionMetadata: [AgenticExecutionMetadata] {
-        state.withLock { stateStorage.records }
+        state.withLock { $0.records }
     }
 
     public typealias Configuration = TerminalAgentConfiguration
@@ -55,9 +55,9 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol, @uncheck
     ) async -> Result<String, AgenticError> {
         guard !Task.isCancelled else { return .failure(.cancelled) }
 
-        let admitted = state.withLock {
-            guard !stateStorage.isBusy else { return false }
-            stateStorage.isBusy = true
+        let admitted = state.withLock { state -> Bool in
+            guard !state.isBusy else { return false }
+            state.isBusy = true
             return true
         }
         guard admitted else { return .failure(.busy) }
@@ -74,9 +74,9 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol, @uncheck
                 promptTokens: nil,
                 completionTokens: nil
             )
-            state.withLock {
-                stateStorage.records.append(record)
-                stateStorage.isBusy = false
+            state.withLock { state in
+                state.records.append(record)
+                state.isBusy = false
             }
         }
 

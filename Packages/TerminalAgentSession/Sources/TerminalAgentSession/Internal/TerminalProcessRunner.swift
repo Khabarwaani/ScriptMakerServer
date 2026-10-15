@@ -33,13 +33,8 @@ enum TerminalProcessRunner {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
-        // Buffer to accumulate output across lines
-        final class OutputState: @unchecked Sendable {
-            var fullStdout = ""
-            var fullStderr = ""
-            var pendingStdout = ""
-        }
-        let state = OutputState()
+        var fullStdout = ""
+        var pendingStdout = ""
 
         do {
             try process.run()
@@ -69,30 +64,30 @@ enum TerminalProcessRunner {
                 isEOF = true
             } else {
                 let text = String(decoding: chunk, as: UTF8.self)
-                state.fullStdout.append(text)
-                state.pendingStdout.append(text)
+                fullStdout.append(text)
+                pendingStdout.append(text)
 
-                while let newlineIndex = state.pendingStdout.firstIndex(of: "\n") {
-                    let line = String(state.pendingStdout[..<newlineIndex])
-                    state.pendingStdout.removeSubrange(...newlineIndex)
+                while let newlineIndex = pendingStdout.firstIndex(of: "\n") {
+                    let line = String(pendingStdout[..<newlineIndex])
+                    pendingStdout.removeSubrange(...newlineIndex)
                     await yield(line)
                 }
             }
         }
 
         // Flush any remaining pending stdout
-        if !state.pendingStdout.isEmpty {
-            let remaining = state.pendingStdout
-            state.pendingStdout = ""
+        if !pendingStdout.isEmpty {
+            let remaining = pendingStdout
+            pendingStdout = ""
             await yield(remaining)
         }
 
         process.waitUntilExit()
-        state.fullStderr = await stderrTask.value
+        let fullStderr = await stderrTask.value
 
         return ExecutionResult(
-            stdout: state.fullStdout,
-            stderr: state.fullStderr,
+            stdout: fullStdout,
+            stderr: fullStderr,
             exitCode: process.terminationStatus
         )
     }

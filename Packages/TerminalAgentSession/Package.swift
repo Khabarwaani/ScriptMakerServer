@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "TerminalAgentSession",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     products: [
         .library(name: "TerminalAgentSession", targets: ["TerminalAgentSession"])
     ],

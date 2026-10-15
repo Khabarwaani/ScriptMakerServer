@@ -3,7 +3,7 @@ import Synchronization
 import AgentAtom
 
 /// Unified terminal agent session that automatically detects installed CLI tools or delegates to a specified provider.
-public final class TerminalAgentSession: TerminalSessionProtocol, @unchecked Sendable {
+public final class TerminalAgentSession: TerminalSessionProtocol {
     public enum Provider: String, Sendable, CaseIterable {
         case codex
         case antigravity = "agy"
