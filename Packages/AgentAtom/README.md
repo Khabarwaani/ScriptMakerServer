@@ -224,13 +224,14 @@ Concrete Result aliases witness the protocol using native Result or AsyncStream.
 No public execution handle, response wrapper, queue, or schema translator is introduced.
 Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 
-Run `swift build --package-path Packages/AgentAtom` to compile. Automated operation,
-session, cancellation, platform, and live-model tests remain a separate task:
-[#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88). Coverage must include
-reruns with distinct execution IDs, shared operation identity, overlap rejection,
-cancellation cleanup, unsupported lifecycle controls, and all four result modes.
+Run `swift build --package-path Packages/AgentAtom` to compile and
+`swift test --package-path Packages/AgentAtom` for deterministic validation.
+The separate test task [#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88)
+adds operation/session contracts and the original KeyPoints sample. See
+[Tests/README.md](Tests/README.md) for commands, verified platforms, and the actual
+live results. Live Apple JSON/failable-output validation currently fails and is
+tracked in [#91](https://github.com/Khabarwaani/ScriptMakerServer/issues/91).
 
 Implementation [PR #89](https://github.com/Khabarwaani/ScriptMakerServer/pull/89)
-addresses [#87](https://github.com/Khabarwaani/ScriptMakerServer/issues/87). It must
-remain unmerged until the user explicitly authorizes that PR's merge in chat,
-with the authorization verified twice. Checks and inferred intent are insufficient.
+was squash-merged into develop after explicit chat authorization was verified twice.
+The test changes remain a separate PR and are not automatically authorized to merge.
