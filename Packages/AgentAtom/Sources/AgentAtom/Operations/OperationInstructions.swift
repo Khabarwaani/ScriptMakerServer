@@ -1,16 +1,12 @@
 import Foundation
 
-protocol OperationInstructionStrategy {
-    func assemble(role: String, instructions: String, schema: JSONSchema) throws -> String
-}
-
 struct OperationFailure: Decodable {
     let domain: String
     let code: Int
     let reason: String
 }
 
-struct OperationInstructionAssembler<Strategy: OperationInstructionStrategy> {
+struct OperationInstructionAssembler<Strategy: OperationStrategy> {
     let strategy: Strategy
 
     func assemble<Specification: Spec>(spec: Specification) throws -> String {
@@ -22,7 +18,9 @@ struct OperationInstructionAssembler<Strategy: OperationInstructionStrategy> {
     }
 }
 
-struct JSONInstructionStrategy: OperationInstructionStrategy {
+struct JSONOperationStrategy: OperationStrategy {
+    let allowsFailure = false
+
     func assemble(role: String, instructions: String, schema: JSONSchema) -> String {
         let format = """
             Follow the spec role and instructions.
@@ -35,12 +33,14 @@ struct JSONInstructionStrategy: OperationInstructionStrategy {
     }
 }
 
-struct FailableInstructionStrategy: OperationInstructionStrategy {
+struct FailableOperationStrategy: OperationStrategy {
+    let allowsFailure = true
+
     func assemble(role: String, instructions: String, schema: JSONSchema) throws -> String {
         guard let failureSchema = JSONSchema(OperationFailure.self) else {
             throw AgenticError.invalidInstructions
         }
-        return JSONInstructionStrategy().assemble(role: role, instructions: instructions, schema: schema) + """
+        return JSONOperationStrategy().assemble(role: role, instructions: instructions, schema: schema) + """
 
 
             If the request cannot be fulfilled, return only JSON matching this failure schema instead:

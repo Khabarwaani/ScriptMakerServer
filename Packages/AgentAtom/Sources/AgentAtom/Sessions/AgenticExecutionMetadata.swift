@@ -1,10 +1,18 @@
 import Foundation
 
-public enum AgenticExecutionMetadataField: Sendable, Hashable, CaseIterable {
-    case modelIdentifier, duration, tokenUsage
-}
-
 public struct AgenticExecutionMetadata: Sendable, Equatable {
+    public struct Fields: OptionSet, Sendable {
+        public let rawValue: Int
+
+        public init(rawValue: Int) {
+            self.rawValue = rawValue
+        }
+
+        public static let modelIdentifier = Self(rawValue: 1 << 0)
+        public static let duration = Self(rawValue: 1 << 1)
+        public static let tokenUsage = Self(rawValue: 1 << 2)
+    }
+
     public enum FinishReason: String, Sendable { case stop, lengthExceeded, contentFiltered, other }
 
     public let operationID: UUID

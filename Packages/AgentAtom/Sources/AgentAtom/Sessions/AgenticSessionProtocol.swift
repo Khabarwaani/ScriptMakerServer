@@ -1,9 +1,9 @@
 import Foundation
 
-public protocol AgenticSessionProtocol: Sendable {
+public protocol AgenticSessionProtocol: AnyObject, Sendable {
     associatedtype SessionConfiguration: Sendable
     var configuration: SessionConfiguration { get }
-    var executionMetadata: [AgenticExecutionMetadata] { get async }
+    var executionMetadata: [AgenticExecutionMetadata] { get }
 
     func generate(
         input: String, instructions: String, operationID: UUID

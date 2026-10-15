@@ -61,7 +61,7 @@ if #available(macOS 26, iOS 26, visionOS 26, *) {
     }
 
     let nextResponse = await operation.execute()
-    let records = await session.executionMetadata
+    let records = session.executionMetadata
     // Same operation.id; each admitted run has a distinct records entry and executionID.
 }
 ```
@@ -69,10 +69,10 @@ if #available(macOS 26, iOS 26, visionOS 26, *) {
 ## Reuse, identity, and lifecycle
 
 An operation's UUID is assigned at initialization and remains stable across runs.
-Its immutable spec and session reference are retained. Operations are structs
-containing a shared private lifecycle actor: copying a value preserves the same
-logical operation, UUID, and active execution. Construct another operation for
-independent identity and lifecycle control.
+Each operation is an actor retaining its immutable spec and session reference.
+It owns its active task and execution state directly. Assigning another reference
+preserves the same operation, UUID, and active execution. Construct another
+operation for independent identity and lifecycle control. There is no runner.
 
 Call `execute()` again after completion or cancellation cleanup to start another
 run. An overlapping call on the same operation returns `busy`. Only the active
@@ -80,14 +80,14 @@ producer Task is retained; operations store neither execution IDs nor result his
 They do not enqueue requests or retry automatically.
 
 The session assigns a fresh execution UUID when it admits a run. Its read-only,
-asynchronously accessible `executionMetadata` array records the operation UUID
+thread-safe `executionMetadata` array records the operation UUID
 and execution UUID after that run finishes, including provider failure and cancellation.
 Identity is always recorded; configured metrics are optional. Admission failures
 and instruction-assembly failures do not create an execution ID or record.
 
 ```swift
-let latest = await session.executionMetadata.last
-let runs = await session.executionMetadata.filter { $0.operationID == operation.id }
+let latest = session.executionMetadata.last
+let runs = session.executionMetadata.filter { $0.operationID == operation.id }
 ```
 
 `await operation.cancel()` cooperatively cancels the active producer. Cancellation
@@ -129,16 +129,21 @@ the caller.
 
 ## Sessions and configuration
 
-The session protocol supplies generation primitives accepting finalized
+The class-bound, Sendable session protocol supplies generation primitives accepting finalized
 instructions, input, and an operation UUID. Streaming forwards snapshots through a
 nonescaping async callback and returns the final result. Sessions own provider access,
 configuration, per-run IDs, and execution records. Operations own lifecycle control
 and final failure interpretation.
 
-`AppleIntelligenceSession` is compiled only where FoundationModels is supported
+`AppleIntelligenceSession` is a final Sendable class, compiled only where FoundationModels is supported
 and is available on macOS/iOS/visionOS 26+. Its failable initializer checks device,
 settings, and model readiness once. It uses `SystemLanguageModel.default` and one
 file-level platform guard. The package retains its older deployment minimums.
+
+Normal and streaming generation share one pipeline for admission, per-run identity,
+cancellation checks, result checks, error mapping, and metadata recording.
+A mutex protects admission and record snapshots; provider work and callbacks run
+outside the lock. The session does not create producer tasks.
 
 One Apple session admits one generation at a time; overlap returns `busy`. Use
 independent sessions for concurrency. Every run uses a fresh provider conversation;
@@ -148,7 +153,9 @@ Configuration is fixed at initialization. Temperature defaults to 1 and clamps t
 0...1 using a private generic property wrapper; NaN uses the default and infinities
 clamp to the bounds. Response length follows the provider context limit.
 
-Optional metrics default to disabled. Apple can collect model identifier, monotonic
+`AgenticExecutionMetadata.Fields` is an OptionSet selecting independent metrics,
+for example `metadata: [.duration, .tokenUsage]`. Optional metrics default to disabled.
+Apple can collect model identifier, monotonic
 generation duration, and token usage. Token counts use the guarded OS 27 SDK API;
 unavailable counts stay absent and actual zero is preserved. The identifier is
 `SystemLanguageModel.default`, not an invented model version. Other sessions can
@@ -190,8 +197,10 @@ once at the session boundary; the operation interprets only the reserved final
 model-failure format.
 
 Protocols, implementations, defaults, and the typed error occupy separate files.
-The four operation structs share one private lifecycle actor. No public execution
-handle, response wrapper, result alias, queue, or schema translator is introduced.
+The four operation actors own their tasks directly. Immutable generic strategies
+share instruction assembly and final failure interpretation. The final session
+class shares its generation pipeline; it has no runner or unchecked Sendable conformance.
+No public execution handle, response wrapper, result alias, queue, or schema translator is introduced.
 Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 
 Run `swift build --package-path Packages/AgentAtom` to compile. Automated operation,

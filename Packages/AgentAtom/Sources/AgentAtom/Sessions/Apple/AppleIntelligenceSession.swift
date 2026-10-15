@@ -1,12 +1,16 @@
 #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
     import Foundation
+    import Synchronization
     internal import FoundationModels
 
     @available(macOS 26, iOS 26, visionOS 26, *)
-    public actor AppleIntelligenceSession: AgenticSessionProtocol {
-        public nonisolated let configuration: Configuration
-        public private(set) var executionMetadata: [AgenticExecutionMetadata] = []
-        private var isBusy = false
+    public final class AppleIntelligenceSession: AgenticSessionProtocol {
+        public let configuration: Configuration
+        private let state = Mutex(State())
+
+        public var executionMetadata: [AgenticExecutionMetadata] {
+            state.withLock { $0.records }
+        }
 
         public init?(configuration: Configuration = Configuration()) {
             self.configuration = configuration
@@ -16,21 +20,8 @@
         public func generate(
             input: String, instructions: String, operationID: UUID
         ) async -> Result<String, AgenticError> {
-            if let failure = admit() { return .failure(failure) }
-            let executionID = UUID()
-            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
-            let clock = ContinuousClock()
-            let start = clock.now
-            defer {
-                executionMetadata.append(metadata(
-                    operationID: operationID, executionID: executionID,
-                    duration: start.duration(to: clock.now), session: session))
-                isBusy = false
-            }
-            do {
-                return .success(try await perform(input: input, session: session))
-            } catch {
-                return .failure(map(error))
+            await perform(instructions: instructions, operationID: operationID) { session, options in
+                try await session.respond(to: input, options: options).content
             }
         }
 
@@ -38,67 +29,69 @@
             input: String, instructions: String, operationID: UUID,
             yield: @Sendable (String) async throws -> Void
         ) async -> Result<String, AgenticError> {
+            await perform(instructions: instructions, operationID: operationID) { session, options in
+                let stream = session.streamResponse(to: input, options: options)
+                for try await snapshot in stream {
+                    try Task.checkCancellation()
+                    try await yield(snapshot.content)
+                }
+                try Task.checkCancellation()
+                return try await stream.collect().content
+            }
+        }
+
+        public struct Configuration: Sendable {
+            public let metadata: AgenticExecutionMetadata.Fields
+            @Clamped(0...1, default: 1) private var temperatureValue: Double
+            public var temperature: Double { temperatureValue }
+
+            public init(metadata: AgenticExecutionMetadata.Fields = [], temperature: Double = 1) {
+                self.metadata = metadata
+                self.temperatureValue = temperature
+            }
+        }
+
+        private struct State: Sendable {
+            var isBusy = false
+            var records: [AgenticExecutionMetadata] = []
+        }
+
+        private func admit() -> AgenticError? {
+            if Task.isCancelled { return .cancelled }
+            return state.withLock { storage in
+                guard !storage.isBusy else { return .busy }
+                storage.isBusy = true
+                return nil
+            }
+        }
+
+        private func perform(
+            instructions: String, operationID: UUID,
+            generation: @Sendable (LanguageModelSession, GenerationOptions) async throws -> String
+        ) async -> Result<String, AgenticError> {
             if let failure = admit() { return .failure(failure) }
             let executionID = UUID()
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
             let clock = ContinuousClock()
             let start = clock.now
             defer {
-                executionMetadata.append(metadata(
+                let record = metadata(
                     operationID: operationID, executionID: executionID,
-                    duration: start.duration(to: clock.now), session: session))
-                isBusy = false
+                    duration: start.duration(to: clock.now), session: session)
+                state.withLock { storage in
+                    storage.records.append(record)
+                    storage.isBusy = false
+                }
             }
             do {
-                return .success(try await performStream(input: input, session: session, yield: yield))
+                try Task.checkCancellation()
+                let response = try await generation(session, GenerationOptions(temperature: configuration.temperature))
+                try Task.checkCancellation()
+                guard !response.isEmpty else { throw AgenticError.incompleteGeneration }
+                return .success(response)
             } catch {
                 return .failure(map(error))
             }
-        }
-
-        public struct Configuration: Sendable {
-            public let metadata: Set<AgenticExecutionMetadataField>
-            @Clamped(0...1, default: 1) private var temperatureValue: Double
-            public var temperature: Double { temperatureValue }
-
-            public init(metadata: Set<AgenticExecutionMetadataField> = [], temperature: Double = 1) {
-                self.metadata = metadata
-                self.temperatureValue = temperature
-            }
-        }
-
-        private func admit() -> AgenticError? {
-            if Task.isCancelled { return .cancelled }
-            guard !isBusy else { return .busy }
-            isBusy = true
-            return nil
-        }
-
-        private func perform(input: String, session: LanguageModelSession) async throws -> String {
-            try Task.checkCancellation()
-            let response = try await session.respond(
-                to: input, options: GenerationOptions(temperature: configuration.temperature)).content
-            try Task.checkCancellation()
-            guard !response.isEmpty else { throw AgenticError.incompleteGeneration }
-            return response
-        }
-
-        private func performStream(
-            input: String, session: LanguageModelSession,
-            yield: @Sendable (String) async throws -> Void
-        ) async throws -> String {
-            try Task.checkCancellation()
-            let stream = session.streamResponse(
-                to: input, options: GenerationOptions(temperature: configuration.temperature))
-            for try await snapshot in stream {
-                try Task.checkCancellation()
-                try await yield(snapshot.content)
-            }
-            try Task.checkCancellation()
-            let response = try await stream.collect().content
-            try Task.checkCancellation()
-            guard !response.isEmpty else { throw AgenticError.incompleteGeneration }
-            return response
         }
 
         private func metadata(
