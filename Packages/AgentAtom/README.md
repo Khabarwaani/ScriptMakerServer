@@ -121,12 +121,13 @@ All operations here request JSON and expose
 strings; provider-specific image generation is outside this implementation.
 
 Metadata belongs exclusively to the session response and is disabled by default.
-Enabled but unavailable fields remain nil. Duration uses a monotonic clock for
-generation time, excluding instruction assembly and caller decoding. The model
-identifier reports the selected SystemLanguageModel.default, not an invented
-version. Model tier, reasoning effort, and finish reason remain nil when unknown.
-Token counts use the version-guarded OS 27 SDK usage API. The provider conversation
-contains exactly one request, so those counts are per-request; actual zero is kept.
+The Apple session can report model identifier, duration, and token usage; token
+counts use the version-guarded OS 27 SDK usage API. Duration uses a monotonic clock
+for generation time, excluding instruction assembly and caller decoding. The model
+identifier reports `SystemLanguageModel.default`, not an invented version. The
+portable metadata result can carry model tier, reasoning effort, and finish reason
+when another session implementation can report them. The provider conversation
+contains exactly one request, so token counts are per-request; actual zero is kept.
 
 ## Streaming and cancellation
 

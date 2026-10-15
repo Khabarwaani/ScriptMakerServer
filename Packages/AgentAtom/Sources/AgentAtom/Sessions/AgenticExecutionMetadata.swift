@@ -1,5 +1,5 @@
 public enum AgenticMetadataField: Sendable, Hashable, CaseIterable {
-    case modelIdentifier, modelTier, reasoningEffort, duration, tokenUsage, finishReason
+    case modelIdentifier, duration, tokenUsage
 }
 
 public struct AgenticExecutionMetadata: Sendable, Equatable {
