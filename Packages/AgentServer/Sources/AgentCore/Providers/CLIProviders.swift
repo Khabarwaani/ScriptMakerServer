@@ -101,7 +101,8 @@ public struct CLIProvider: AIProvider {
         timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
         onProgress: @escaping @Sendable (JSONValue) async -> Void
     ) async throws -> JSONValue {
-        let schemaURL = directory.appendingPathComponent("output.schema.json")
+        // Antigravity resolves local refs against schema.json when cwd contains spaces.
+        let schemaURL = directory.appendingPathComponent(kind == .antigravity ? "schema.json" : "output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
         let resultURL = directory.appendingPathComponent("result.json")
         let nativeSchema = kind == .grok ? nil : CodexOutputSchema.executionSchema(definition.outputSchema)

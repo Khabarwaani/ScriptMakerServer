@@ -148,6 +148,12 @@ successful silent authentication; check the full session outcome. Raw stderr is
 drained but never copied into API responses or default server logs. Readiness
 failures preserve the same bounded exit details under `provider_initialization_failed`.
 
+Antigravity 1.3.5's schema compiler can reload local `$ref` targets relative to
+`schema.json` when the execution directory contains spaces, including macOS's
+normal `Application Support` path. Its adapter therefore writes and passes
+`schema.json` in that directory. Keep the transport envelope and local references;
+renaming the file avoids the startup rejection without moving runtime data.
+
 Test ScriptRefiner with a sample script using each provider:
 
 ```sh

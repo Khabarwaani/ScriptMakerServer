@@ -197,3 +197,34 @@ func processFailurePreservesExitStatusWithoutExposingOutput(status: Int) async t
         #expect(!error.message.contains("secret-token"))
     }
 }
+
+@Test(arguments: ["Runtime", "Application Support"])
+func antigravityResolvesNativeSchemaInExecutionDirectory(folder: String) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let directory = root.appendingPathComponent(folder)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let executable = root.appendingPathComponent("mock-antigravity")
+    let script = #"""
+    #!/bin/sh
+    while [ "$#" -gt 0 ]; do
+        if [ "$1" = "--json-schema" ]; then shift; supplied_schema="$1"; fi
+        shift
+    done
+    # Antigravity 1.3.5's compiler reloads this relative base for local refs.
+    [ -f schema.json ] && [ "$supplied_schema" -ef "$PWD/schema.json" ] || exit 1
+    cat >/dev/null
+    printf '%s\n' '{"event":"result","result":{"status":"SUCCESS","structured_output":{"output":{"result":"ok"},"error":null}}}'
+    """#
+    try Data(script.utf8).write(to: executable)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+    let definition = try await AgentRegistry(packages: [EchoPackage.self]).resolve(id: "Echo", version: "1.0.0")
+    let result = try await CLIProvider(kind: .antigravity, settings: .init(executable: executable.path)).execute(
+        definition: definition, input: .object([:]), runner: ProcessRunner(), directory: directory,
+        timeoutSeconds: 5, onOutput: { _ in }, onProgress: { _ in })
+    #expect(result == .object(["result": .string("ok")]))
+    try OutputValidator.validate(result, schema: definition.outputSchema)
+    let schema = try JSONValue.parse(String(contentsOf: directory.appendingPathComponent("schema.json"), encoding: .utf8))
+    #expect(schema["$defs"]?["agent"] != nil)
+    #expect(schema["properties"]?["output"]?["anyOf"]?.array?.first?["$ref"] == .string("#/$defs/agent"))
+}

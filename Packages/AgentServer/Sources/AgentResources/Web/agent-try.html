@@ -304,7 +304,7 @@ $('send').onclick=async()=>{
     $('result').textContent='';$('response').textContent='';$('progress').textContent='';
     $('heartbeat').textContent='Waiting for events.';
     $('raw').textContent=`${options.method} ${path}\n${options.body||''}\n\n`;
-    state('Sending');
+    state('Submitted');$('progress').textContent='Waiting for final result.';
     const response=await serverFetch(path,options);
     raw([...response.headers].map(([name,value])=>`${name}: ${value}`).join('\n')+'\n\n');
     state(`HTTP ${response.status}`,!response.ok);
