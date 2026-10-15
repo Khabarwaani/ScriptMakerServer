@@ -19,6 +19,7 @@ let package = Package(
         .package(path: "Agents/DialogueGenerator"),
         .package(path: "Agents/ThemeMixer"),
         .package(path: "Agents/ReelJokeMaker"),
+        .package(path: "Agents/ShekharJokeGenerator"),
         .package(path: "../AgentCoreBase"),
         .package(path: "../ScriptDomainModels"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
@@ -38,6 +39,7 @@ let package = Package(
                 .product(name: "DialogueGenerator", package: "DialogueGenerator"),
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
                 .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
+                .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
             ]
@@ -66,6 +68,7 @@ let package = Package(
                 .product(name: "DialogueGenerator", package: "DialogueGenerator"),
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
                 .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
+                .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
             ],
