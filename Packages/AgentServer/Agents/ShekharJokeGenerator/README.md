@@ -102,7 +102,7 @@ For each story:
 7. Corroborate important claims with another reputable source where possible.
 
 Distinguish between the date an event occurred, the date it was announced, and the date an article was published.
-Never invent news, statistics, quotations, events, or links.
+Never invent news, statistics, quotations, events, or links. Never output mock, placeholder, template, or example stories or URLs (such as example.com).
 If a story is old but has a new development, focus on the new development.
 
 ---
@@ -168,6 +168,7 @@ Do not include the other two stories, the four losing jokes, the scores, or the 
 10. Avoid hateful content and personal attacks.
 11. Ensure both final jokes are original and memorable.
 12. Do not reuse previously published jokes.
+13. Never provide placeholder, dummy, or example jokes or news; every joke, headline, and link must be freshly generated from authentic, verified news.
 
 ---
 
@@ -228,17 +229,6 @@ Output the single winning story and its TWO joke versions formatted cleanly in t
 {
   "$schema" : "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties" : false,
-  "examples" : [
-    {
-      "category" : "Public Importance",
-      "date" : "15-10-2026 10:30 IST",
-      "joke1" : "प्रदूषण मिटाने के लिए अब आसमान से नल खोला जाएगा। मोहल्ले में पानी आए न आए, बादलों को टैंकर का रास्ता जरूर दिखा दिया गया है!",
-      "joke2" : "सरकार का कहना है कि आसमान से कृत्रिम बारिश करवाएंगे ताकि हवा साफ हो जाए। हमारे मोहल्ले वाले कह रहे हैं—'साहब, पहले नीचे की सड़कों पर पानी की सप्लाई चालू करवा दीजिए, बादलों में सरकारी नल फिट करने की इतनी भी क्या जल्दी है!'",
-      "link" : "https://example.com/news/artificial-rain-delhi",
-      "script" : "#1\ntitle: शहर में प्रदूषण कम करने के लिए कृत्रिम बारिश का विचार\ndate: 15-10-2026 10:30 IST\nlink: https://example.com/news/artificial-rain-delhi\ncategory: Public Importance\njoke1: प्रदूषण मिटाने के लिए अब आसमान से नल खोला जाएगा। मोहल्ले में पानी आए न आए, बादलों को टैंकर का रास्ता जरूर दिखा दिया गया है!\njoke2: सरकार का कहना है कि आसमान से कृत्रिम बारिश करवाएंगे ताकि हवा साफ हो जाए। हमारे मोहल्ले वाले कह रहे हैं—'साहब, पहले नीचे की सड़कों पर पानी की सप्लाई चालू करवा दीजिए, बादलों में सरकारी नल फिट करने की इतनी भी क्या जल्दी है!'",
-      "title" : "शहर में प्रदूषण कम करने के लिए कृत्रिम बारिश का विचार"
-    }
-  ],
   "properties" : {
     "category" : {
       "description" : "Selection category of the winning news story.",
@@ -299,19 +289,5 @@ Output the single winning story and its TWO joke versions formatted cleanly in t
 ```json
 {
 
-}
-```
-
-#### Example Output (Illustrative Only)
-
-```json
-{
-  "category" : "Public Importance",
-  "date" : "15-10-2026 10:30 IST",
-  "joke1" : "प्रदूषण मिटाने के लिए अब आसमान से नल खोला जाएगा। मोहल्ले में पानी आए न आए, बादलों को टैंकर का रास्ता जरूर दिखा दिया गया है!",
-  "joke2" : "सरकार का कहना है कि आसमान से कृत्रिम बारिश करवाएंगे ताकि हवा साफ हो जाए। हमारे मोहल्ले वाले कह रहे हैं—'साहब, पहले नीचे की सड़कों पर पानी की सप्लाई चालू करवा दीजिए, बादलों में सरकारी नल फिट करने की इतनी भी क्या जल्दी है!'",
-  "link" : "https://example.com/news/artificial-rain-delhi",
-  "script" : "#1\ntitle: शहर में प्रदूषण कम करने के लिए कृत्रिम बारिश का विचार\ndate: 15-10-2026 10:30 IST\nlink: https://example.com/news/artificial-rain-delhi\ncategory: Public Importance\njoke1: प्रदूषण मिटाने के लिए अब आसमान से नल खोला जाएगा। मोहल्ले में पानी आए न आए, बादलों को टैंकर का रास्ता जरूर दिखा दिया गया है!\njoke2: सरकार का कहना है कि आसमान से कृत्रिम बारिश करवाएंगे ताकि हवा साफ हो जाए। हमारे मोहल्ले वाले कह रहे हैं—'साहब, पहले नीचे की सड़कों पर पानी की सप्लाई चालू करवा दीजिए, बादलों में सरकारी नल फिट करने की इतनी भी क्या जल्दी है!'",
-  "title" : "शहर में प्रदूषण कम करने के लिए कृत्रिम बारिश का विचार"
 }
 ```

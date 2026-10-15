@@ -65,7 +65,7 @@ For each story:
 7. Corroborate important claims with another reputable source where possible.
 
 Distinguish between the date an event occurred, the date it was announced, and the date an article was published.
-Never invent news, statistics, quotations, events, or links.
+Never invent news, statistics, quotations, events, or links. Never output mock, placeholder, template, or example stories or URLs (such as example.com).
 If a story is old but has a new development, focus on the new development.
 
 ---
@@ -131,6 +131,7 @@ Do not include the other two stories, the four losing jokes, the scores, or the 
 10. Avoid hateful content and personal attacks.
 11. Ensure both final jokes are original and memorable.
 12. Do not reuse previously published jokes.
+13. Never provide placeholder, dummy, or example jokes or news; every joke, headline, and link must be freshly generated from authentic, verified news.
 
 ---
 

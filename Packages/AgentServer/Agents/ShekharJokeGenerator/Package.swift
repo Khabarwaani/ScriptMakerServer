@@ -6,13 +6,15 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [.library(name: "ShekharJokeGenerator", targets: ["ShekharJokeGenerator"])],
     dependencies: [
-        .package(path: "../../../AgentCoreBase")
+        .package(path: "../../../AgentCoreBase"),
+        .package(path: "../../../NewsAgent")
     ],
     targets: [
         .target(
             name: "ShekharJokeGenerator",
             dependencies: [
-                .product(name: "AgentCoreBase", package: "AgentCoreBase")
+                .product(name: "AgentCoreBase", package: "AgentCoreBase"),
+                .product(name: "NewsAgent", package: "NewsAgent")
             ],
             path: ".",
             exclude: ["Tests", "README.md"],
@@ -23,7 +25,8 @@ let package = Package(
             name: "ShekharJokeGeneratorTests",
             dependencies: [
                 "ShekharJokeGenerator",
-                .product(name: "AgentCoreBase", package: "AgentCoreBase")
+                .product(name: "AgentCoreBase", package: "AgentCoreBase"),
+                .product(name: "NewsAgent", package: "NewsAgent")
             ]
         )
     ]
