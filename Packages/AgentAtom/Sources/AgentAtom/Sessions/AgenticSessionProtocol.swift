@@ -5,11 +5,11 @@ public protocol AgenticSessionProtocol: AnyObject, Sendable {
     var executionMetadata: [AgenticExecutionMetadata] { get }
 
     func respond(
-        to input: String, instructions: String, for operation: ObjectIdentifier
+        to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier
     ) async -> Result<String, AgenticError>
 
     func stream(
-        to input: String, instructions: String, for operation: ObjectIdentifier,
+        to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError>
 
@@ -19,7 +19,7 @@ public protocol AgenticSessionProtocol: AnyObject, Sendable {
 
 extension AgenticSessionProtocol {
     public func stream(
-        to input: String, instructions: String, for operation: ObjectIdentifier,
+        to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
         .failure(.unsupported)

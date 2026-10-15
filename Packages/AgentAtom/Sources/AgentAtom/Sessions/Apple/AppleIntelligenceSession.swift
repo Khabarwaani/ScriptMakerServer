@@ -18,31 +18,33 @@
         }
 
         public func respond(
-            to input: String, instructions: String, for operation: ObjectIdentifier
+            to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier
         ) async -> Result<String, AgenticError> {
             do {
+                let schema = try Self.generationSchema(from: schema)
                 let run = try begin(instructions: instructions, for: operation)
                 defer { finish(run) }
-                let response = try await run.model.respond(to: input, options: run.options)
-                return result(response.content)
+                let response = try await run.model.respond(to: input, schema: schema, options: run.options)
+                return .success(response.content.jsonString)
             } catch {
                 return .failure(map(error))
             }
         }
 
         public func stream(
-            to input: String, instructions: String, for operation: ObjectIdentifier,
+            to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier,
             yield: @Sendable (String) async -> Void
         ) async -> Result<String, AgenticError> {
             do {
+                let schema = try Self.generationSchema(from: schema)
                 let run = try begin(instructions: instructions, for: operation)
                 defer { finish(run) }
-                let stream = run.model.streamResponse(to: input, options: run.options)
+                let stream = run.model.streamResponse(to: input, schema: schema, options: run.options)
                 for try await snapshot in stream {
-                    await yield(snapshot.content)
+                    await yield(snapshot.content.jsonString)
                 }
                 let response = try await stream.collect()
-                return result(response.content)
+                return .success(response.content.jsonString)
             } catch {
                 return .failure(map(error))
             }
@@ -86,11 +88,6 @@
                 started: ContinuousClock().now)
         }
 
-        private func result(_ text: String) -> Result<String, AgenticError> {
-            guard !text.isEmpty else { return .failure(.operationFailed(reason: "The model returned an empty response.")) }
-            return .success(text)
-        }
-
         private func finish(_ run: Run) {
             let fields = configuration.metadata
             var promptTokens: Int?
@@ -110,6 +107,56 @@
                 storage.records.append(record)
                 storage.isBusy = false
             }
+        }
+
+        // Apple's native Codable schema requires object order and named alternatives.
+        static func generationSchema(from schema: JSONString) throws -> GenerationSchema {
+            let object = try JSONSerialization.jsonObject(with: Data(schema.rawValue.utf8))
+            var index = 0
+            let prepared = try prepare(object, index: &index)
+            let data = try JSONSerialization.data(withJSONObject: prepared, options: [.sortedKeys])
+            return try JSONDecoder().decode(GenerationSchema.self, from: data)
+        }
+
+        private static func prepare(_ value: Any, index: inout Int) throws -> Any {
+            guard var schema = value as? [String: Any] else {
+                throw AgenticError.operationFailed(reason: "Expected a response schema object.")
+            }
+            let name = "AgentAtomSchema\(index)"
+            index += 1
+            let supported: Set<String> = [
+                "type", "properties", "required", "items", "anyOf", "additionalProperties",
+                "title", "description", "x-order", "enum", "minimum", "maximum", "minItems", "maxItems"
+            ]
+            if let key = Set(schema.keys).subtracting(supported).min() {
+                throw AgenticError.operationFailed(reason: "Apple guided generation does not support schema constraint: \(key).")
+            }
+            if schema["enum"] != nil, schema["type"] as? String != "string" {
+                throw AgenticError.operationFailed(reason: "Apple guided generation supports enum constraints only for strings.")
+            }
+            if let properties = schema["properties"] as? [String: Any] {
+                var ordered: [String: Any] = [:]
+                for (key, child) in properties.sorted(by: { $0.key < $1.key }) {
+                    ordered[key] = try prepare(child, index: &index)
+                }
+                schema["properties"] = ordered
+                schema["title"] = schema["title"] ?? name
+                schema["x-order"] = properties.keys.sorted()
+                schema["additionalProperties"] = false
+                schema["required"] = schema["required"] ?? []
+            }
+            if let choices = schema["anyOf"] as? [Any] {
+                schema["title"] = schema["title"] ?? name
+                schema["anyOf"] = try choices.map { child in
+                    try prepare(child, index: &index)
+                }
+            }
+            for key in ["items", "additionalProperties"] {
+                if let child = schema[key] as? [String: Any] {
+                    schema[key] = try prepare(child, index: &index)
+                }
+            }
+            return schema
         }
 
         private func map(_ error: any Error) -> AgenticError {
