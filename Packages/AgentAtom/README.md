@@ -204,7 +204,7 @@ capability errors. Public results do not require NSError. Provider errors are ma
 once at the session boundary; the operation interprets only the reserved final
 model-failure format.
 
-Protocols, implementations, defaults, and the typed error occupy separate files.
+Protocol extensions live with their declarations. Concrete implementations and\nthe typed error occupy separate files.
 The four operation actors own their tasks directly. Immutable generic strategies
 share instruction assembly and final failure interpretation. The final session
 class shares admission and completion helpers; it has no runner or unchecked Sendable conformance.
