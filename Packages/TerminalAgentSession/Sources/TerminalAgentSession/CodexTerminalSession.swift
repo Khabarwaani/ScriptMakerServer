@@ -2,7 +2,7 @@ import Foundation
 import AgentAtom
 
 /// An `AgentAtom.AgenticSessionProtocol` implementation driving Codex CLI (`codex`).
-public final class CodexTerminalSession: AgenticSessionProtocol, @unchecked Sendable {
+public final class CodexTerminalSession: TerminalSessionProtocol, @unchecked Sendable {
     public let configuration: Configuration
     private let state = UnfairLock()
     private var stateStorage = State()

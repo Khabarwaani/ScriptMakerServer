@@ -2,7 +2,7 @@ import Foundation
 import AgentAtom
 
 /// An `AgentAtom.AgenticSessionProtocol` implementation driving Grok CLI (`grok`).
-public final class GrokTerminalSession: AgenticSessionProtocol, @unchecked Sendable {
+public final class GrokTerminalSession: TerminalSessionProtocol, @unchecked Sendable {
     public let configuration: Configuration
     private let state = UnfairLock()
     private var stateStorage = State()

@@ -144,6 +144,18 @@ struct TerminalSessionTests {
         let config = TerminalAgentSession.Configuration(executablePath: scriptURL.path)
         let session = TerminalAgentSession(provider: .antigravity, configuration: config)
         #expect(session != nil)
+
+        // Verify TerminalSessionProtocol polymorphism across all sessions
+        let terminalSessions: [any TerminalSessionProtocol] = [
+            session!,
+            AntigravityTerminalSession(configuration: config)!,
+            CodexTerminalSession(configuration: config)!,
+            GrokTerminalSession(configuration: config)!
+        ]
+        #expect(terminalSessions.count == 4)
+        for s in terminalSessions {
+            #expect(!s.configuration.executablePath.isEmpty)
+        }
     }
 
     @Test("Process exit failure maps cleanly to AgenticError.operationFailed")

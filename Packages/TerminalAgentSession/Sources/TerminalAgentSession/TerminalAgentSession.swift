@@ -3,15 +3,21 @@ import Synchronization
 import AgentAtom
 
 /// Unified terminal agent session that automatically detects installed CLI tools or delegates to a specified provider.
-public final class TerminalAgentSession: AgenticSessionProtocol, @unchecked Sendable {
+public final class TerminalAgentSession: TerminalSessionProtocol, @unchecked Sendable {
     public enum Provider: String, Sendable, CaseIterable {
         case codex
         case antigravity = "agy"
         case grok
     }
 
-    public let configuration: Configuration
-    private let underlyingSession: any AgenticSessionProtocol
+    public typealias Configuration = TerminalAgentConfiguration
+
+    public let sessionConfiguration: SessionConfiguration
+    private let underlyingSession: any TerminalSessionProtocol
+
+    public var configuration: TerminalAgentConfiguration {
+        underlyingSession.configuration
+    }
 
     public var executionMetadata: [AgenticExecutionMetadata] {
         underlyingSession.executionMetadata
@@ -34,9 +40,21 @@ public final class TerminalAgentSession: AgenticSessionProtocol, @unchecked Send
         return nil
     }
 
+    /// Creates a session explicitly for a given provider with unified terminal agent configuration.
+    public convenience init?(provider: Provider, configuration: TerminalAgentConfiguration) {
+        self.init(provider: provider, configuration: SessionConfiguration(
+            provider: provider,
+            executablePath: configuration.executablePath,
+            model: configuration.model,
+            workingDirectory: configuration.workingDirectory,
+            extraArguments: configuration.extraArguments,
+            metadata: configuration.metadata
+        ))
+    }
+
     /// Creates a session explicitly for a given provider with optional custom configuration.
-    public init?(provider: Provider, configuration: Configuration = Configuration()) {
-        self.configuration = configuration
+    public init?(provider: Provider, configuration: SessionConfiguration = SessionConfiguration()) {
+        self.sessionConfiguration = configuration
         switch provider {
         case .codex:
             guard let session = CodexTerminalSession(configuration: .init(
@@ -70,9 +88,9 @@ public final class TerminalAgentSession: AgenticSessionProtocol, @unchecked Send
         }
     }
 
-    private init(provider: Provider, session: any AgenticSessionProtocol, configuration: Configuration) {
+    private init(provider: Provider, session: any TerminalSessionProtocol, configuration: SessionConfiguration) {
         self.underlyingSession = session
-        self.configuration = configuration
+        self.sessionConfiguration = configuration
     }
 
     public func respond(
@@ -102,7 +120,7 @@ public final class TerminalAgentSession: AgenticSessionProtocol, @unchecked Send
         try await underlyingSession.resume(operation)
     }
 
-    public struct Configuration: Sendable {
+    public struct SessionConfiguration: Sendable {
         public var provider: Provider?
         public var executablePath: String?
         public var model: String?

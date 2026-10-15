@@ -2,7 +2,7 @@ import Foundation
 import AgentAtom
 
 /// An `AgentAtom.AgenticSessionProtocol` implementation driving Antigravity CLI (`agy`).
-public final class AntigravityTerminalSession: AgenticSessionProtocol, @unchecked Sendable {
+public final class AntigravityTerminalSession: TerminalSessionProtocol, @unchecked Sendable {
     public let configuration: Configuration
     private let state = UnfairLock()
     private var stateStorage = State()
