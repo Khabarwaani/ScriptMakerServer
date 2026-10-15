@@ -59,6 +59,7 @@ struct OperationTests {
         _ = await operation.execute()
         let request = try #require(session.requests.first)
         #expect(request.instructions == instructions)
+        #expect(request.schema.rawValue == KeyPointsSpec.outputSchema.rawValue)
         #expect(request.input == spec.inputJSON.rawValue)
         #expect(try JSONDecoder().decode(String.self, from: Data(request.input.utf8)) == input)
     }

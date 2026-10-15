@@ -50,18 +50,13 @@ struct AppleKeyPointsTests {
         }
     }
 
-    @Test(.enabled(if: Self.modelAvailable, "The local Apple model is unavailable."))
-    func liveFailableSample() async throws {
+    @Test(.enabled(if: Self.modelAvailable, "The local Apple model is unavailable."),
+          arguments: [KeyPointsSpec.namedInput, "Hello.", KeyPointsSpec.insufficientInput])
+    func liveFailableSample(input: String) async throws {
         if #available(macOS 26, iOS 26, visionOS 26, *) {
             let session = try #require(AppleIntelligenceSession(configuration: .init(temperature: 0)))
-            let operation = FailableAgenticOperation(spec: KeyPointsSpec(input: "Hello."), session: session)
-            switch await operation.execute() {
-            case .failure(.generationFailed(let reason)):
-                #expect(!reason.isEmpty)
-                print("Apple KeyPoints declared failure: \(reason)")
-            case let response:
-                Issue.record("Expected an AI-declared failure for insufficient input, received \(response).")
-            }
+            let operation = FailableAgenticOperation(spec: KeyPointsSpec(input: input), session: session)
+            try validate(await operation.execute(), input: input)
         }
     }
 
@@ -80,5 +75,47 @@ struct AppleKeyPointsTests {
             print("Apple streaming KeyPoints sample: \(json)")
         }
     }
+    @Test(.enabled(if: Self.modelAvailable, "The local Apple model is unavailable."),
+          arguments: [KeyPointsSpec.namedInput, "Hello.", KeyPointsSpec.insufficientInput])
+    func liveFailableStreamingSample(input: String) async throws {
+        if #available(macOS 26, iOS 26, visionOS 26, *) {
+            let session = try #require(AppleIntelligenceSession(configuration: .init(temperature: 0)))
+            let operation = FailableStreamingAgenticOperation(spec: KeyPointsSpec(input: input), session: session)
+            var final: Result<String, AgenticError>?
+            for await snapshot in await operation.execute() { final = snapshot }
+            try validate(#require(final), input: input)
+        }
+    }
+
+    @Test(.enabled(if: Self.modelAvailable, "The local Apple model is unavailable."))
+    func unsupportedSchemaFailsBeforeAdmission() async throws {
+        if #available(macOS 26, iOS 26, visionOS 26, *) {
+            let session = try #require(AppleIntelligenceSession())
+            let operation = AgenticOperation(spec: KeyPointsSpec(input: "input"), session: session)
+            let schema: JSONString = #"{"type":"string","format":"uuid"}"#
+            let response = await session.respond(to: "input", instructions: "Return a UUID.", schema: schema, for: operation.id)
+            #expect(response == .failure(.operationFailed(reason: "Apple guided generation does not support schema constraint: format.")))
+            #expect(session.executionMetadata.isEmpty)
+        }
+    }
+
+    private func validate(_ response: Result<String, AgenticError>, input: String) throws {
+        if input != KeyPointsSpec.namedInput {
+            guard case .failure(.generationFailed(let reason)) = response else {
+                Issue.record("Expected an AI-declared failure for insufficient input, received \(response).")
+                return
+            }
+            #expect(!reason.isEmpty)
+            print("Apple KeyPoints declared failure: \(reason)")
+        } else {
+            let json = try response.get()
+            let output = try JSONDecoder().decode(KeyPointsOutput.self, from: Data(json.utf8))
+            #expect(output.points.count == 3)
+            #expect(Set(output.points).count == 3)
+            #expect(output.person == ["Asha", "Ben"])
+            print("Apple failable KeyPoints success: \(json)")
+        }
+    }
+
 }
 #endif

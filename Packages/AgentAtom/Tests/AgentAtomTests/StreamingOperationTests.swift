@@ -163,6 +163,6 @@ private final class ResponseOnlySession: AgenticSessionProtocol {
     let executionMetadata: [AgenticExecutionMetadata] = []
 
     func respond(
-        to input: String, instructions: String, for operation: ObjectIdentifier
+        to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier
     ) async -> Result<String, AgenticError> { .success(input) }
 }

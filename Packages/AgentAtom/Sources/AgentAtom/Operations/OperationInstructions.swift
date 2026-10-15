@@ -46,7 +46,11 @@ struct FailableOperationStrategy: OperationStrategy {
         return JSONOperationStrategy().assemble(role: role, instructions: instructions, schema: schema) + """
 
 
-            If the request cannot be fulfilled, return only JSON matching this failure schema instead:
+            Choose Success only when every spec requirement can be satisfied from the input.
+            Choose Failure otherwise. Do not demand information the spec did not request.
+            Use the Failure alternative only if completing the request would require
+            invented facts, reduced counts, or a partial result. Explain the unmet requirement.
+            Return only JSON matching this failure schema instead:
             \(failureSchema.rawValue)
             Use domain "AgentAtom.Operation" and code 422.
             """

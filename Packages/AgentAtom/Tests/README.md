@@ -15,7 +15,7 @@ Coverage includes all four operation result modes, plain Spec and ModelledSpec,
 raw response preservation, reserved failure parsing, schema derivation, reuse,
 identity, overlapping calls, concurrent metadata reads, cancellation cleanup,
 stream termination and reference release, lifecycle capabilities, stale responses,
-and configuration bounds. Only the instruction-failure/schema tests use
+and configuration bounds. Only instruction-failure/schema and native adapter tests use
 `@testable`; normal operation tests consume the public API.
 
 ## KeyPoints sample
@@ -37,8 +37,9 @@ guard output.points.count == 3 else {
 ```
 
 The caller decodes and validates output; operations never write `spec.output`.
-A separate failable live test checks `generationFailed(reason:)` for insufficient
-input, and a streaming live test decodes only the final snapshot. No output repair,
+Both failable modes check success for sufficient input and `generationFailed(reason:)`
+for a greeting and two-fact input. Streaming tests decode only the final snapshot.
+Three points is this caller-owned sample requirement, never an AgentAtom rule. No output repair,
 fence stripping, fake live results, or additional executable product is used.
 
 ## Opt-in Apple validation
@@ -55,18 +56,24 @@ Observed on macOS 27.0.1, Xcode 27.0, Apple Swift 6.4:
 
 | Check | Observed result |
 | --- | --- |
-| Deterministic suite | 42 enabled tests passed; four opt-in live tests skipped |
+| Deterministic suite | 48 enabled test functions passed; six opt-in live functions skipped by default |
 | Apple readiness and failable init | Passed; model reported available |
-| Named and no-person live samples | Failed direct JSON decoding: output began with a backtick |
-| Failable insufficient-input sample | Failed: returned a schema object, then a one-point success after prompt refinement |
-| Live streaming sample | Failed direct final JSON decoding: output began with a backtick |
+| Named and no-person live samples | Passed direct JSON decoding, three points and expected names |
+| Both failable modes | Sufficient input succeeded; greeting and two-fact input returned AI-declared failures |
+| Live streaming sample | Passed direct final JSON decoding and expected points/names |
+| Unsupported Apple schema | Failed before admission with diagnostic error and no execution record, as expected |
 | iOS simulator target, deployment 16 | AgentAtom library build passed with SDK 27 |
 | tvOS simulator target, deployment 16 | AgentAtom library build passed with Apple provider excluded, SDK 27 |
 
-The live failures reproduced after stronger sample instructions and remain tracked
-in [#91](https://github.com/Khabarwaani/ScriptMakerServer/issues/91). Live tests stay
-opt-in and retain their failing assertions. Fixture success is not evidence of live
-schema adherence. No production architecture changes are included in this test task.
+The full live run enables all 54 test functions; parameterized cases are additional.
+The original prompt-only adapter produced fenced JSON and invalid partial successes
+([#91](https://github.com/Khabarwaani/ScriptMakerServer/issues/91)). The fix uses native
+schema-based generation and `GeneratedContent.jsonString`, including a reserved
+failure alternative. Native schema tests cover object ordering, required properties,
+nullable/nested shapes, fixed failure discriminators, and unsupported constraints.
+The sample instructions clarify feasibility with examples. No fixed count, output
+repair, second model request, or caller-output decoding is added to AgentAtom.
+These observed model successes do not establish universal semantic compliance.
 
 Older compilers, Linux, other deployment targets, device runs, and live cancellation
 latency have not been verified. No code coverage percentage is claimed. Apple's

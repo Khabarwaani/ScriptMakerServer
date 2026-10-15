@@ -92,7 +92,8 @@ extension OperationLifecycle where Result == Swift.Result<String, AgenticError>,
         let result: Swift.Result<String, AgenticError>
         do {
             let response = await session.respond(
-                to: spec.inputJSON.rawValue, instructions: try instructions(), for: id)
+                to: spec.inputJSON.rawValue, instructions: try instructions(),
+                schema: try strategy.schema(for: Specification.outputSchema), for: id)
             result = strategy.result(from: response)
         } catch {
             result = .failure(error)
@@ -122,7 +123,8 @@ extension OperationLifecycle where Result == AsyncStream<Swift.Result<String, Ag
         let result: Swift.Result<String, AgenticError>
         do {
             let response = await session.stream(
-                to: spec.inputJSON.rawValue, instructions: try instructions(), for: id
+                to: spec.inputJSON.rawValue, instructions: try instructions(),
+                schema: try strategy.schema(for: Specification.outputSchema), for: id
             ) { text in
                 output.yield(.success(text))
             }

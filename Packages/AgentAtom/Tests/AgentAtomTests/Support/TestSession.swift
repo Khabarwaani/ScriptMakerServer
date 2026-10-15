@@ -37,6 +37,7 @@ final class TestSession: AgenticSessionProtocol {
     struct Request: Sendable {
         let input: String
         let instructions: String
+        let schema: JSONString
         let operation: ObjectIdentifier
     }
 
@@ -77,13 +78,13 @@ final class TestSession: AgenticSessionProtocol {
     var executionMetadata: [AgenticExecutionMetadata] { state.withLock { $0.records } }
 
     func respond(
-        to input: String, instructions: String, for operation: ObjectIdentifier
+        to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier
     ) async -> Result<String, AgenticError> {
-        await stream(to: input, instructions: instructions, for: operation) { _ in }
+        await stream(to: input, instructions: instructions, schema: schema, for: operation) { _ in }
     }
 
     func stream(
-        to input: String, instructions: String, for operation: ObjectIdentifier,
+        to input: String, instructions: String, schema: JSONString, for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
         guard !Task.isCancelled else { return .failure(.cancelled) }
@@ -91,7 +92,7 @@ final class TestSession: AgenticSessionProtocol {
             guard !value.busy else { return nil }
             value.busy = true
             let index = value.requests.count
-            value.requests.append(Request(input: input, instructions: instructions, operation: operation))
+            value.requests.append(Request(input: input, instructions: instructions, schema: schema, operation: operation))
             return index
         }
         guard let index else { return .failure(.busy) }

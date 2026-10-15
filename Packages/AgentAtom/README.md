@@ -37,10 +37,11 @@ and associated `Result` through `AgenticOperationProtocol`.
 | `FailableStreamingAgenticOperation` | `AsyncStream<Result<String, AgenticError>>` | Yes |
 
 All four can encounter provider errors or cancellation. Successful final content
-is the model's unchanged response text. The caller decodes and validates domain
-output afterward; the package never repairs JSON, strips fences, unwraps success
-envelopes, re-encodes output, or translates schemas into an Apple-specific schema.
-Prompted schema adherence does not guarantee that arbitrary model output decodes.
+is the session's response string. Operations preserve it unchanged. The caller
+decodes and validates domain output afterward; the package never repairs JSON,
+strips fences, unwraps success envelopes, or re-encodes domain output. Apple uses
+native guided generation and returns `GeneratedContent.jsonString`. Shape enforcement
+does not guarantee factual correctness or compliance with semantic instructions.
 
 ```swift
 if #available(macOS 26, iOS 26, visionOS 26, *) {
@@ -113,6 +114,9 @@ explicit unsupported errors.
 Operations assemble final instructions on every call using the generic
 strategy implementations; no forwarding-only assembler wrapper is needed. They send the spec role, rules, and original output
 schema as provider instructions, with input JSON sent separately as prompt data.
+They also send the response schema separately for provider-native generation.
+Failable strategies add the reserved failure alternative to that request schema;
+the spec schema itself remains unchanged.
 A String input retains its JSON quoting and escaping. Session configuration does
 not own roles, rules, or instruction overrides.
 
@@ -138,7 +142,7 @@ the caller.
 ## Sessions and configuration
 
 The class-bound, Sendable session protocol supplies generation primitives accepting finalized
-instructions, input, and an operation ObjectIdentifier. Streaming forwards snapshots through a
+instructions, input, response schema JSON, and an operation ObjectIdentifier. Streaming forwards snapshots through a
 nonescaping async callback and returns the final result. Sessions own provider access,
 configuration, per-run IDs, and execution records. Operations own lifecycle control
 and final failure interpretation.
@@ -154,9 +158,20 @@ settings, and model readiness once. It uses `SystemLanguageModel.default` and on
 file-level platform guard. The package retains its older deployment minimums.
 
 Normal and streaming generation call the provider directly and share admission,
-per-run identity, result checks, error mapping, and metadata helpers.
+per-run identity, error mapping, and metadata helpers.
 A mutex protects admission and record snapshots; provider work and callbacks run
 outside the lock. The session does not create producer tasks.
+
+The Apple adapter decodes the request schema with Apple's native Codable
+`GenerationSchema`, supplying required object ordering and alternative names.
+It uses native schema-based `respond`/`streamResponse` and exposes the generated
+content's native JSON string, without requiring consumer output to be `@Generable`.
+Objects use Apple's closed-property representation. Supported constraints include
+required fields, nullable alternatives, arrays, string enums, numeric bounds,
+and array counts. Unsupported keywords (including `format` and `contentEncoding`)
+and non-string enums fail before admission instead of silently losing constraints.
+The caller's spec owns domain rules such as result count; AgentAtom has no
+KeyPoints-specific rules, count checks, extra feasibility calls, or automatic retries.
 
 One Apple session admits one generation at a time; overlap returns `busy`. Use
 independent sessions for concurrency. Every run uses a fresh provider conversation;
@@ -227,11 +242,11 @@ Existing Spec, ModelledSpec, and JSONSchema implementations are unchanged.
 Run `swift build --package-path Packages/AgentAtom` to compile and
 `swift test --package-path Packages/AgentAtom` for deterministic validation.
 The separate test task [#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88)
-adds operation/session contracts and the original KeyPoints sample. See
-[Tests/README.md](Tests/README.md) for commands, verified platforms, and the actual
-live results. Live Apple JSON/failable-output validation currently fails and is
-tracked in [#91](https://github.com/Khabarwaani/ScriptMakerServer/issues/91).
+adds operation/session contracts and the original KeyPoints sample. Its live failures
+in [#91](https://github.com/Khabarwaani/ScriptMakerServer/issues/91) motivated native
+guided generation in the same validation PR. See [Tests/README.md](Tests/README.md)
+for commands, verified platforms, and the limits of those checks.
 
 Implementation [PR #89](https://github.com/Khabarwaani/ScriptMakerServer/pull/89)
-was squash-merged into develop after explicit chat authorization was verified twice.
-The test changes remain a separate PR and are not automatically authorized to merge.
+was merged separately; [PR #92](https://github.com/Khabarwaani/ScriptMakerServer/pull/92)
+contains the contract tests and native generation fix.
