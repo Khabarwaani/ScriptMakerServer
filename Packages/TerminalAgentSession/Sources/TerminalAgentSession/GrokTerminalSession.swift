@@ -48,7 +48,7 @@ public final class GrokTerminalSession: TerminalSessionProtocol {
             arguments += ["--model", model]
         }
         arguments += configuration.extraArguments
-        arguments.append("\(instructions)\n\nInput:\n\(input)")
+        arguments.append(engine.formatPrompt(input: input, instructions: instructions))
 
         do {
             var finalStructuredOutput = ""
@@ -90,11 +90,13 @@ public final class GrokTerminalSession: TerminalSessionProtocol {
             }
 
             if !finalStructuredOutput.isEmpty {
+                engine.recordTurn(input: input, output: finalStructuredOutput)
                 return .success(finalStructuredOutput)
             }
 
             let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedStdout.isEmpty {
+                engine.recordTurn(input: input, output: trimmedStdout)
                 return .success(trimmedStdout)
             }
 

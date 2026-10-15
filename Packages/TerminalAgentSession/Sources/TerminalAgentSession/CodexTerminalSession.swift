@@ -66,7 +66,7 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
             "-o", outputFile.path
         ]
         arguments += configuration.extraArguments
-        arguments.append("\(instructions)\n\nInput:\n\(input)")
+        arguments.append(engine.formatPrompt(input: input, instructions: instructions))
 
         do {
             let result = try await engine.execute(
@@ -85,11 +85,13 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
                let outputData = try? Data(contentsOf: outputFile),
                let outputString = String(data: outputData, encoding: .utf8),
                !outputString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                engine.recordTurn(input: input, output: outputString)
                 return .success(outputString)
             }
 
             let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedStdout.isEmpty {
+                engine.recordTurn(input: input, output: trimmedStdout)
                 return .success(trimmedStdout)
             }
 

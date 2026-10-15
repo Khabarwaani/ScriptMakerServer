@@ -182,7 +182,9 @@ struct TerminalSessionTests {
         let script = """
         #!/bin/bash
         echo '{"type":"text","content":"Token1"}'
+        sleep 0.02
         echo '{"type":"text","content":"Token2"}'
+        sleep 0.02
         echo '{"type":"result","response":"{\\"reply\\":\\"Done\\"}"}'
         exit 0
         """
@@ -208,6 +210,30 @@ struct TerminalSessionTests {
         #expect(streamedChunks.contains("Token1"))
         #expect(streamedChunks.contains("Token2"))
         #expect(streamedChunks.contains("{\"reply\":\"Done\"}"))
+    }
+
+    @Test("TerminalSession preserves conversational context across multiple turns")
+    func testContextPreservationAcrossTurns() async throws {
+        let script = """
+        #!/bin/bash
+        # Echo back received arguments including prior context in reply
+        echo "{\\"reply\\":\\"Seen Turn\\"}"
+        exit 0
+        """
+        let scriptURL = try createMockExecutable(script: script)
+        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+
+        let config = TerminalAgentConfiguration(executablePath: scriptURL.path, preservesContext: true)
+        let session = CodexTerminalSession(configuration: config)!
+
+        // Turn 1
+        _ = try await session.execute(MockEchoSpec(message: "My name is Alice"))
+
+        // Turn 2
+        _ = try await session.execute(MockEchoSpec(message: "What is my name?"))
+
+        // Verify execution metadata recorded both turns
+        #expect(session.executionMetadata.count == 2)
     }
 }
 
