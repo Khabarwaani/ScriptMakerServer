@@ -6,61 +6,58 @@
     public actor AppleIntelligenceSession: AgenticSessionProtocol {
         public nonisolated let configuration: Configuration
         private var isBusy = false
+        private var executionMetadata: AgenticExecutionMetadata?
 
         public init?(configuration: Configuration = Configuration()) {
             self.configuration = configuration
             guard case .available = SystemLanguageModel.default.availability else { return nil }
         }
 
-        public func execute<Operation: AgenticOperationProtocol>(_ operation: Operation) async -> (
-            content: Result<String, NSError>, metadata: AgenticExecutionMetadata?
-        ) {
+        public func execute<Operation: AgenticOperationProtocol>(_ operation: Operation) async -> Result<String, NSError> {
             do {
                 try admit()
                 defer { isBusy = false }
                 return try await perform(operation)
             } catch {
                 let failure = map(error)
-                return (content: .failure(failure as NSError), metadata: nil)
+                return .failure(failure as NSError)
             }
         }
 
-        public func stream<Operation: AgenticOperationProtocol>(_ operation: Operation) async -> (
-            snapshots: AsyncThrowingStream<String, any Error>,
-            result: Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), Never>
-        ) {
-            let (snapshots, continuation) = AsyncThrowingStream<String, any Error>.makeStream(
+        public func stream<Operation: AgenticOperationProtocol>(
+            _ operation: Operation
+        ) async -> AsyncStream<Result<String, NSError>> {
+            let (results, continuation) = AsyncStream<Result<String, NSError>>.makeStream(
                 bufferingPolicy: .bufferingNewest(1))
             do {
                 try admit()
             } catch {
                 let failure = map(error)
-                continuation.finish(throwing: failure)
-                let result = Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), Never> {
-                    (content: .failure(failure as NSError), metadata: nil)
-                }
-                return (snapshots: snapshots, result: result)
+                continuation.yield(.failure(failure as NSError))
+                continuation.finish()
+                return results
             }
-            let completion = Task {
-                defer { isBusy = false }
+            let producer = Task {
+                defer {
+                    isBusy = false
+                    continuation.finish()
+                }
                 do {
                     let response = try await performStream(operation) { snapshot in
-                        if case .terminated = continuation.yield(snapshot) {
+                        if case .terminated = continuation.yield(.success(snapshot)) {
                             throw AgenticSessionError.cancelled
                         }
                     }
-                    continuation.finish()
-                    return response
+                    continuation.yield(response)
                 } catch {
                     let failure = map(error)
-                    continuation.finish(throwing: failure)
-                    return (content: .failure(failure as NSError), metadata: nil)
+                    continuation.yield(.failure(failure as NSError))
                 }
             }
             continuation.onTermination = { termination in
-                if case .cancelled = termination { completion.cancel() }
+                if case .cancelled = termination { producer.cancel() }
             }
-            return (snapshots: snapshots, result: completion)
+            return results
         }
 
         public struct Configuration: Sendable {
@@ -78,11 +75,12 @@
             if Task.isCancelled { throw AgenticSessionError.cancelled }
             guard !isBusy else { throw AgenticSessionError.busy }
             isBusy = true
+            executionMetadata = nil
         }
 
         private func perform<Operation: AgenticOperationProtocol>(
             _ operation: Operation
-        ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+        ) async throws -> Result<String, NSError> {
             let input = operation.spec.inputJSON.rawValue
             let instructions: String
             instructions = try operation.makeInstructions()
@@ -98,12 +96,13 @@
             let responseMetadata = metadata(duration: start.duration(to: clock.now), session: session)
             let result = try result(from: response)
             try Task.checkCancellation()
-            return (content: result, metadata: responseMetadata)
+            executionMetadata = responseMetadata
+            return result
         }
 
         private func performStream<Operation: AgenticOperationProtocol>(
             _ operation: Operation, yield: @Sendable (String) async throws -> Void
-        ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+        ) async throws -> Result<String, NSError> {
             let input = operation.spec.inputJSON.rawValue
             let instructions = try operation.makeInstructions()
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
@@ -119,13 +118,13 @@
             }
             try Task.checkCancellation()
             response = try await stream.collect().content
-            try await yield(response)
             try Task.checkCancellation()
             guard !response.isEmpty else { throw AgenticSessionError.incompleteGeneration }
             let responseMetadata = metadata(duration: start.duration(to: clock.now), session: session)
             let result = try result(from: response)
             try Task.checkCancellation()
-            return (content: result, metadata: responseMetadata)
+            executionMetadata = responseMetadata
+            return result
         }
 
         private func result(from response: String) throws -> Result<String, NSError> {

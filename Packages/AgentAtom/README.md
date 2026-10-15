@@ -54,7 +54,7 @@ if #available(macOS 26, iOS 26, visionOS 26, *) {
     }
 
     let response = await session.execute(AgenticOperation(spec: spec))
-    switch response.content {
+    switch response {
     case .success(let json):
         let output = try JSONDecoder().decode(MySpec.Output.self, from: Data(json.utf8))
         // Retain and validate output in the caller.
@@ -75,7 +75,7 @@ instructions. Success uses the spec's original schema unchanged. Failure uses:
 There is no combined schema or success envelope. The original JSONSchema type is
 unchanged. The session recognizes the reserved AgentAtom.Operation
 failure domain and returns Foundation NSError with code 422 and the reason as its
-localized description. Invalid reserved failure responses throw invalidResponse.
+localized description. Invalid reserved failure responses return an invalidResponse failure.
 All other content is returned as the exact original success string, including
 malformed domain JSON for the caller to decode later. That domain is reserved for error responses, rather than ordinary domain output.
 
@@ -102,8 +102,8 @@ it does not prove model obedience.
 `AgenticSessionProtocol` directly executes generic operations and associates its
 own configuration type. Callers initialize and inject the concrete session they
 want; there is no singleton or shared scheduling. Execution returns success or a
-mapped NSError. A session without streaming support finishes its snapshot stream
-with an unsupported-streaming error and returns the same failure in its result.
+mapped NSError. Streaming returns only AsyncStream<Result<String, NSError>>.
+A session without streaming support emits an unsupported-streaming failure and finishes.
 
 `AppleIntelligenceSession` is available at compile time on macOS/iOS/visionOS 26+.
 Its failable initializer returns nil if the device, Apple Intelligence settings,
@@ -117,7 +117,7 @@ independent sessions for concurrency. Each execution uses a fresh provider
 conversation. History-enabled behavior is a separate feature.
 
 Apple configuration selects generation temperature and which metadata fields to
-return. Temperature is non-optional, defaults to 1, and uses a private generic
+collect internally. Temperature is non-optional, defaults to 1, and uses a private generic
 property wrapper in the session implementation to clamp to 0...1. NaN uses the default;
 infinities clamp to their respective bounds. Response length uses the provider's
 context-based limit. See
@@ -125,12 +125,12 @@ context-based limit. See
 All operations here request JSON and expose
 strings; provider-specific image generation is outside this implementation.
 
-Metadata belongs exclusively to the session response and is disabled by default.
-The Apple session can report model identifier, duration, and token usage; token
+Metadata stays inside the session and is disabled by default.
+The Apple session can collect model identifier, duration, and token usage; token
 counts use the version-guarded OS 27 SDK usage API. Duration uses a monotonic clock
 for generation time, excluding instruction assembly and caller decoding. The model
 identifier reports `SystemLanguageModel.default`, not an invented version. The
-portable metadata result can carry model tier, reasoning effort, and finish reason
+portable metadata type can carry model tier, reasoning effort, and finish reason
 when another session implementation can report them. The provider conversation
 contains exactly one request, so token counts are per-request; actual zero is kept.
 
@@ -138,26 +138,29 @@ contains exactly one request, so token counts are per-request; actual zero is ke
 
 ```swift
 let stream = await session.stream(AgenticOperation(spec: spec))
-for try await snapshot in stream.snapshots {
-    print(snapshot) // Replace display content with this cumulative string.
+for await result in stream {
+    switch result {
+    case .success(let snapshot):
+        print(snapshot) // Replace display content with this cumulative string.
+    case .failure(let error):
+        print(error.localizedDescription)
+    }
 }
-let response = await stream.result.value // Final string-or-failure and metadata.
 ```
 
-Starting a stream starts generation. Snapshots have one consumer and buffer only
-the newest string. Intermediate updates may coalesce and need not be prefix
-extensions. Partial JSON is not decoded or repaired. Only result() establishes
-completed execution; it still does not decode domain output. An error after a
-valid-looking partial snapshot remains an execution error.
+Starting a stream starts generation. It has one consumer and buffers only the
+newest result. Intermediate successes contain cumulative snapshots and may coalesce;
+they need not be prefix extensions. After normal stream completion, the last element
+is the final success or failure. Partial JSON is not decoded or repaired. An error
+after a valid-looking snapshot produces a final failure.
 
-The session returns a tuple containing the built-in AsyncThrowingStream and a
-nonthrowing Swift Task for the final response. Execution failures are mapped once
-to the session NSError and returned as Result.failure; the snapshot stream also
-finishes with that error. Cancel stream.result directly to stop work,
-including when abandoning iteration. Cancellation of the snapshot iterator also
-cancels the producer. Awaiting Task.value alone does not propagate cancellation
-from the waiter; the caller owns cancellation of that result Task. The session stays busy until its provider call
-returns. Buffering bounds snapshot count, not the final string size.
+The producer Task and metadata stay inside the session. Execution errors are
+mapped once and emitted as Result.failure before the stream finishes. Cancel the
+consuming task to terminate delivery and cancel the producer. Breaking out of the
+loop alone does not guarantee prompt producer cancellation. Cancellation ends
+delivery, so callers must not treat the last partial snapshot as a completed result.
+The session stays busy until its provider call returns. Buffering bounds result
+count, not the final string size.
 
 ## Errors
 
@@ -177,8 +180,8 @@ implementations and defaults. Existing spec files remain untouched.
 
 The remaining types have distinct roles: two operation structs describe their
 allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
-native response tuple and portable metadata carry execution details; the Apple actor/configuration own
-provider execution; the built-in stream and Task provide progressive delivery and completion.
+portable metadata stays within the session; the Apple actor/configuration own
+provider execution; the built-in stream returns only results and its producer Task is private.
 There are no response/result/stream wrapper types, result aliases, transport content wrappers, schema translator, backend class, or
 domain-output conversion layer.
 
