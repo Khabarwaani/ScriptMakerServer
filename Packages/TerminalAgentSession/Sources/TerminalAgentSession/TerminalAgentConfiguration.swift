@@ -37,7 +37,7 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
     public var conversationID: String?
     /// Mode of process lifecycle management across turns. Defaults to `.persistentStdio`.
     public var persistenceMode: ProcessPersistenceMode
-    /// Policy for retaining or clearing session memory across executions. Defaults to `.keep`.
+    /// Policy for retaining or clearing session memory across executions. Defaults to `.clear`.
     public var memoryRetentionPolicy: MemoryRetentionPolicy
     /// Pre-resolved URL of the binary, computed on initialization.
     var resolvedURL: URL?
@@ -51,7 +51,7 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
         metadata: AgenticExecutionMetadata.Fields = [],
         conversationID: String? = nil,
         persistenceMode: ProcessPersistenceMode = .persistentStdio,
-        memoryRetentionPolicy: MemoryRetentionPolicy = .keep
+        memoryRetentionPolicy: MemoryRetentionPolicy = .clear
     ) {
         self.executablePath = executablePath
         self.model = model

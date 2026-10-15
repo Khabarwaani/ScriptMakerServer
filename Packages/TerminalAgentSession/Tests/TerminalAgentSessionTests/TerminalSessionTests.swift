@@ -222,7 +222,10 @@ struct TerminalSessionTests {
         let scriptURL = try createMockExecutable(script: script)
         defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
 
-        let config = TerminalAgentConfiguration(executablePath: scriptURL.path)
+        let config = TerminalAgentConfiguration(
+            executablePath: scriptURL.path,
+            memoryRetentionPolicy: .keep
+        )
         let session = CodexTerminalSession(configuration: config)!
 
         // Turn 1
