@@ -32,7 +32,9 @@ private struct RouteProvider: AIProvider {
                     "reason": .string("Input cannot be processed: topic contains random unfeasible characters.")
                 ])
             ])
-        case .providerFailure: throw AgentError("provider_execution_failed", "Mock execution failed.")
+        case .providerFailure:
+            throw AgentError("provider_execution_failed", "Mock execution failed.",
+                             details: .object(["termination_reason": .string("exit"), "exit_code": .number(2)]))
         case .cancelled: throw CancellationError()
         case .success: break
         }
@@ -350,12 +352,14 @@ private func responseManager(registry: AgentRegistry, providers: ProviderCatalog
             #expect(record["status"] == .string("failed"))
             #expect(record["error"]?["code"] == .string("provider_execution_failed"))
             #expect(record["error"]?["message"] == .string("Mock execution failed."))
+            #expect(record["error"]?["details"]?["exit_code"] == .number(2))
         }
         try await client.execute(uri: "/execution-logs", method: .get) { response in
             #expect(response.status == .ok && response.headers[.cacheControl] == "no-store")
             let value = try JSONValue.parse(String(buffer: response.body))
             #expect(value["entries"]?.array?.count == 3)
             #expect(value["entries"]?.array?.last?["error"]?["code"] == .string("provider_execution_failed"))
+            #expect(value["entries"]?.array?.last?["error"]?["details"]?["exit_code"] == .number(2))
         }
         try await client.execute(uri: "/execution-logs/download", method: .get) { response in
             #expect(response.status == .ok && response.headers[.contentType] == "application/x-ndjson")
@@ -420,6 +424,10 @@ private func executionErrorsMatchTheSelectedResponseMode(outcome: RouteProvider.
                 if outcome != .cancelled {
                     #expect(text.contains(outcome == .schemaFailure ? "output_schema_validation_failed" : "provider_execution_failed"))
                 }
+                if outcome == .providerFailure {
+                    #expect(text.contains("\"termination_reason\":\"exit\""))
+                    #expect(text.contains("\"exit_code\":2"))
+                }
                 return
             }
             #expect(response.status == .internalServerError)
@@ -432,6 +440,10 @@ private func executionErrorsMatchTheSelectedResponseMode(outcome: RouteProvider.
             case .success, .agentFeasibilityFailure: "unexpected"
             }
             #expect(value["error"]?["code"] == .string(expected))
+            if outcome == .providerFailure {
+                #expect(value["error"]?["details"]?["exit_code"] == .number(2))
+                #expect(value["error"]?["details"]?["termination_reason"] == .string("exit"))
+            }
             #expect(value["error"]?["execution_id"]?.string == response.headers[.init("X-Execution-ID")!])
             #expect(value["result"] == nil)
         }
