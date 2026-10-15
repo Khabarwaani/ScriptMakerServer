@@ -86,8 +86,9 @@ domain validation belong to the caller, as do retries.
 
 ## Instructions
 
-Operations generate instructions through makeInstructions() before the session executes them. Session
-configuration has no instructions, roles, or spec rules. The spec owns its
+Operations generate instructions through `makeInstructions()` before the session
+executes them. A strategy-backed assembler builds normal and failable instruction
+formats. Session configuration has no instructions, roles, or spec rules. The spec owns its
 initialized instructions. Operations accept only a spec; they add fixed JSON-format
 rules in code, without runtime base instructions or instruction overrides.
 

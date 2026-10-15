@@ -6,8 +6,6 @@ public struct AgenticOperation<Specification: Spec>: AgenticOperationProtocol {
     }
 
     public func makeInstructions() -> String {
-        assembleOperationInstructions(
-            role: Specification.role, spec: spec.instructions, schema: Specification.outputSchema
-        )
+        OperationInstructionAssembler(strategy: JSONInstructionStrategy()).assemble(spec: spec)
     }
 }
