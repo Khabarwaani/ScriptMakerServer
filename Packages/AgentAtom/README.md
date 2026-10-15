@@ -125,7 +125,17 @@ context-based limit. See
 All operations here request JSON and expose
 strings; provider-specific image generation is outside this implementation.
 
-Metadata stays inside the session and is disabled by default.
+Metadata belongs to the session and is disabled by default. The protocol exposes
+an asynchronously readable, read-only `executionMetadata` array, ordered by completion.
+Completed generations append configured metadata, including AI-declared failures.
+Rejected requests and provider errors leave existing entries unchanged. Disabled
+collection leaves the array empty. Callers can read the latest entry through any
+session implementation:
+
+```swift
+let latest = await session.executionMetadata.last
+```
+
 The Apple session can collect model identifier, duration, and token usage; token
 counts use the version-guarded OS 27 SDK usage API. Duration uses a monotonic clock
 for generation time, excluding instruction assembly and caller decoding. The model
@@ -154,7 +164,8 @@ they need not be prefix extensions. After normal stream completion, the last ele
 is the final success or failure. Partial JSON is not decoded or repaired. An error
 after a valid-looking snapshot produces a final failure.
 
-The producer Task and metadata stay inside the session. Execution errors are
+The producer Task stays inside the session. Metadata is available separately through
+the protocol. Execution errors are
 mapped once and emitted as Result.failure before the stream finishes. Cancel the
 consuming task to terminate delivery and cancel the producer. Breaking out of the
 loop alone does not guarantee prompt producer cancellation. Cancellation ends
@@ -180,7 +191,7 @@ implementations and defaults. Existing spec files remain untouched.
 
 The remaining types have distinct roles: two operation structs describe their
 allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
-portable metadata stays within the session; the Apple actor/configuration own
+portable metadata is read through the session protocol; the Apple actor/configuration own
 provider execution; the built-in stream returns only results and its producer Task is private.
 There are no response/result/stream wrapper types, result aliases, transport content wrappers, schema translator, backend class, or
 domain-output conversion layer.

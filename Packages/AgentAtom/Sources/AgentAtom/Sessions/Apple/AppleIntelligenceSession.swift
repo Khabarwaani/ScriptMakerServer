@@ -5,8 +5,8 @@
     @available(macOS 26, iOS 26, visionOS 26, *)
     public actor AppleIntelligenceSession: AgenticSessionProtocol {
         public nonisolated let configuration: Configuration
+        public private(set) var executionMetadata: [AgenticExecutionMetadata] = []
         private var isBusy = false
-        private var executionMetadata: AgenticExecutionMetadata?
 
         public init?(configuration: Configuration = Configuration()) {
             self.configuration = configuration
@@ -75,7 +75,6 @@
             if Task.isCancelled { throw AgenticSessionError.cancelled }
             guard !isBusy else { throw AgenticSessionError.busy }
             isBusy = true
-            executionMetadata = nil
         }
 
         private func perform<Operation: AgenticOperationProtocol>(
@@ -96,7 +95,7 @@
             let responseMetadata = metadata(duration: start.duration(to: clock.now), session: session)
             let result = try result(from: response)
             try Task.checkCancellation()
-            executionMetadata = responseMetadata
+            if let responseMetadata { executionMetadata.append(responseMetadata) }
             return result
         }
 
@@ -123,7 +122,7 @@
             let responseMetadata = metadata(duration: start.duration(to: clock.now), session: session)
             let result = try result(from: response)
             try Task.checkCancellation()
-            executionMetadata = responseMetadata
+            if let responseMetadata { executionMetadata.append(responseMetadata) }
             return result
         }
 
