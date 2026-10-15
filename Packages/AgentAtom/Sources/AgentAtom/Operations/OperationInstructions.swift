@@ -4,6 +4,12 @@ protocol OperationInstructionStrategy {
     func assemble(role: String, instructions: String, schema: JSONSchema) throws -> String
 }
 
+struct OperationFailure: Decodable {
+    let domain: String
+    let code: Int
+    let reason: String
+}
+
 struct OperationInstructionAssembler<Strategy: OperationInstructionStrategy> {
     let strategy: Strategy
 
@@ -31,23 +37,15 @@ struct JSONInstructionStrategy: OperationInstructionStrategy {
 
 struct FailableInstructionStrategy: OperationInstructionStrategy {
     func assemble(role: String, instructions: String, schema: JSONSchema) throws -> String {
-        let failureSchema: [String: Any] = [
-            "type": "object",
-            "properties": [
-                "domain": ["const": "AgentAtom.Operation"],
-                "code": ["const": 422],
-                "reason": ["type": "string"],
-            ],
-            "required": ["domain", "code", "reason"],
-            "additionalProperties": false,
-        ]
-        let data = try JSONSerialization.data(withJSONObject: failureSchema, options: [.sortedKeys])
-        let schemaJSON = String(decoding: data, as: UTF8.self)
+        guard let failureSchema = JSONSchema(OperationFailure.self) else {
+            throw AgenticSessionError.invalidResponse
+        }
         return JSONInstructionStrategy().assemble(role: role, instructions: instructions, schema: schema) + """
 
 
             If the request cannot be fulfilled, return only JSON matching this failure schema instead:
-            \(schemaJSON)
+            \(failureSchema.rawValue)
+            Use domain "AgentAtom.Operation" and code 422.
             """
     }
 }

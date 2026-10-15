@@ -19,7 +19,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
     ) {
         try admit()
         defer { isBusy = false }
-        return try await generate(operation, streaming: false, yield: { _ in })
+        return try await generate(operation)
     }
 
     public func stream<Operation: AgenticOperationProtocol>(_ operation: Operation) async throws -> (
@@ -32,7 +32,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         let completion = Task {
             defer { isBusy = false }
             do {
-                let response = try await generate(operation, streaming: true) { snapshot in
+                let response = try await generateStream(operation) { snapshot in
                     if case .terminated = continuation.yield(snapshot) {
                         throw AgenticSessionError.cancelled
                     }
@@ -57,11 +57,20 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
     }
 
     private func generate<Operation: AgenticOperationProtocol>(
-        _ operation: Operation, streaming: Bool,
-        yield: @escaping @Sendable (String) async throws -> Void
+        _ operation: Operation
     ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
         #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
-            return try await perform(operation, streaming: streaming, yield: yield)
+            return try await perform(operation)
+        #else
+            throw AgenticSessionError.modelUnavailable(reason: "FoundationModels is unavailable on this platform or OS.")
+        #endif
+    }
+
+    private func generateStream<Operation: AgenticOperationProtocol>(
+        _ operation: Operation, yield: @Sendable (String) async throws -> Void
+    ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+        #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
+            return try await performStream(operation, yield: yield)
         #else
             throw AgenticSessionError.modelUnavailable(reason: "FoundationModels is unavailable on this platform or OS.")
         #endif

@@ -18,16 +18,14 @@
         }
 
         func perform<Operation: AgenticOperationProtocol>(
-            _ operation: Operation, streaming: Bool,
-            yield: @escaping @Sendable (String) async throws -> Void
+            _ operation: Operation
         ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
-            if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
             let input = operation.spec.inputJSON.rawValue
             let instructions: String
             do {
                 instructions = try operation.makeInstructions()
             } catch {
-                throw Self.map(error)
+                throw map(error)
             }
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
             let options = GenerationOptions(temperature: configuration.temperature)
@@ -36,21 +34,10 @@
             let response: String
             do {
                 try Task.checkCancellation()
-                if streaming {
-                    let stream = session.streamResponse(to: input, options: options)
-                    for try await snapshot in stream {
-                        try Task.checkCancellation()
-                        try await yield(snapshot.content)
-                    }
-                    try Task.checkCancellation()
-                    response = try await stream.collect().content
-                    try await yield(response)
-                } else {
-                    response = try await session.respond(to: input, options: options).content
-                }
+                response = try await session.respond(to: input, options: options).content
                 try Task.checkCancellation()
             } catch {
-                throw Self.map(error)
+                throw map(error)
             }
             guard !response.isEmpty else { throw AgenticSessionError.incompleteGeneration }
             let metadata = metadata(duration: start.duration(to: clock.now), session: session)
@@ -59,18 +46,56 @@
             return (content: result, metadata: metadata)
         }
 
+        func performStream<Operation: AgenticOperationProtocol>(
+            _ operation: Operation, yield: @Sendable (String) async throws -> Void
+        ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+            let input = operation.spec.inputJSON.rawValue
+            let instructions: String
+            do {
+                instructions = try operation.makeInstructions()
+            } catch {
+                throw map(error)
+            }
+            let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
+            let options = GenerationOptions(temperature: configuration.temperature)
+            let clock = ContinuousClock()
+            let start = clock.now
+            let response: String
+            do {
+                try Task.checkCancellation()
+                let stream = session.streamResponse(to: input, options: options)
+                for try await snapshot in stream {
+                    try Task.checkCancellation()
+                    try await yield(snapshot.content)
+                }
+                try Task.checkCancellation()
+                response = try await stream.collect().content
+                try await yield(response)
+                try Task.checkCancellation()
+            } catch {
+                throw map(error)
+            }
+            guard !response.isEmpty else { throw AgenticSessionError.incompleteGeneration }
+            let metadata = metadata(duration: start.duration(to: clock.now), session: session)
+            let result = try result(from: response)
+            try Task.checkCancellation()
+            return (content: result, metadata: metadata)
+        }
+
         private func result(from response: String) throws -> Result<String, NSError> {
-            let json = try? JSONSerialization.jsonObject(with: Data(response.utf8), options: [.fragmentsAllowed])
-            guard let failure = json as? [String: Any], failure["domain"] as? String == "AgentAtom.Operation" else {
+            guard let data = response.data(using: .utf8),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  json["domain"] as? String == "AgentAtom.Operation" else {
                 return .success(response)
             }
-            guard Set(failure.keys) == ["domain", "code", "reason"],
-                failure["code"] as? Int == 422, let reason = failure["reason"] as? String
-            else {
+            guard let failure = try? JSONDecoder().decode(OperationFailure.self, from: data) else {
+                throw AgenticSessionError.invalidResponse
+            }
+            guard failure.code == 422 else {
                 throw AgenticSessionError.invalidResponse
             }
             return .failure(
-                NSError(domain: "AgentAtom.Operation", code: 422, userInfo: [NSLocalizedDescriptionKey: reason]))
+                NSError(domain: failure.domain, code: failure.code, userInfo: [NSLocalizedDescriptionKey: failure.reason]))
         }
 
         private func metadata(duration: Duration, session: LanguageModelSession) -> AgenticExecutionMetadata? {
@@ -91,7 +116,7 @@
             )
         }
 
-        private static func map(_ error: any Error) -> AgenticSessionError {
+        private func map(_ error: any Error) -> AgenticSessionError {
             if error is CancellationError || Task.isCancelled { return .cancelled }
             if let error = error as? AgenticSessionError { return error }
             #if compiler(>=6.4)

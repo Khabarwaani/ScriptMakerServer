@@ -107,7 +107,7 @@ unsupported-streaming error for implementations that do not provide it.
 `AppleIntelligenceSession` is available at compile time on macOS/iOS/visionOS 26+.
 Its failable initializer returns nil if the device, Apple Intelligence settings,
 or local model availability prevent initialization. It uses only
-`SystemLanguageModel.default` and rechecks model availability during execution.
+`SystemLanguageModel.default`.
 The package retains its older deployment minimums. There is no automatic provider
 fallback.
 
