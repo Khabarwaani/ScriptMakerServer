@@ -9,11 +9,6 @@ let package = Package(
         .package(url: "https://github.com/Kitura/TypeDecoder.git", exact: "2.0.0")
     ],
     targets: [
-        .executableTarget(
-            name: "KeyPointsExample",
-            dependencies: ["AgentAtom"],
-            path: "Examples/KeyPoints"
-        ),
         .target(
             name: "AgentAtom",
             dependencies: [

@@ -160,7 +160,7 @@ not an execution error. A normal operation never permits that result alternative
 ## Structure and validation
 
 New operation/session protocols have their own files, separate from their concrete
-implementations and defaults. Existing spec files remain untouched. The spec, example execution, and caller decoding are separated too.
+implementations and defaults. Existing spec files remain untouched.
 
 The remaining types have distinct roles: two operation structs describe their
 allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
@@ -169,10 +169,9 @@ provider execution; the built-in stream and Task provide progressive delivery an
 There are no transport content wrappers, schema translator, backend class, or
 domain-output conversion layer.
 
-Run `swift build` to compile the package and public-import example. Run
-`swift run KeyPointsExample` explicitly on a supported device to use the local
-model. The caller decodes the returned string and checks that there are three
-points. Existing Phase 2 tests cover specs and schema derivation. New operation,
+Run `swift build --target AgentAtom` to compile the library. Runnable examples and
+validation of generated results belong to consumers, rather than this package.
+Existing Phase 2 tests cover specs and schema derivation. New operation,
 session, cancellation, platform, and live-model tests are a separate task:
 [#88](https://github.com/Khabarwaani/ScriptMakerServer/issues/88).
 
