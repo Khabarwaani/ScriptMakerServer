@@ -115,7 +115,7 @@ struct TerminalSessionTests {
     }
 
 
-    @Test("TerminalAgentSession provider explicit selection")
+    @Test("TerminalAgentSession provider explicit selection and custom provider registration")
     func testTerminalAgentSessionProviderSelection() throws {
         let script = """
         #!/bin/bash
@@ -124,8 +124,14 @@ struct TerminalSessionTests {
         let scriptURL = try createMockExecutable(script: script)
         defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
 
-        let config = TerminalAgentSession.Configuration(executablePath: scriptURL.path)
-        let session = TerminalAgentSession(provider: .antigravity, configuration: config)
+        let config = TerminalAgentConfiguration(executablePath: scriptURL.path)
+
+        // Custom provider from another imaginary package or custom CLI
+        let customProvider = TerminalProvider(name: "custom", defaultExecutablePath: scriptURL.path) {
+            AntigravityTerminalSession(configuration: $0)
+        }
+
+        let session = TerminalAgentSession(provider: customProvider, configuration: config)
         #expect(session != nil)
 
         // Verify TerminalSessionProtocol polymorphism across all sessions

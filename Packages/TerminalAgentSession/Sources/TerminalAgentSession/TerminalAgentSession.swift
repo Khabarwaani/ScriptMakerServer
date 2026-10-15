@@ -2,95 +2,64 @@ import Foundation
 import Synchronization
 import AgentAtom
 
-/// Unified terminal agent session that automatically detects installed CLI tools or delegates to a specified provider.
+/// Unified terminal agent session that automatically detects installed CLI tools or wraps any `TerminalSessionProtocol`.
+/// Supports pluggable third-party providers and custom packages without hardcoding.
 public final class TerminalAgentSession: TerminalSessionProtocol {
-    public enum Provider: String, Sendable, CaseIterable {
-        case codex
-        case antigravity = "agy"
-        case grok
-    }
-
     public typealias Configuration = TerminalAgentConfiguration
 
-    public let sessionConfiguration: SessionConfiguration
-    private let underlyingSession: any TerminalSessionProtocol
+    /// Built-in and registered providers.
+    public static var standardProviders: [TerminalProvider] {
+        [
+            TerminalProvider(name: "codex", defaultExecutablePath: "codex") { CodexTerminalSession(configuration: $0) },
+            TerminalProvider(name: "antigravity", defaultExecutablePath: "agy") { AntigravityTerminalSession(configuration: $0) },
+            TerminalProvider(name: "grok", defaultExecutablePath: "grok") { GrokTerminalSession(configuration: $0) }
+        ]
+    }
+
+    private let underlying: any TerminalSessionProtocol
 
     public var configuration: TerminalAgentConfiguration {
-        underlyingSession.configuration
+        underlying.configuration
     }
 
     public var executionMetadata: [AgenticExecutionMetadata] {
-        underlyingSession.executionMetadata
+        underlying.executionMetadata
     }
 
-    /// Creates a session with automatic detection of available terminal providers in order: Codex -> Antigravity -> Grok.
-    public convenience init?(workingDirectory: URL? = nil, metadata: AgenticExecutionMetadata.Fields = []) {
-        if let codex = CodexTerminalSession(configuration: .init(executablePath: "codex", workingDirectory: workingDirectory, metadata: metadata)) {
-            self.init(provider: .codex, session: codex, configuration: .init(provider: .codex, executablePath: "codex", workingDirectory: workingDirectory, metadata: metadata))
-            return
-        }
-        if let agy = AntigravityTerminalSession(configuration: .init(executablePath: "agy", workingDirectory: workingDirectory, metadata: metadata)) {
-            self.init(provider: .antigravity, session: agy, configuration: .init(provider: .antigravity, executablePath: "agy", workingDirectory: workingDirectory, metadata: metadata))
-            return
-        }
-        if let grok = GrokTerminalSession(configuration: .init(executablePath: "grok", workingDirectory: workingDirectory, metadata: metadata)) {
-            self.init(provider: .grok, session: grok, configuration: .init(provider: .grok, executablePath: "grok", workingDirectory: workingDirectory, metadata: metadata))
-            return
+    /// Creates a session by auto-detecting the first available provider from candidate providers.
+    /// Allows custom/external providers to be passed or prepended easily.
+    public convenience init?(
+        providers: [TerminalProvider] = TerminalAgentSession.standardProviders,
+        workingDirectory: URL? = nil,
+        metadata: AgenticExecutionMetadata.Fields = []
+    ) {
+        for provider in providers {
+            let config = TerminalAgentConfiguration(
+                executablePath: provider.defaultExecutablePath,
+                workingDirectory: workingDirectory,
+                metadata: metadata
+            )
+            if let session = provider.createSession(configuration: config) {
+                self.init(session: session)
+                return
+            }
         }
         return nil
     }
 
-    /// Creates a session explicitly for a given provider with unified terminal agent configuration.
-    public convenience init?(provider: Provider, configuration: TerminalAgentConfiguration) {
-        self.init(provider: provider, configuration: SessionConfiguration(
-            provider: provider,
-            executablePath: configuration.executablePath,
-            model: configuration.model,
-            workingDirectory: configuration.workingDirectory,
-            extraArguments: configuration.extraArguments,
-            metadata: configuration.metadata
-        ))
+    /// Creates a session using a specific provider descriptor and optional configuration.
+    public convenience init?(
+        provider: TerminalProvider,
+        configuration: TerminalAgentConfiguration? = nil
+    ) {
+        let config = configuration ?? TerminalAgentConfiguration(executablePath: provider.defaultExecutablePath)
+        guard let session = provider.createSession(configuration: config) else { return nil }
+        self.init(session: session)
     }
 
-    /// Creates a session explicitly for a given provider with optional custom configuration.
-    public init?(provider: Provider, configuration: SessionConfiguration = SessionConfiguration()) {
-        self.sessionConfiguration = configuration
-        switch provider {
-        case .codex:
-            guard let session = CodexTerminalSession(configuration: .init(
-                executablePath: configuration.executablePath ?? "codex",
-                model: configuration.model,
-                workingDirectory: configuration.workingDirectory,
-                extraArguments: configuration.extraArguments,
-                metadata: configuration.metadata
-            )) else { return nil }
-            self.underlyingSession = session
-
-        case .antigravity:
-            guard let session = AntigravityTerminalSession(configuration: .init(
-                executablePath: configuration.executablePath ?? "agy",
-                model: configuration.model,
-                workingDirectory: configuration.workingDirectory,
-                extraArguments: configuration.extraArguments,
-                metadata: configuration.metadata
-            )) else { return nil }
-            self.underlyingSession = session
-
-        case .grok:
-            guard let session = GrokTerminalSession(configuration: .init(
-                executablePath: configuration.executablePath ?? "grok",
-                model: configuration.model,
-                workingDirectory: configuration.workingDirectory,
-                extraArguments: configuration.extraArguments,
-                metadata: configuration.metadata
-            )) else { return nil }
-            self.underlyingSession = session
-        }
-    }
-
-    private init(provider: Provider, session: any TerminalSessionProtocol, configuration: SessionConfiguration) {
-        self.underlyingSession = session
-        self.sessionConfiguration = configuration
+    /// Wraps any existing `TerminalSessionProtocol` implementation (from this package or any external package).
+    public init(session: any TerminalSessionProtocol) {
+        self.underlying = session
     }
 
     public func respond(
@@ -99,7 +68,7 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
         schema: JSONString,
         for operation: ObjectIdentifier
     ) async -> Result<String, AgenticError> {
-        await underlyingSession.respond(to: input, instructions: instructions, schema: schema, for: operation)
+        await underlying.respond(to: input, instructions: instructions, schema: schema, for: operation)
     }
 
     public func stream(
@@ -109,39 +78,14 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
         for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
-        await underlyingSession.stream(to: input, instructions: instructions, schema: schema, for: operation, yield: yield)
+        await underlying.stream(to: input, instructions: instructions, schema: schema, for: operation, yield: yield)
     }
 
     public func pause(_ operation: ObjectIdentifier) async throws(AgenticError) {
-        try await underlyingSession.pause(operation)
+        try await underlying.pause(operation)
     }
 
     public func resume(_ operation: ObjectIdentifier) async throws(AgenticError) {
-        try await underlyingSession.resume(operation)
-    }
-
-    public struct SessionConfiguration: Sendable {
-        public var provider: Provider?
-        public var executablePath: String?
-        public var model: String?
-        public var workingDirectory: URL?
-        public var extraArguments: [String]
-        public var metadata: AgenticExecutionMetadata.Fields
-
-        public init(
-            provider: Provider? = nil,
-            executablePath: String? = nil,
-            model: String? = nil,
-            workingDirectory: URL? = nil,
-            extraArguments: [String] = [],
-            metadata: AgenticExecutionMetadata.Fields = []
-        ) {
-            self.provider = provider
-            self.executablePath = executablePath
-            self.model = model
-            self.workingDirectory = workingDirectory
-            self.extraArguments = extraArguments
-            self.metadata = metadata
-        }
+        try await underlying.resume(operation)
     }
 }
