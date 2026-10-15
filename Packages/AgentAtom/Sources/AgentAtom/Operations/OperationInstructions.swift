@@ -38,7 +38,7 @@ struct JSONInstructionStrategy: OperationInstructionStrategy {
 struct FailableInstructionStrategy: OperationInstructionStrategy {
     func assemble(role: String, instructions: String, schema: JSONSchema) throws -> String {
         guard let failureSchema = JSONSchema(OperationFailure.self) else {
-            throw AgenticOperationError.invalidInstructions
+            throw AgenticError.invalidInstructions
         }
         return JSONInstructionStrategy().assemble(role: role, instructions: instructions, schema: schema) + """
 

@@ -15,7 +15,7 @@
 
         public func generate(
             input: String, instructions: String, operationID: UUID
-        ) async -> Result<String, AgenticOperationError> {
+        ) async -> Result<String, AgenticError> {
             if let failure = admit() { return .failure(failure) }
             let executionID = UUID()
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
@@ -37,7 +37,7 @@
         public func stream(
             input: String, instructions: String, operationID: UUID,
             yield: @Sendable (String) async throws -> Void
-        ) async -> Result<String, AgenticOperationError> {
+        ) async -> Result<String, AgenticError> {
             if let failure = admit() { return .failure(failure) }
             let executionID = UUID()
             let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: instructions)
@@ -67,7 +67,7 @@
             }
         }
 
-        private func admit() -> AgenticOperationError? {
+        private func admit() -> AgenticError? {
             if Task.isCancelled { return .cancelled }
             guard !isBusy else { return .busy }
             isBusy = true
@@ -79,7 +79,7 @@
             let response = try await session.respond(
                 to: input, options: GenerationOptions(temperature: configuration.temperature)).content
             try Task.checkCancellation()
-            guard !response.isEmpty else { throw AgenticOperationError.incompleteGeneration }
+            guard !response.isEmpty else { throw AgenticError.incompleteGeneration }
             return response
         }
 
@@ -97,7 +97,7 @@
             try Task.checkCancellation()
             let response = try await stream.collect().content
             try Task.checkCancellation()
-            guard !response.isEmpty else { throw AgenticOperationError.incompleteGeneration }
+            guard !response.isEmpty else { throw AgenticError.incompleteGeneration }
             return response
         }
 
@@ -121,9 +121,9 @@
             )
         }
 
-        private func map(_ error: any Error) -> AgenticOperationError {
+        private func map(_ error: any Error) -> AgenticError {
             if error is CancellationError || Task.isCancelled { return .cancelled }
-            if let error = error as? AgenticOperationError { return error }
+            if let error = error as? AgenticError { return error }
             #if compiler(>=6.4)
                 if #available(macOS 27, iOS 27, visionOS 27, *) {
                     if let error = error as? LanguageModelError {

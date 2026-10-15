@@ -7,13 +7,13 @@ public protocol AgenticSessionProtocol: Sendable {
 
     func generate(
         input: String, instructions: String, operationID: UUID
-    ) async -> Result<String, AgenticOperationError>
+    ) async -> Result<String, AgenticError>
 
     func stream(
         input: String, instructions: String, operationID: UUID,
         yield: @Sendable (String) async throws -> Void
-    ) async -> Result<String, AgenticOperationError>
+    ) async -> Result<String, AgenticError>
 
-    func pause(operationID: UUID) async throws(AgenticOperationError)
-    func resume(operationID: UUID) async throws(AgenticOperationError)
+    func pause(operationID: UUID) async throws(AgenticError)
+    func resume(operationID: UUID) async throws(AgenticError)
 }

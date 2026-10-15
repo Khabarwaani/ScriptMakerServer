@@ -20,7 +20,7 @@ public struct FailableStreamingAgenticOperation<Specification: Spec, Session: Ag
         try OperationInstructionAssembler(strategy: FailableInstructionStrategy()).assemble(spec: spec)
     }
 
-    public func execute() async -> AsyncStream<Result<String, AgenticOperationError>> {
+    public func execute() async -> AsyncStream<Result<String, AgenticError>> {
         await runner.stream(
             input: spec.inputJSON.rawValue,
             instructions: Result { try makeInstructions() },
@@ -31,11 +31,11 @@ public struct FailableStreamingAgenticOperation<Specification: Spec, Session: Ag
         await runner.cancel()
     }
 
-    public func pause() async throws(AgenticOperationError) {
+    public func pause() async throws(AgenticError) {
         try await runner.pause()
     }
 
-    public func resume() async throws(AgenticOperationError) {
+    public func resume() async throws(AgenticError) {
         try await runner.resume()
     }
 }

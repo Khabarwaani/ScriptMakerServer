@@ -1,6 +1,6 @@
 import Foundation
 
-public enum AgenticOperationError: Error, Sendable, Equatable {
+public enum AgenticError: Error, Sendable, Equatable {
     case modelUnavailable(reason: String)
     case unsupportedStreaming
     case busy
@@ -18,7 +18,7 @@ public enum AgenticOperationError: Error, Sendable, Equatable {
     case generationFailed(reason: String)
 }
 
-extension AgenticOperationError: LocalizedError {
+extension AgenticError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .modelUnavailable(let reason): "Model unavailable: \(reason)"

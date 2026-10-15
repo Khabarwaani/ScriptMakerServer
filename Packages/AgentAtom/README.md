@@ -31,10 +31,10 @@ execution-result type through `AgenticOperationProtocol`.
 
 | Operation | `execute()` result | AI-declared failure allowed |
 | --- | --- | --- |
-| `AgenticOperation` | `Result<String, AgenticOperationError>` | No |
-| `FailableAgenticOperation` | `Result<String, AgenticOperationError>` | Yes |
-| `StreamingAgenticOperation` | `AsyncStream<Result<String, AgenticOperationError>>` | No |
-| `FailableStreamingAgenticOperation` | `AsyncStream<Result<String, AgenticOperationError>>` | Yes |
+| `AgenticOperation` | `Result<String, AgenticError>` | No |
+| `FailableAgenticOperation` | `Result<String, AgenticError>` | Yes |
+| `StreamingAgenticOperation` | `AsyncStream<Result<String, AgenticError>>` | No |
+| `FailableStreamingAgenticOperation` | `AsyncStream<Result<String, AgenticError>>` | Yes |
 
 All four can encounter provider errors or cancellation. Successful final content
 is the model's unchanged response text. The caller decodes and validates domain
@@ -182,7 +182,7 @@ A rerun is available after the producer finishes cleanup.
 
 ## Errors and validation
 
-`AgenticOperationError` is a Sendable, Equatable Swift error with LocalizedError
+`AgenticError` is a Sendable, Equatable Swift error with LocalizedError
 descriptions. It covers model-declared generation failure with a reason, provider
 failures, cancellation, busy admission, invalid instructions/responses, and lifecycle
 capability errors. Public results do not require NSError. Provider errors are mapped

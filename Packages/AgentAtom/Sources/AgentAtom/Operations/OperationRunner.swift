@@ -3,7 +3,7 @@ import Foundation
 actor OperationRunner<Session: AgenticSessionProtocol> {
     private let operationID: UUID
     private let session: Session
-    private var producer: Task<Result<String, AgenticOperationError>, Never>?
+    private var producer: Task<Result<String, AgenticError>, Never>?
 
     var isExecuting: Bool { producer != nil }
 
@@ -14,7 +14,7 @@ actor OperationRunner<Session: AgenticSessionProtocol> {
 
     func execute(
         input: String, instructions: Result<String, any Error>, allowsFailure: Bool
-    ) async -> Result<String, AgenticOperationError> {
+    ) async -> Result<String, AgenticError> {
         let assembled: String
         switch prepare(instructions) {
         case .success(let value): assembled = value
@@ -22,7 +22,7 @@ actor OperationRunner<Session: AgenticSessionProtocol> {
         }
         let worker = Task {
             let response = await session.generate(input: input, instructions: assembled, operationID: operationID)
-            if Task.isCancelled { return Result<String, AgenticOperationError>.failure(.cancelled) }
+            if Task.isCancelled { return Result<String, AgenticError>.failure(.cancelled) }
             return decode(response, allowsFailure: allowsFailure)
         }
         producer = worker
@@ -37,8 +37,8 @@ actor OperationRunner<Session: AgenticSessionProtocol> {
 
     func stream(
         input: String, instructions: Result<String, any Error>, allowsFailure: Bool
-    ) -> AsyncStream<Result<String, AgenticOperationError>> {
-        let (results, continuation) = AsyncStream<Result<String, AgenticOperationError>>.makeStream(
+    ) -> AsyncStream<Result<String, AgenticError>> {
+        let (results, continuation) = AsyncStream<Result<String, AgenticError>>.makeStream(
             bufferingPolicy: .bufferingNewest(1))
         let assembled: String
         switch prepare(instructions) {
@@ -55,10 +55,10 @@ actor OperationRunner<Session: AgenticSessionProtocol> {
             }
             let response = await session.stream(input: input, instructions: assembled, operationID: operationID) { snapshot in
                 if case .terminated = continuation.yield(.success(snapshot)) {
-                    throw AgenticOperationError.cancelled
+                    throw AgenticError.cancelled
                 }
             }
-            let result: Result<String, AgenticOperationError>
+            let result: Result<String, AgenticError>
             if Task.isCancelled {
                 result = .failure(.cancelled)
             } else {
@@ -78,25 +78,25 @@ actor OperationRunner<Session: AgenticSessionProtocol> {
         producer?.cancel()
     }
 
-    func pause() async throws(AgenticOperationError) {
+    func pause() async throws(AgenticError) {
         guard producer != nil else { throw .notRunning }
         try await session.pause(operationID: operationID)
     }
 
-    func resume() async throws(AgenticOperationError) {
+    func resume() async throws(AgenticError) {
         guard producer != nil else { throw .notRunning }
         try await session.resume(operationID: operationID)
     }
 
-    private func prepare(_ instructions: Result<String, any Error>) -> Result<String, AgenticOperationError> {
+    private func prepare(_ instructions: Result<String, any Error>) -> Result<String, AgenticError> {
         guard producer == nil else { return .failure(.busy) }
         guard !Task.isCancelled else { return .failure(.cancelled) }
-        return instructions.mapError { ($0 as? AgenticOperationError) ?? .invalidInstructions }
+        return instructions.mapError { ($0 as? AgenticError) ?? .invalidInstructions }
     }
 
     private func decode(
-        _ response: Result<String, AgenticOperationError>, allowsFailure: Bool
-    ) -> Result<String, AgenticOperationError> {
+        _ response: Result<String, AgenticError>, allowsFailure: Bool
+    ) -> Result<String, AgenticError> {
         guard case .success(let text) = response else { return response }
         let data = Data(text.utf8)
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

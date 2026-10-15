@@ -11,6 +11,6 @@ public protocol AgenticOperationProtocol: Sendable {
     func makeInstructions() throws -> String
     func execute() async -> ExecutionResult
     func cancel() async
-    func pause() async throws(AgenticOperationError)
-    func resume() async throws(AgenticOperationError)
+    func pause() async throws(AgenticError)
+    func resume() async throws(AgenticError)
 }

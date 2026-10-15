@@ -20,7 +20,7 @@ public struct AgenticOperation<Specification: Spec, Session: AgenticSessionProto
         try OperationInstructionAssembler(strategy: JSONInstructionStrategy()).assemble(spec: spec)
     }
 
-    public func execute() async -> Result<String, AgenticOperationError> {
+    public func execute() async -> Result<String, AgenticError> {
         await runner.execute(
             input: spec.inputJSON.rawValue,
             instructions: Result { try makeInstructions() },
@@ -31,11 +31,11 @@ public struct AgenticOperation<Specification: Spec, Session: AgenticSessionProto
         await runner.cancel()
     }
 
-    public func pause() async throws(AgenticOperationError) {
+    public func pause() async throws(AgenticError) {
         try await runner.pause()
     }
 
-    public func resume() async throws(AgenticOperationError) {
+    public func resume() async throws(AgenticError) {
         try await runner.resume()
     }
 }
