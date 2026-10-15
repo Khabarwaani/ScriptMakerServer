@@ -125,27 +125,9 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
                         "provider_output_limit", "Provider output exceeded the streaming buffer limit."))
             }
         }
-        final class StderrCollector: @unchecked Sendable {
-            private let lock = NSLock()
-            private var data = Data()
-            func append(_ chunk: Data) {
-                lock.withLock {
-                    data.append(chunk)
-                    if data.count > 65536 { data = data.suffix(65536) }
-                }
-            }
-            var text: String {
-                lock.withLock { String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines) }
-            }
-        }
-        let stderrCollector = StderrCollector()
+        // Drain without retaining or logging provider diagnostics, which may contain secrets.
         stderr.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
-            } else {
-                stderrCollector.append(data)
-            }
+            if handle.availableData.isEmpty { handle.readabilityHandler = nil }
         }
         defer {
             clearProcess()
@@ -212,16 +194,8 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
             let exitCode = await iterator.next() ?? -1
             try await inputTask.value
             guard !wasCancelled() else { throw CancellationError() }
-            guard exitCode == 0 else {
-                let errString = stderrCollector.text
-                if !errString.isEmpty {
-                    FileHandle.standardError.write(Data("[ProcessRunner] \(executable.lastPathComponent) exited with code \(exitCode): \(errString)\n".utf8))
-                }
-                throw AgentError(
-                    "provider_execution_failed",
-                    errString.isEmpty
-                        ? "Provider execution failed. Check provider authentication and local configuration."
-                        : "Provider execution failed: \(errString)")
+            guard child.terminationReason == .exit, exitCode == 0 else {
+                throw Self.processFailure(status: exitCode, reason: child.terminationReason)
             }
             return finalText
         } catch {
@@ -236,6 +210,18 @@ public final class ProcessRunner: ProcessRunnerProtocol, @unchecked Sendable {
             while child.isRunning { await terminationPause() }
             throw error
         }
+    }
+
+    private static func processFailure(status: Int32, reason: Process.TerminationReason) -> AgentError {
+        let signalled = reason == .uncaughtSignal
+        let outcome = signalled ? "was terminated by signal \(status)" : "exited with status \(status)"
+        return AgentError(
+            "provider_execution_failed",
+            "Provider process \(outcome). The exit alone does not identify the cause. Consult the provider's local diagnostic logs.",
+            details: .object([
+                "termination_reason": .string(signalled ? "signal" : "exit"),
+                signalled ? "signal" : "exit_code": .number(Double(status)),
+            ]))
     }
 
     private func launch(_ child: Process) throws {

@@ -143,16 +143,57 @@ actor LineCollector {
     #expect(pathLine.contains("/usr/bin"))
 }
 
-@Test func processRunnerCapturesStderrDiagnosticsOnFailure() async throws {
-    let runner = ProcessRunner()
-    await #expect(throws: AgentError.self) {
-        try await runner.run(
+@Test(arguments: [1, 2, 17])
+func processFailurePreservesExitStatusWithoutExposingOutput(status: Int) async throws {
+    do {
+        _ = try await ProcessRunner().run(
             executable: URL(fileURLWithPath: "/bin/sh"),
-            arguments: ["-c", "echo 'critical provider diagnostic' >&2; exit 2"],
-            timeoutSeconds: 5
-        )
+            arguments: ["-c", "printf 'private-prompt\\n'; printf 'secret-token: not logged in\\n' >&2; exit \(status)"],
+            timeoutSeconds: 5)
+        Issue.record("Expected process failure")
+    } catch let error as AgentError {
+        #expect(error.code == "provider_execution_failed")
+        #expect(error.message.contains("exited with status \(status)"))
+        #expect(error.details?["termination_reason"] == .string("exit"))
+        #expect(error.details?["exit_code"] == .number(Double(status)))
+        let encoded = String(decoding: try JSONEncoder().encode(error), as: UTF8.self)
+        #expect(!encoded.contains("secret-token"))
+        #expect(!encoded.contains("private-prompt"))
+        #expect(!encoded.contains("not logged in"))
+        #expect(!encoded.contains("Check provider authentication"))
     }
 }
 
+@Test func processFailureDistinguishesSignalFromExitStatus() async throws {
+    do {
+        _ = try await ProcessRunner().run(
+            executable: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "kill -TERM $$"], timeoutSeconds: 5)
+        Issue.record("Expected signal termination")
+    } catch let error as AgentError {
+        #expect(error.code == "provider_execution_failed")
+        #expect(error.message.contains("terminated by signal 15"))
+        #expect(error.details?["termination_reason"] == .string("signal"))
+        #expect(error.details?["signal"] == .number(15))
+        #expect(error.details?["exit_code"] == nil)
+    }
+}
 
-
+@Test func readinessFailurePreservesSafeProcessDetails() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let executable = directory.appendingPathComponent("mock-provider")
+    try Data("#!/bin/sh\nprintf 'secret-token' >&2\nexit 2\n".utf8).write(to: executable)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+    do {
+        try await CLIProvider(kind: .antigravity, settings: .init(executable: executable.path)).checkReadiness()
+        Issue.record("Expected readiness failure")
+    } catch let error as AgentError {
+        #expect(error.code == "provider_initialization_failed")
+        #expect(error.message.contains("antigravity readiness check failed"))
+        #expect(error.message.contains("exited with status 2"))
+        #expect(error.details?["exit_code"] == .number(2))
+        #expect(!error.message.contains("secret-token"))
+    }
+}

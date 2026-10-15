@@ -81,14 +81,22 @@ enum APISpecification {
         let error = object(
             [
                 "code": string, "message": string, "execution_id": string,
-                "details": object([
-                    "agent_id": string, "version": string,
-                    "violations": array(object([
-                        "path": string, "field": string, "keyword": string, "message": string,
-                        "expected": .bool(true), "actual": string,
-                    ], required: ["path", "field", "keyword", "message", "expected", "actual"])),
-                    "truncated": boolean,
-                ], required: ["agent_id", "version", "violations", "truncated"]),
+                "details": .object(["oneOf": .array([
+                    object([
+                        "agent_id": string, "version": string,
+                        "violations": array(object([
+                            "path": string, "field": string, "keyword": string, "message": string,
+                            "expected": .bool(true), "actual": string,
+                        ], required: ["path", "field", "keyword", "message", "expected", "actual"])),
+                        "truncated": boolean,
+                    ], required: ["agent_id", "version", "violations", "truncated"]),
+                    object([
+                        "termination_reason": .object(["const": .string("exit")]), "exit_code": integer,
+                    ], required: ["termination_reason", "exit_code"]),
+                    object([
+                        "termination_reason": .object(["const": .string("signal")]), "signal": integer,
+                    ], required: ["termination_reason", "signal"]),
+                ])]),
             ], required: ["code", "message"])
         let execution = object(
             [
