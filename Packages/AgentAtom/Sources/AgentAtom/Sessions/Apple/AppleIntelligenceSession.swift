@@ -2,7 +2,6 @@ import Foundation
 
 @available(macOS 26, iOS 26, visionOS 26, *)
 public actor AppleIntelligenceSession: AgenticSessionProtocol {
-    public typealias SessionError = AgenticSessionError
     public nonisolated let configuration: Configuration
     private var isBusy = false
 
@@ -15,7 +14,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         #endif
     }
 
-    public func execute(_ operation: any AgenticOperationProtocol) async throws(AgenticSessionError) -> (
+    public func execute<Operation: AgenticOperationProtocol>(_ operation: Operation) async throws -> (
         content: Result<String, NSError>, metadata: AgenticExecutionMetadata?
     ) {
         try admit()
@@ -23,7 +22,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         return try await generate(operation, streaming: false, yield: { _ in })
     }
 
-    public func stream(_ operation: any AgenticOperationProtocol) async throws(AgenticSessionError) -> (
+    public func stream<Operation: AgenticOperationProtocol>(_ operation: Operation) async throws -> (
         snapshots: AsyncThrowingStream<String, any Error>,
         result: Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), any Error>
     ) {
@@ -33,7 +32,7 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         let completion = Task {
             defer { isBusy = false }
             do {
-                let response = try await generate(operation, streaming: true) { snapshot async throws(AgenticSessionError) in
+                let response = try await generate(operation, streaming: true) { snapshot in
                     if case .terminated = continuation.yield(snapshot) {
                         throw AgenticSessionError.cancelled
                     }
@@ -51,16 +50,16 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         return (snapshots: snapshots, result: completion)
     }
 
-    private func admit() throws(AgenticSessionError) {
+    private func admit() throws {
         if Task.isCancelled { throw AgenticSessionError.cancelled }
         guard !isBusy else { throw AgenticSessionError.busy }
         isBusy = true
     }
 
-    private func generate(
-        _ operation: any AgenticOperationProtocol, streaming: Bool,
-        yield: @escaping @Sendable (String) async throws(AgenticSessionError) -> Void
-    ) async throws(AgenticSessionError) -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+    private func generate<Operation: AgenticOperationProtocol>(
+        _ operation: Operation, streaming: Bool,
+        yield: @escaping @Sendable (String) async throws -> Void
+    ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
         #if canImport(FoundationModels) && (os(macOS) || os(iOS) || os(visionOS))
             return try await perform(operation, streaming: streaming, yield: yield)
         #else

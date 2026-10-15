@@ -99,9 +99,9 @@ it does not prove model obedience.
 
 ## Sessions and configuration
 
-`AgenticSessionProtocol` directly executes an operation and associates its own
-configuration type. Callers initialize and inject the concrete session they want;
-there is no singleton or shared scheduling. Default streaming throws an explicit
+`AgenticSessionProtocol` directly executes generic operations and associates its
+own configuration type. Callers initialize and inject the concrete session they
+want; there is no singleton or shared scheduling. Default streaming throws an explicit
 unsupported-streaming error for implementations that do not provide it.
 
 `AppleIntelligenceSession` is available at compile time on macOS/iOS/visionOS 26+.
@@ -162,8 +162,8 @@ Session errors conform to LocalizedError and CustomNSError with stable domain
 `AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
 1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
 1007, rate limited 1008, execution failure 1009, invalid failure response 1010. Diagnostic
-messages do not copy provider prompts or input. `AgenticSessionProtocol` associates
-its execution error type; Apple uses `AgenticSessionError`. AI-declared failure uses
+messages do not copy provider prompts or input. Apple execution errors use
+`AgenticSessionError`. AI-declared failure uses
 Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
 not an execution error. A normal operation does not instruct the AI to use that failure format.
 

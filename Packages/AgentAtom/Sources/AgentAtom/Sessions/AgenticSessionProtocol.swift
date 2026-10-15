@@ -2,13 +2,12 @@ import Foundation
 
 public protocol AgenticSessionProtocol: Sendable {
     associatedtype SessionConfiguration: Sendable
-    associatedtype SessionError: Error = AgenticSessionError
     var configuration: SessionConfiguration { get }
 
-    func execute(_ operation: any AgenticOperationProtocol) async throws(SessionError) -> (
+    func execute<Operation: AgenticOperationProtocol>(_ operation: Operation) async throws -> (
         content: Result<String, NSError>, metadata: AgenticExecutionMetadata?
     )
-    func stream(_ operation: any AgenticOperationProtocol) async throws(SessionError) -> (
+    func stream<Operation: AgenticOperationProtocol>(_ operation: Operation) async throws -> (
         snapshots: AsyncThrowingStream<String, any Error>,
         result: Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), any Error>
     )

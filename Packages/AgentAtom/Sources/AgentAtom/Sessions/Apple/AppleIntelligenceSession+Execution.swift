@@ -17,10 +17,10 @@
             }
         }
 
-        func perform(
-            _ operation: any AgenticOperationProtocol, streaming: Bool,
-            yield: @escaping @Sendable (String) async throws(AgenticSessionError) -> Void
-        ) async throws(AgenticSessionError) -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
+        func perform<Operation: AgenticOperationProtocol>(
+            _ operation: Operation, streaming: Bool,
+            yield: @escaping @Sendable (String) async throws -> Void
+        ) async throws -> (content: Result<String, NSError>, metadata: AgenticExecutionMetadata?) {
             if let reason = Self.modelUnavailableReason { throw AgenticSessionError.modelUnavailable(reason: reason) }
             let input = operation.spec.inputJSON.rawValue
             let instructions: String
@@ -59,7 +59,7 @@
             return (content: result, metadata: metadata)
         }
 
-        private func result(from response: String) throws(AgenticSessionError) -> Result<String, NSError> {
+        private func result(from response: String) throws -> Result<String, NSError> {
             let json = try? JSONSerialization.jsonObject(with: Data(response.utf8), options: [.fragmentsAllowed])
             guard let failure = json as? [String: Any], failure["domain"] as? String == "AgentAtom.Operation" else {
                 return .success(response)

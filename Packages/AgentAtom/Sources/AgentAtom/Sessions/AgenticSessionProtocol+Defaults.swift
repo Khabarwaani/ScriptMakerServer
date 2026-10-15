@@ -1,10 +1,10 @@
 import Foundation
 
-extension AgenticSessionProtocol where SessionError == AgenticSessionError {
-    public func stream(_ operation: any AgenticOperationProtocol) async throws(AgenticSessionError) -> (
+extension AgenticSessionProtocol {
+    public func stream<Operation: AgenticOperationProtocol>(_ operation: Operation) async throws -> (
         snapshots: AsyncThrowingStream<String, any Error>,
         result: Task<(content: Result<String, NSError>, metadata: AgenticExecutionMetadata?), any Error>
     ) {
-        throw .unsupportedStreaming
+        throw AgenticSessionError.unsupportedStreaming
     }
 }
