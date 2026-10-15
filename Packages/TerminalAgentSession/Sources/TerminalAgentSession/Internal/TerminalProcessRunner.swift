@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import AgentAtom
 
 /// An internal process runner instance that executes commands and streams lines.
@@ -10,6 +11,89 @@ final class TerminalProcessRunner: Sendable {
     }
 
     init() {}
+
+    /// A long-running process managed by the session in memory.
+    final class ManagedProcess: Sendable {
+        private let state: Mutex<ProcessState>
+
+        private struct ProcessState {
+            let process: Process
+            let stdinPipe: Pipe
+            let stdoutPipe: Pipe
+            let stderrPipe: Pipe
+        }
+
+        init(process: Process, stdinPipe: Pipe, stdoutPipe: Pipe, stderrPipe: Pipe) {
+            self.state = Mutex(ProcessState(
+                process: process,
+                stdinPipe: stdinPipe,
+                stdoutPipe: stdoutPipe,
+                stderrPipe: stderrPipe
+            ))
+        }
+
+        var isRunning: Bool {
+            state.withLock { $0.process.isRunning }
+        }
+
+        var stdinHandle: FileHandle {
+            state.withLock { $0.stdinPipe.fileHandleForWriting }
+        }
+
+        var stdoutHandle: FileHandle {
+            state.withLock { $0.stdoutPipe.fileHandleForReading }
+        }
+
+        var stderrHandle: FileHandle {
+            state.withLock { $0.stderrPipe.fileHandleForReading }
+        }
+
+        func terminate() {
+            state.withLock {
+                if $0.process.isRunning {
+                    $0.process.terminate()
+                }
+            }
+        }
+
+        deinit {
+            terminate()
+        }
+    }
+
+    /// Spawns a long-running process with persistent stdio pipes.
+    func spawnProcess(
+        executableURL: URL,
+        arguments: [String],
+        environment: [String: String]? = nil,
+        currentDirectoryURL: URL? = nil
+    ) throws -> ManagedProcess {
+        let process = Process()
+        let stdinPipe = Pipe()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+
+        process.executableURL = executableURL
+        process.arguments = arguments
+        if let environment { process.environment = environment }
+        if let currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
+        process.standardInput = stdinPipe
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+
+        do {
+            try process.run()
+        } catch {
+            throw mapLaunchError(error, path: executableURL.path)
+        }
+
+        return ManagedProcess(
+            process: process,
+            stdinPipe: stdinPipe,
+            stdoutPipe: stdoutPipe,
+            stderrPipe: stderrPipe
+        )
+    }
 
     /// Spawns a process and asynchronously returns lines as they are produced on standard output.
     func streamLines(
@@ -40,7 +124,11 @@ final class TerminalProcessRunner: Sendable {
         }
 
         let stderrTask = Task { readStream(from: stderrPipe.fileHandleForReading) }
-        let stdout = try await readAndStreamLines(from: stdoutPipe.fileHandleForReading, process: process, yield: yield)
+        let stdout = try await readAndStreamLines(
+            from: stdoutPipe.fileHandleForReading,
+            onCancel: { process.terminate() },
+            yield: yield
+        )
 
         process.waitUntilExit()
         let stderr = await stderrTask.value
@@ -80,9 +168,10 @@ final class TerminalProcessRunner: Sendable {
         return String(decoding: data, as: UTF8.self)
     }
 
-    private func readAndStreamLines(
+    func readAndStreamLines(
         from handle: FileHandle,
-        process: Process,
+        stopCondition: @Sendable (String) -> Bool = { _ in false },
+        onCancel: @Sendable () -> Void = {},
         yield: (String) async -> Void
     ) async throws -> String {
         var fullStdout = ""
@@ -90,7 +179,7 @@ final class TerminalProcessRunner: Sendable {
 
         while true {
             if Task.isCancelled {
-                process.terminate()
+                onCancel()
                 throw AgenticError.cancelled
             }
 
@@ -101,11 +190,17 @@ final class TerminalProcessRunner: Sendable {
             fullStdout.append(text)
             pendingStdout.append(text)
 
+            var shouldStop = false
             while let newlineIndex = pendingStdout.firstIndex(of: "\n") {
                 let line = String(pendingStdout[..<newlineIndex])
                 pendingStdout.removeSubrange(...newlineIndex)
                 await yield(line)
+                if stopCondition(line) {
+                    shouldStop = true
+                    break
+                }
             }
+            if shouldStop { break }
         }
 
         if !pendingStdout.isEmpty {

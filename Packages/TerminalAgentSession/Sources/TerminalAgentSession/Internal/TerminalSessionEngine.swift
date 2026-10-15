@@ -13,6 +13,7 @@ final class TerminalSessionEngine: Sendable {
         var isBusy = false
         var records: [AgenticExecutionMetadata] = []
         var activeConversationID: String?
+        var managedProcess: TerminalProcessRunner.ManagedProcess?
     }
 
     var executionMetadata: [AgenticExecutionMetadata] {
@@ -44,10 +45,12 @@ final class TerminalSessionEngine: Sendable {
         state.withLock { $0.activeConversationID = id }
     }
 
-    /// Clears any cached session state or history.
+    /// Clears any cached session state or history, and optionally terminates in-memory process.
     func clearMemory() {
         state.withLock {
             $0.records.removeAll()
+            $0.managedProcess?.terminate()
+            $0.managedProcess = nil
         }
     }
 
@@ -80,7 +83,11 @@ final class TerminalSessionEngine: Sendable {
                 completionTokens: nil
             )
             state.withLock { state in
-                state.records.append(record)
+                if configuration.memoryRetentionPolicy == .clear {
+                    state.records.removeAll()
+                } else {
+                    state.records.append(record)
+                }
                 state.isBusy = false
             }
         }
@@ -89,11 +96,67 @@ final class TerminalSessionEngine: Sendable {
             throw AgenticError.operationFailed(reason: "Executable not resolved at '\(configuration.executablePath)'")
         }
 
-        return try await runner.streamLines(
-            executableURL: executableURL,
-            arguments: arguments,
-            currentDirectoryURL: configuration.workingDirectory,
+        switch configuration.persistenceMode {
+        case .persistentStdio:
+            return try await executeWithPersistentProcess(
+                executableURL: executableURL,
+                arguments: arguments,
+                yield: yield
+            )
+        case .daemon, .ephemeral:
+            return try await runner.streamLines(
+                executableURL: executableURL,
+                arguments: arguments,
+                currentDirectoryURL: configuration.workingDirectory,
+                yield: yield
+            )
+        }
+    }
+
+    private func executeWithPersistentProcess(
+        executableURL: URL,
+        arguments: [String],
+        yield: (String) async -> Void
+    ) async throws -> TerminalProcessRunner.ExecutionResult {
+        // Reuse existing running in-memory process, or spawn and retain a new one
+        let process: TerminalProcessRunner.ManagedProcess = try state.withLock { state in
+            if let existing = state.managedProcess, existing.isRunning {
+                return existing
+            }
+            let spawned = try runner.spawnProcess(
+                executableURL: executableURL,
+                arguments: arguments,
+                currentDirectoryURL: configuration.workingDirectory
+            )
+            state.managedProcess = spawned
+            return spawned
+        }
+
+        let inputPrompt = arguments.last ?? ""
+        if let inputData = (inputPrompt + "\n").data(using: .utf8) {
+            try? process.stdinHandle.write(contentsOf: inputData)
+        }
+
+        let stdout = try await runner.readAndStreamLines(
+            from: process.stdoutHandle,
+            stopCondition: { line in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.contains("\"type\":\"result\"") || trimmed.contains("\"type\":\"completed\"") || trimmed.contains("\"result\":") {
+                    return true
+                }
+                if (trimmed.hasPrefix("{") && trimmed.hasSuffix("}")) && !trimmed.contains("\"type\":\"text\"") && !trimmed.contains("\"type\":\"delta\"") && !trimmed.contains("\"delta\":") {
+                    return true
+                }
+                return false
+            },
+            onCancel: { process.terminate() },
             yield: yield
+        )
+
+        return TerminalProcessRunner.ExecutionResult(
+            stdout: stdout,
+            stderr: "",
+            exitCode: 0
         )
     }
 }

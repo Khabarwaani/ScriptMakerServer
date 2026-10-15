@@ -269,5 +269,70 @@ struct TerminalSessionTests {
         let session = GenericTerminalSession(configuration: configWith)
         #expect(session != nil)
     }
+
+    @Test("TerminalSession reuses persistent in-memory process across multiple turns")
+    func testPersistentProcessMemoryReuse() async throws {
+        let counterFile = FileManager.default.temporaryDirectory.appendingPathComponent("count_\(UUID().uuidString)")
+        try? "0".write(to: counterFile, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: counterFile) }
+
+        // A mock script that keeps running and counts how many lines/prompts it received
+        let script = """
+        #!/bin/bash
+        while IFS= read -r line; do
+            COUNT=$(cat "\(counterFile.path)")
+            COUNT=$((COUNT + 1))
+            echo "$COUNT" > "\(counterFile.path)"
+            echo "{\\"reply\\":\\"turn $COUNT\\"}"
+        done
+        """
+        let scriptURL = try createMockExecutable(script: script)
+        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+
+        let config = TerminalAgentConfiguration(
+            executablePath: scriptURL.path,
+            persistenceMode: .persistentStdio,
+            memoryRetentionPolicy: .keep
+        )
+        let session = GenericTerminalSession(configuration: config)!
+
+        // Turn 1: Process is spawned and kept in memory
+        let out1: MockEchoSpec.Output = try await session.respond(input: MockEchoSpec.Input(message: "hello"), instructions: "test")
+        #expect(out1.reply == "turn 1")
+
+        // Turn 2: Reuses the same running process in memory
+        let out2: MockEchoSpec.Output = try await session.respond(input: MockEchoSpec.Input(message: "again"), instructions: "test")
+        #expect(out2.reply == "turn 2")
+
+        #expect(session.executionMetadata.count == 2)
+
+        // Clear memory: shuts down the in-memory process and clears metadata
+        session.clearMemory()
+        #expect(session.executionMetadata.isEmpty)
+    }
+
+    @Test("TerminalSession memoryRetentionPolicy clear discards memory after each execution")
+    func testMemoryRetentionPolicyClear() async throws {
+        let script = """
+        #!/bin/bash
+        echo "{\\"reply\\":\\"cleared memory\\"}"
+        exit 0
+        """
+        let scriptURL = try createMockExecutable(script: script)
+        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+
+        let config = TerminalAgentConfiguration(
+            executablePath: scriptURL.path,
+            persistenceMode: .ephemeral,
+            memoryRetentionPolicy: .clear
+        )
+        let session = GenericTerminalSession(configuration: config)!
+
+        _ = try await session.execute(MockEchoSpec(message: "first"))
+        #expect(session.executionMetadata.isEmpty)
+
+        _ = try await session.execute(MockEchoSpec(message: "second"))
+        #expect(session.executionMetadata.isEmpty)
+    }
 }
 
