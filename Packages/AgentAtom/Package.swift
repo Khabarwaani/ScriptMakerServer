@@ -25,7 +25,7 @@ let package = Package(
             dependencies: ["AgentAtom"],
             path: "Tests/FailureProbe"
         ),
-        .testTarget(name: "AgentAtomTests", dependencies: ["AgentAtom", "FailureProbe"]),
+        .testTarget(name: "AgentAtomTests", dependencies: ["AgentAtom", "FailureProbe"])
     ],
     swiftLanguageModes: [.v6]
 )

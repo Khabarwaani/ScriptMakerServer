@@ -29,7 +29,7 @@ extension AgenticSessionError: LocalizedError, CustomNSError {
         case .incompleteGeneration: "The model did not complete the response."
         case .rateLimited: "The model rate limit was reached."
         case .executionFailed: "The model could not complete execution."
-        case .invalidResponse: "The model returned an invalid outcome envelope."
+        case .invalidResponse: "The model returned an invalid failure response."
         }
     }
 

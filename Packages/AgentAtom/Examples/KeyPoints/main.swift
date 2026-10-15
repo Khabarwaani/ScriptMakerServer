@@ -1,10 +1,6 @@
 import AgentAtom
 import Foundation
 
-struct KeyPointsSuccess: Decodable {
-    let output: KeyPointsSpec.Output
-}
-
 @main
 struct KeyPointsExample {
     static func main() async throws {
@@ -22,22 +18,16 @@ struct KeyPointsExample {
         for try await snapshot in stream.snapshots {
             print(snapshot)
         }
-        try display(try await stream.result().content)
+        try display(try await stream.result.value.content)
 
         let outcome = try await session.execute(
             FailableAgenticOperation(
                 spec: KeyPointsSpec(input: "Hello.")
             ))
-        switch outcome.content {
-        case .success(let responseString):
-            let envelope = try JSONDecoder().decode(KeyPointsSuccess.self, from: Data(responseString.utf8))
-            try display(envelope.output)
-        case .failure(let failure):
-            print("Unable to fulfill: \(failure.localizedDescription)")
-        }
+        try display(outcome.content)
     }
 
-    private static func display(_ result: AgenticResult) throws {
+    private static func display(_ result: Result<String, NSError>) throws {
         switch result {
         case .success(let responseString):
             let output = try JSONDecoder().decode(KeyPointsSpec.Output.self, from: Data(responseString.utf8))

@@ -30,11 +30,8 @@ failure; these are programmer preconditions, not recoverable execution errors.
 permits the AI to decline with a reason. Both are structs conforming to
 `AgenticOperationProtocol`, and both can throw execution errors.
 
-Execution returns `AgenticResponse` containing session metadata and `AgenticResult`:
-
-```swift
-public typealias AgenticResult = Result<String, NSError>
-```
+Execution returns `AgenticResponse` containing session metadata and the built-in
+`Result<String, NSError>` directly, without a custom result type or typealias.
 
 Successful content is the model's unchanged response text. The operation supplies
 the spec's JSON schema in its instructions; the model is expected to produce that
@@ -61,24 +58,20 @@ case .failure(let failure):
 ```
 
 A normal operation returns its response string without interpreting domain JSON.
-A failable operation needs no separate failure guidance. It reads only the package-owned envelope to distinguish these
-outcomes:
+A failable operation appends the fixed failure schema while creating its final
+instructions. Success uses the spec's original schema unchanged. Failure uses:
 
 ```json
-{"status":"success","output":{"example":"domain output"}}
+{"domain":"AgentAtom.Operation","code":422,"reason":"The input is insufficient."}
 ```
 
-```json
-{"status":"failure","failure":{"reason":"The input is insufficient."}}
-```
-
-On success, the **whole original envelope string** is preserved, including the
-output field. On failure, the reason is returned as a Foundation NSError in domain AgentAtom.Operation, code 422. The caller may
-decode a success envelope into a local Decodable type with an `output` property.
-Envelope parsing rejects missing, contradictory, unknown-status, and unknown-key
-outcomes. It never interprets the nested success output. Invalid envelopes throw
-`AgenticSessionError.invalidResponse`. Domain decoding errors happen later in the
-caller and retain Foundation's error domains/codes.
+There is no combined schema or success envelope. The original JSONSchema type is
+unchanged. A failable operation recognizes only the reserved AgentAtom.Operation
+failure domain and returns Foundation NSError with code 422 and the reason as its
+localized description. Invalid reserved failure responses throw invalidResponse.
+All other content is returned as the exact original success string, including
+malformed domain JSON for the caller to decode later. A spec using that reserved
+failure domain as ordinary output should use a normal operation.
 
 Operations use value semantics. Create one per request; there is no reuse tracking,
 defensive copying, or mutation policing. Keep reference-backed input and computed
@@ -133,7 +126,7 @@ let stream = try await session.stream(AgenticOperation(spec: spec))
 for try await snapshot in stream.snapshots {
     print(snapshot) // Replace display content with this cumulative string.
 }
-let response = try await stream.result() // Final string-or-failure and metadata.
+let response = try await stream.result.value // Final string-or-failure and metadata.
 ```
 
 Starting a stream starts generation. Snapshots have one consumer and buffer only
@@ -142,10 +135,11 @@ extensions. Partial JSON is not decoded or repaired. Only result() establishes
 completed execution; it still does not decode domain output. An error after a
 valid-looking partial snapshot remains an execution error.
 
-The caller cancels ordinary calls through Swift Task cancellation, and streams
-through cancel() or by cancelling the result waiter. Releasing the stream handle
-also requests cancellation. Explicitly cancel abandoned work when retaining its
-handle after breaking iteration. The session stays busy until its provider call
+The session returns a tuple containing the built-in AsyncThrowingStream and a
+Swift Task for the final response. Cancel stream.result directly to stop work,
+including when abandoning iteration. Cancellation of the snapshot iterator also
+cancels the producer. Awaiting Task.value alone does not propagate cancellation
+from the waiter; the caller owns cancellation of that result Task. The session stays busy until its provider call
 returns. Buffering bounds snapshot count, not the final string size; configure a
 response token budget appropriate to the application.
 
@@ -154,19 +148,19 @@ response token budget appropriate to the application.
 Session errors conform to LocalizedError and CustomNSError with stable domain
 `AgentAtom.Session` and explicit codes: model unavailable 1001, unsupported streaming
 1002, busy 1003, cancelled 1004, context limit 1005, refusal 1006, incomplete response
-1007, rate limited 1008, execution failure 1009, invalid envelope 1010. Diagnostic
+1007, rate limited 1008, execution failure 1009, invalid failure response 1010. Diagnostic
 messages do not copy provider prompts or input. AI-declared failure uses Foundation NSError (domain AgentAtom.Operation, code 422) as result data,
 not an execution error. A normal operation never permits that result alternative.
 
 ## Structure and validation
 
-Protocols have their own files. Concrete implementations and default extensions
-are separate. The spec, example execution, and caller decoding are separated too.
+New operation/session protocols have their own files, separate from their concrete
+implementations and defaults. Existing spec files remain untouched. The spec, example execution, and caller decoding are separated too.
 
 The remaining types have distinct roles: two operation structs describe their
 allowed outcomes; Swift Result and Foundation NSError carry string-or-failure data; the
 response and metadata carry execution details; the Apple actor/configuration own
-provider execution; the stream class owns asynchronous completion and cancellation.
+provider execution; the built-in stream and Task provide progressive delivery and completion.
 There are no transport content wrappers, schema translator, backend class, or
 domain-output conversion layer.
 

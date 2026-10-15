@@ -1,8 +1,10 @@
+import Foundation
+
 public struct AgenticResponse: Sendable {
-    public let content: AgenticResult
+    public let content: Result<String, NSError>
     public let metadata: AgenticExecutionMetadata?
 
-    public init(content: AgenticResult, metadata: AgenticExecutionMetadata? = nil) {
+    public init(content: Result<String, NSError>, metadata: AgenticExecutionMetadata? = nil) {
         self.content = content
         self.metadata = metadata
     }

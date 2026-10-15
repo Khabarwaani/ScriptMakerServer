@@ -18,28 +18,31 @@ public actor AppleIntelligenceSession: AgenticSessionProtocol {
         return try await generate(operation, streaming: false, yield: { _ in })
     }
 
-    public func stream(_ operation: any AgenticOperationProtocol) async throws -> AgenticStream {
+    public func stream(_ operation: any AgenticOperationProtocol) async throws -> (
+        snapshots: AsyncThrowingStream<String, any Error>, result: Task<AgenticResponse, any Error>
+    ) {
         try admit()
-        let pair = AsyncThrowingStream<String, any Error>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let (snapshots, continuation) = AsyncThrowingStream<String, any Error>.makeStream(
+            bufferingPolicy: .bufferingNewest(1))
         let completion = Task {
             defer { isBusy = false }
             do {
                 let response = try await generate(operation, streaming: true) { snapshot in
-                    if case .terminated = pair.continuation.yield(snapshot) {
+                    if case .terminated = continuation.yield(snapshot) {
                         throw AgenticSessionError.cancelled
                     }
                 }
-                pair.continuation.finish()
+                continuation.finish()
                 return response
             } catch {
-                pair.continuation.finish(throwing: error)
+                continuation.finish(throwing: error)
                 throw error
             }
         }
-        pair.continuation.onTermination = { termination in
+        continuation.onTermination = { termination in
             if case .cancelled = termination { completion.cancel() }
         }
-        return AgenticStream(snapshots: pair.stream, completion: completion)
+        return (snapshots: snapshots, result: completion)
     }
 
     private func admit() throws {
