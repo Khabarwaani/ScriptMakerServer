@@ -360,9 +360,10 @@ boundaries; the complete final segment must still parse as JSON. See
 
 ### Antigravity terminal sessions
 
-The server runs Shekhar through `TerminalAgentSession` with `.ephemeral` and
-Antigravity's `--print` mode, passing the configured execution deadline through
-`--print-timeout`. Provider-specific arguments and native result normalization
-belong to the server adapter; the TerminalAgentSession package remains unchanged.
+The server runs Shekhar through upstream `TerminalAgentSession` **0.1.4** with
+`.ephemeral`, passing the configured execution deadline through `--print-timeout`.
+The package binds Antigravity's prompt using `--print=`; the server must not add a
+second print flag. Provider-specific arguments and native result normalization
+belong to the server adapter; the package is consumed from its pinned upstream release.
 A malformed or failed final result fails that execution without starting another
 generation. Heartbeats confirm server connectivity, not provider progress.

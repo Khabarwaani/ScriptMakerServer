@@ -27,7 +27,7 @@ let package = Package(
         .package(path: "Agents/ShekharJokeGenerator"),
         .package(path: "../AgentCoreBase"),
         .package(path: "../ScriptDomainModels"),
-        .package(url: "https://github.com/abhi266raj/TerminalAgentSession", exact: "0.1.2"),
+        .package(url: "https://github.com/abhi266raj/TerminalAgentSession", exact: "0.1.4"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
