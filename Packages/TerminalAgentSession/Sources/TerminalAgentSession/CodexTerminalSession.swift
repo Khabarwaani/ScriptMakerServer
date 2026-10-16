@@ -38,7 +38,7 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         do {
             try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         } catch {
-            return .failure(.operationFailed(reason: "Failed to create temporary directory: \(error.localizedDescription)"))
+            return .failure(AgenticError(action: "Failed to create temporary directory", error: error))
         }
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
@@ -48,7 +48,7 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         do {
             try schema.rawValue.write(to: schemaFile, atomically: true, encoding: .utf8)
         } catch {
-            return .failure(.operationFailed(reason: "Failed to write output schema: \(error.localizedDescription)"))
+            return .failure(AgenticError(action: "Failed to write output schema", error: error))
         }
 
         var arguments = CLIArguments(["exec"])

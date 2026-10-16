@@ -78,25 +78,13 @@ extension AgenticSessionProtocol {
     /// ```
     public func executeSpec<S: Spec>(_ spec: S) async throws -> String {
         let op = AgenticOperation(spec: spec, session: self)
-        let result = await op.execute()
-        switch result {
-        case .success(let output):
-            return output
-        case .failure(let error):
-            throw error
-        }
+        return try await op.execute().get()
     }
 
     /// Executes any standard `Spec` with failable semantics and returns the resulting response string.
     public func executeFailableSpec<S: Spec>(_ spec: S) async throws -> String {
         let op = FailableAgenticOperation(spec: spec, session: self)
-        let result = await op.execute()
-        switch result {
-        case .success(let output):
-            return output
-        case .failure(let error):
-            throw error
-        }
+        return try await op.execute().get()
     }
 
     /// Executes a `ModelledSpec` and automatically decodes the structured output into `Spec.Output`.
@@ -109,46 +97,32 @@ extension AgenticSessionProtocol {
     /// ```
     public func execute<S: ModelledSpec>(_ spec: S) async throws -> S.Output {
         let op = AgenticOperation(spec: spec, session: self)
-        let result = await op.execute()
-        switch result {
-        case .success(let jsonString):
-            guard let data = jsonString.data(using: .utf8) else {
-                throw AgenticError.operationFailed(reason: "Failed to read string data from session output.")
-            }
-            do {
-                let decoded = try JSONDecoder().decode(S.Output.self, from: data)
-                return decoded
-            } catch {
-                throw AgenticError.operationFailed(reason: "Failed to decode \(S.Output.self): \(error.localizedDescription)")
-            }
-        case .failure(let error):
-            throw error
+        let jsonString = try await op.execute().get()
+        guard let data = jsonString.data(using: .utf8) else {
+            throw AgenticError.operationFailed(reason: "Failed to read string data from session output.")
+        }
+        do {
+            return try JSONDecoder().decode(S.Output.self, from: data)
+        } catch {
+            throw AgenticError(action: "Failed to decode \(S.Output.self)", error: error)
         }
     }
 
     /// Executes a `ModelledSpec` with failable semantics and decodes the result.
     public func executeFailable<S: ModelledSpec>(_ spec: S) async throws -> S.Output {
         let op = FailableAgenticOperation(spec: spec, session: self)
-        let result = await op.execute()
-        switch result {
-        case .success(let jsonString):
-            guard let data = jsonString.data(using: .utf8) else {
-                throw AgenticError.operationFailed(reason: "Failed to read string data from session output.")
-            }
-            do {
-                let decoded = try JSONDecoder().decode(S.Output.self, from: data)
-                return decoded
-            } catch {
-                throw AgenticError.operationFailed(reason: "Failed to decode \(S.Output.self): \(error.localizedDescription)")
-            }
-        case .failure(let error):
-            throw error
+        let jsonString = try await op.execute().get()
+        guard let data = jsonString.data(using: .utf8) else {
+            throw AgenticError.operationFailed(reason: "Failed to read string data from session output.")
+        }
+        do {
+            return try JSONDecoder().decode(S.Output.self, from: data)
+        } catch {
+            throw AgenticError(action: "Failed to decode \(S.Output.self)", error: error)
         }
     }
 
     /// Directly requests a typed Decodable response given an Encodable input, instructions, and an operation identifier.
-    ///
-    /// Encodes input to JSON, derives schema from Output.self, and decodes the response.
     public func respond<Input: Encodable & Sendable, Output: Decodable & Sendable>(
         input: Input,
         instructions: String,
@@ -170,25 +144,20 @@ extension AgenticSessionProtocol {
             throw AgenticError.operationFailed(reason: "Invalid JSON schema derived for \(Output.self).")
         }
 
-        let result = await self.respond(
+        let responseText = try await self.respond(
             to: inputText,
             instructions: instructions,
             schema: schemaJSON,
             for: operation
-        )
+        ).get()
 
-        switch result {
-        case .success(let text):
-            guard let data = text.data(using: .utf8) else {
-                throw AgenticError.operationFailed(reason: "Invalid UTF8 in response string.")
-            }
-            do {
-                return try JSONDecoder().decode(Output.self, from: data)
-            } catch {
-                throw AgenticError.operationFailed(reason: "Failed to decode \(Output.self): \(error.localizedDescription)")
-            }
-        case .failure(let error):
-            throw error
+        guard let data = responseText.data(using: .utf8) else {
+            throw AgenticError.operationFailed(reason: "Invalid UTF8 in response string.")
+        }
+        do {
+            return try JSONDecoder().decode(Output.self, from: data)
+        } catch {
+            throw AgenticError(action: "Failed to decode \(Output.self)", error: error)
         }
     }
 }

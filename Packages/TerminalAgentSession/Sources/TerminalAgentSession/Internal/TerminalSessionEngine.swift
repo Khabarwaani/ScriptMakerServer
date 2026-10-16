@@ -226,8 +226,7 @@ final class TerminalSessionEngine: Sendable {
             )
 
             guard result.exitCode == 0 else {
-                let err = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-                return .failure(.operationFailed(reason: "\(configuration.executablePath) exited with code \(result.exitCode): \(err)"))
+                return .failure(AgenticError(executablePath: configuration.executablePath, exitCode: result.exitCode, stderr: result.stderr))
             }
 
             if let fallbackResult = request.fallbackExtractor?(result) {
@@ -244,10 +243,8 @@ final class TerminalSessionEngine: Sendable {
             }
 
             return .failure(.generationFailed(reason: "\(configuration.executablePath) produced no output."))
-        } catch let error as AgenticError {
-            return .failure(error)
         } catch {
-            return .failure(.operationFailed(reason: error.localizedDescription))
+            return .failure(AgenticError(error))
         }
     }
 }

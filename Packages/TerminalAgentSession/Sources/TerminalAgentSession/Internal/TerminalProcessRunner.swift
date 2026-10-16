@@ -296,7 +296,7 @@ final class TerminalProcessRunner: Sendable {
     }
 
     private func mapLaunchError(_ error: Error, path: String) -> AgenticError {
-        (error as? AgenticError) ?? .operationFailed(reason: error.localizedDescription)
+        AgenticError(error)
     }
 
     private var executableExtensions: [String] {
