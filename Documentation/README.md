@@ -341,3 +341,11 @@ Every registered agent also provides dedicated shareable pages:
 
 `DialogueGenerator` generates script variations with natural dialogue, scene cues, and timing breakdowns directly from `news_details`, requested `emotion`, and `format_type`. It is independent of upstream idea generation, but seamlessly accepts and incorporates upstream reel ideas when provided in shared pipeline JSON (via `idea`, `ideas`, or `theme`/`core_message`). Output matches the standard script format with `variation_index`, `script`, `notes`, and per-scene `scene_timings` calculated using the requested or default WPS range.
 
+
+## Standalone AgentAtom package
+
+[AgentAtom](https://github.com/abhi266raj/AgentAtom) is published under Abhiraj's
+personal GitHub account as an AGPL-3.0-only Swift package, release **0.0.1**.
+It includes standalone documentation, deterministic CI, and a SwiftUI macOS app.
+This repository temporarily retains its existing local copy and dependencies.
+See [publication and migration notes](docs/AGENTATOM_PUBLICATION.md) before changing them.

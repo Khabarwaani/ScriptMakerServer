@@ -188,3 +188,10 @@ on the first listen by a Class 5 student: everyday words, short sentences, clear
 news context and an immediately understandable joke. Simplify explanations while
 preserving facts, required content, language, word limits and machine-readable
 contracts. Fresh CLI and persistent RPC execution use the same server prompt.
+
+## AgentAtom distribution
+
+AgentAtom is independently published at https://github.com/abhi266raj/AgentAtom
+under AGPL-3.0-only, starting at `0.0.1`. NewsAgent currently consumes the retained
+local snapshot. See [publication notes](AGENTATOM_PUBLICATION.md) for ownership,
+maintenance, standalone examples, and the separate remote-dependency migration.

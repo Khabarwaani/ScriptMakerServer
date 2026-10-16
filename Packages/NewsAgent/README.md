@@ -4,7 +4,7 @@ A lightweight, focused Swift package containing news agents conforming to `Agent
 
 ## Dependencies
 
-- `AgentAtom` (local Swift Package)
+- `AgentAtom` (retained local snapshot; canonical public package: [abhi266raj/AgentAtom](https://github.com/abhi266raj/AgentAtom), release **0.0.1**, AGPL-3.0-only). The manifest still uses `../AgentAtom`; remote migration is tracked separately.
 - Apple libraries (`Foundation`)
 - **No other dependencies**
 
@@ -62,3 +62,12 @@ if #available(macOS 26, iOS 26, *) {
 ```bash
 swift test --package-path Packages/NewsAgent
 ```
+
+## AgentAtom publication
+
+Use the [standalone package documentation](https://github.com/abhi266raj/AgentAtom)
+for external projects and its [macOS example](https://github.com/abhi266raj/AgentAtom/tree/0.0.1/Examples/AgentAtomDemo)
+for a complete local-model app. Do not independently evolve the local snapshot.
+The future switch to the versioned remote dependency must update lockfiles,
+validate NewsAgent and AgentServer, and address AGPL distribution obligations.
+See [migration notes](../../Documentation/docs/AGENTATOM_PUBLICATION.md).

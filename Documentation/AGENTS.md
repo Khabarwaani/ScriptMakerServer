@@ -50,3 +50,11 @@ Keep the repository root limited to Xcode entry points, `.gitignore`, and groupe
   Never force-remove a dirty worktree. Keep the worktree and branch if PR creation,
   checks, merge, or verification fails; never discard unfinished work. Finish every
   task by checking `git worktree list` and `git branch -vv` for leftover task state.
+
+## AgentAtom ownership
+
+AgentAtom's canonical repository is `abhi266raj/AgentAtom`, release `0.0.1`.
+`Packages/AgentAtom` is a retained snapshot until the explicit remote-dependency
+migration is completed. Develop package changes upstream, then synchronize through
+reviewed changes. Do not silently switch NewsAgent's manifest or update lockfiles
+as part of documentation or publication work. See `docs/AGENTATOM_PUBLICATION.md`.

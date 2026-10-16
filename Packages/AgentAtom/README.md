@@ -1,5 +1,14 @@
 # AgentAtom
 
+> Canonical standalone repository: [abhi266raj/AgentAtom](https://github.com/abhi266raj/AgentAtom),
+> release **0.0.1**, licensed AGPL-3.0-only. This directory remains the local
+> ScriptMakerServer snapshot; its dependency has not migrated yet. Future package
+> development belongs in the standalone repository. Synchronize this snapshot
+> only through an explicit reviewed change.
+>
+> The public repository includes standalone installation instructions and a
+> [runnable macOS example](https://github.com/abhi266raj/AgentAtom/tree/0.0.1/Examples/AgentAtomDemo).
+> See [publication and migration notes](../../Documentation/docs/AGENTATOM_PUBLICATION.md).
 Swift specifications, reusable operations, and sessions.
 
 ## Specifications

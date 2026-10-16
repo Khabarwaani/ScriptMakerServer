@@ -1,5 +1,11 @@
 # AgentAtom validation
 
+These commands apply to the retained ScriptMakerServer snapshot. For the public
+**0.0.1** package, clone [abhi266raj/AgentAtom](https://github.com/abhi266raj/AgentAtom)
+and run `swift test` at its root. Its [test guide](https://github.com/abhi266raj/AgentAtom/blob/0.0.1/Tests/README.md)
+and [macOS example](https://github.com/abhi266raj/AgentAtom/tree/0.0.1/Examples/AgentAtomDemo)
+are standalone. The dependency migration is a separate task; see
+[publication notes](../../../Documentation/docs/AGENTATOM_PUBLICATION.md).
 Run deterministic tests from the repository root:
 
 ```sh
