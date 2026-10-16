@@ -41,7 +41,7 @@ See [ownership, licensing and executable packaging](docs/AGENTATOM_DEPENDENCY.md
 
 ## Build, run and stop
 
-Requires macOS 14+, Swift 6 and network access for initial dependency resolution.
+Requires macOS 27+, Xcode 27 / Swift 6 and network access for initial dependency resolution.
 
 ```sh
 swift package --package-path Packages/AgentServer resolve

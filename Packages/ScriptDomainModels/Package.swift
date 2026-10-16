@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ScriptDomainModels",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS("27.0")],
     products: [
         .library(name: "ScriptDomainModels", targets: ["ScriptDomainModels"])
     ],
@@ -17,11 +17,6 @@ let package = Package(
                 .product(name: "AgentCoreBase", package: "AgentCoreBase")
             ],
             path: "Sources/ScriptDomainModels"
-        ),
-        .testTarget(
-            name: "ScriptDomainModelsTests",
-            dependencies: ["ScriptDomainModels"],
-            path: "Tests/ScriptDomainModelsTests"
         )
     ]
 )

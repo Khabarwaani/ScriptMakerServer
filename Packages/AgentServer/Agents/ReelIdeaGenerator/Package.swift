@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "ReelIdeaGenerator", platforms: [.macOS(.v14)],
+    name: "ReelIdeaGenerator", platforms: [.macOS("27.0")],
     products: [.library(name: "ReelIdeaGenerator", targets: ["ReelIdeaGenerator"])],
     targets: [
         .target(name: "ReelIdeaGenerator", path: ".", exclude: ["Tests", "README.md"],

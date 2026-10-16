@@ -64,7 +64,7 @@ graph TD
 Both consume exact `0.1.0` of the public `AgentAtom` binary product from
 https://github.com/abhi266raj/AgentAtom. Generic specs, operations, schemas and
 session contracts belong upstream; do not reintroduce a local implementation.
-The binary supports macOS 14+ and iOS 16+; TerminalAgentSession remains macOS 15+.
+All packages and Xcode targets in this repository require macOS 27+.
 See [distribution and licensing](AGENTATOM_DEPENDENCY.md).
 
 ## Boundaries
@@ -85,7 +85,7 @@ validation metadata and rejects unvalidated or changed resources.
 
 ## Operational decisions
 
-- Hummingbird 2; final JSON responses by default, optional `status=true` SSE; Swift 6, macOS 14+; loopback only.
+- Hummingbird 2; final JSON responses by default, optional `status=true` SSE; Swift 6, macOS 27+; loopback only.
 - Central JSON environment settings: development port 8080, production port 8081,
   random available testing ports 9000–9999 with at most 30 distinct attempts;
   900-second shutdown allowance. Tests never replace an existing server.

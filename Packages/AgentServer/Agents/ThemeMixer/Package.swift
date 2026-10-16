@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 let package = Package(
-    name: "ThemeMixer", platforms: [.macOS(.v14)],
+    name: "ThemeMixer", platforms: [.macOS("27.0")],
     products: [.library(name: "ThemeMixer", targets: ["ThemeMixer"])],
     targets: [
         .target(name: "ThemeMixer", path: ".", exclude: ["Tests", "README.md"],

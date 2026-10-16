@@ -5,6 +5,7 @@ A lightweight, focused Swift package containing news agents conforming to `Agent
 ## Dependencies
 
 - [`AgentAtom`](https://github.com/abhi266raj/AgentAtom) (remote binary product, exact `0.1.0`)
+- macOS 27+
 - Apple libraries (`Foundation`)
 - **No other dependencies**
 
@@ -41,19 +42,17 @@ let spec = ShekharJokeGeneratorSpec(
 )
 
 // Run with any AgentAtom session (e.g. AppleIntelligenceSession)
-if #available(macOS 26, iOS 26, *) {
-    guard let session = AppleIntelligenceSession() else { return }
-    let operation = FailableAgenticOperation(spec: spec, session: session)
-    let result = await operation.execute()
-    switch result {
-    case .success(let json):
-        let output = try JSONDecoder().decode(ShekharJokeGeneratorOutput.self, from: Data(json.utf8))
-        if let first = output.items.first {
-            print(first.joke1)
-        }
-    case .failure(let error):
-        print(error.localizedDescription)
+guard let session = AppleIntelligenceSession() else { return }
+let operation = FailableAgenticOperation(spec: spec, session: session)
+let result = await operation.execute()
+switch result {
+case .success(let json):
+    let output = try JSONDecoder().decode(ShekharJokeGeneratorOutput.self, from: Data(json.utf8))
+    if let first = output.items.first {
+        print(first.joke1)
     }
+case .failure(let error):
+    print(error.localizedDescription)
 }
 ```
 
