@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import ShekharJokeGenerator
 
 @testable import AgentCore
 
@@ -289,5 +290,63 @@ private struct DefaultedInputPackage: AgentPackageContract {
     let captured = await capture.captured
     #expect(captured?["text"] == .string("hello"))
     #expect(captured?["count"] == .number(5))
+}
+
+@Test func testShekharJokeGeneratorExecutesViaTerminalAgentSessionInCLIProvider() async throws {
+    let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("shekhar_tas_\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+    let scriptURL = tempDir.appendingPathComponent("mock_agy.sh")
+    let script = """
+    #!/bin/bash
+    echo '{"type":"text","content":"Generating Shekhar joke..."}'
+    echo '{"type":"result","response":"{\\"items\\":[{\\"title\\":\\"ताज़ा खबर\\",\\"date\\":\\"16-10-2026\\",\\"link\\":\\"https://news.in/story\\",\\"category\\":\\"Trending\\",\\"joke1\\":\\"छोटा मज़ाक\\",\\"joke2\\":\\"बड़ा मज़ाक\\",\\"script\\":\\"#1\\\\ntitle: ताज़ा खबर\\"}]}"}'
+    exit 0
+    """
+    try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+    defer { try? FileManager.default.removeItem(at: tempDir) }
+
+    let fixture = try AgentFixture()
+    let provider = CLIProvider(kind: .antigravity, settings: .init(executable: scriptURL.path))
+    let manager = ExecutionManager(
+        registry: AgentRegistry(packages: [ShekharJokeGeneratorDefinition.self], root: fixture.agents),
+        providers: ProviderCatalog(providers: [provider]),
+        runtimeRoot: fixture.runtime,
+        maxProcesses: 2, timeoutSeconds: 30, retentionSeconds: 3600
+    )
+
+    let input: JSONValue = .object([
+        "output_count": .number(1),
+        "news_count": .number(3),
+        "jokes_per_category": .number(2)
+    ])
+
+    let execution = try await manager.execute(
+        ExecuteRequest(agentID: "ShekharJokeGenerator", provider: "antigravity", input: input),
+        streaming: true
+    )
+
+    var streamedTexts: [String] = []
+    var finalResult: JSONValue?
+    for await event in execution.events {
+        if event.name == "output", let text = event.data["text"]?.string {
+            streamedTexts.append(text)
+        }
+        if event.name == "result", let res = event.data["result"] {
+            finalResult = res
+        }
+    }
+
+    let snapshot = await manager.snapshot()
+    guard let record = snapshot.records.first(where: { $0.execution_id == execution.id }) else {
+        Issue.record("Missing execution record")
+        return
+    }
+
+    #expect(record.status == "completed")
+    #expect(record.error == nil)
+    #expect(finalResult?["items"]?.array?.count == 1)
+    #expect(finalResult?["items"]?.array?[0]["title"]?.string == "ताज़ा खबर")
+    #expect(finalResult?["items"]?.array?[0]["joke1"]?.string == "छोटा मज़ाक")
 }
 

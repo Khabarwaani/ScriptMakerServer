@@ -8,7 +8,7 @@ let frameworkLinkerSettings: [LinkerSetting] = [
 
 let package = Package(
     name: "AgentServer",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     products: [
         .executable(name: "AgentServer", targets: ["AgentServer"]),
         .executable(name: "AgentTools", targets: ["AgentTools"]),
@@ -27,6 +27,7 @@ let package = Package(
         .package(path: "Agents/ShekharJokeGenerator"),
         .package(path: "../AgentCoreBase"),
         .package(path: "../ScriptDomainModels"),
+        .package(path: "../TerminalAgentSession"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
         .package(url: "https://github.com/hummingbird-project/hummingbird.git", from: "2.27.1"),
         .package(url: "https://github.com/swift-server/swift-service-lifecycle.git", from: "2.12.1")
@@ -37,6 +38,7 @@ let package = Package(
             dependencies: [
                 .product(name: "AgentCoreBase", package: "AgentCoreBase"),
                 .product(name: "ScriptDomainModels", package: "ScriptDomainModels"),
+                .product(name: "TerminalAgentSession", package: "TerminalAgentSession"),
                 .product(name: "NewsResearcher", package: "NewsResearcher"),
                 .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "DialogueRefiner", package: "DialogueRefiner"),
@@ -66,6 +68,7 @@ let package = Package(
             dependencies: [
                 "AgentCore",
                 "AgentResources",
+                .product(name: "TerminalAgentSession", package: "TerminalAgentSession"),
                 .product(name: "NewsResearcher", package: "NewsResearcher"),
                 .product(name: "ScriptRefiner", package: "ScriptRefiner"),
                 .product(name: "DialogueRefiner", package: "DialogueRefiner"),
@@ -80,7 +83,7 @@ let package = Package(
             linkerSettings: frameworkLinkerSettings,
             plugins: ["ValidateAgentsPlugin"]
         ),
-        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"], exclude: ["Fixtures"]),
+        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore", .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator")], exclude: ["Fixtures"]),
         .testTarget(name: "AgentServerTests", dependencies: ["AgentServer", "AgentCore", .product(name: "HummingbirdTesting", package: "hummingbird")])
     ]
 )
