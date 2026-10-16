@@ -46,8 +46,7 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
-      useCustomWorkingDirectory = "YES"
-      customWorkingDirectory = "$(BUILT_PRODUCTS_DIR)"
+      useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
@@ -65,11 +64,6 @@
       <CommandLineArguments>
       </CommandLineArguments>
       <EnvironmentVariables>
-         <EnvironmentVariable
-            key = "AGENT_SERVER_CONFIG"
-            value = "$(BUILT_PRODUCTS_DIR)/config/server.json"
-            isEnabled = "YES">
-         </EnvironmentVariable>
          <EnvironmentVariable
             key = "AGENT_SERVER_ENV"
             value = "development"
