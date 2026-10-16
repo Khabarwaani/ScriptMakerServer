@@ -105,8 +105,6 @@ public struct CLIProvider: AIProvider {
         if kind == .antigravity {
             extraArguments = ["--print-timeout", "\(timeoutSeconds)s", "--sandbox", "--disable-slash-commands"]
             if let effort = settings.reasoning_effort { extraArguments += ["--effort", effort] }
-            // agy consumes the next argument as the print prompt; keep this last.
-            extraArguments.append("--print")
         }
         let config = TerminalAgentConfiguration(
             executablePath: exe.path,

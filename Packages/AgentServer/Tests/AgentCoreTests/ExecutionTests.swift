@@ -314,8 +314,23 @@ private struct DefaultedInputPackage: AgentPackageContract {
     [[ "$1" == "--help" ]] && exit 0
     arguments=("$@")
     count=${#arguments[@]}
-    [[ "${arguments[$((count - 2))]}" == "--print" ]] || { echo 'Print must precede the prompt' >&2; exit 2; }
-    [[ "${arguments[$((count - 1))]}" == *"Input:"* ]] || { echo 'Missing prompt' >&2; exit 2; }
+    print_count=0
+    print_prompt=''
+    for ((index=0; index<count; index++)); do
+        case "${arguments[$index]}" in
+            --print|-p|--prompt)
+                candidate="${arguments[$((index + 1))]}"
+                [[ "$candidate" == *"Input:"* ]] || { echo 'Print consumed an option instead of its prompt' >&2; exit 2; }
+                print_prompt="$candidate"
+                print_count=$((print_count + 1))
+                ;;
+            --print=*|--prompt=*)
+                print_prompt="${arguments[$index]#*=}"
+                print_count=$((print_count + 1))
+                ;;
+        esac
+    done
+    [[ "$print_count" == "1" && "$print_prompt" == *"Input:"* ]] || { echo 'Expected exactly one print prompt' >&2; exit 2; }
     printf 'run\\n' >> '\(invocations.path)'
     echo '{"event":"init"}'
     echo '{"event":"step_update","step_update":{"text_delta":"Working"}}'
