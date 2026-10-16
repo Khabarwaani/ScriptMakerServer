@@ -93,9 +93,7 @@ schemes:
         AgentServer: all
     run:
       config: Debug
-      customWorkingDirectory: "$(BUILT_PRODUCTS_DIR)"
       environmentVariables:
-        AGENT_SERVER_CONFIG: "$(BUILT_PRODUCTS_DIR)/config/server.json"
         AGENT_SERVER_ENV: development
   AgentServer-Stop:
     build:
@@ -103,9 +101,7 @@ schemes:
         AgentServer: all
     run:
       config: Debug
-      customWorkingDirectory: "$(BUILT_PRODUCTS_DIR)"
       commandLineArguments:
         stop: true
       environmentVariables:
-        AGENT_SERVER_CONFIG: "$(BUILT_PRODUCTS_DIR)/config/server.json"
         AGENT_SERVER_ENV: development
