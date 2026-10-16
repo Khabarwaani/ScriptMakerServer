@@ -134,7 +134,6 @@ function updateTiming(record){if(!record.started_at)return;currentTiming={starte
 function renderTiming(){if(currentTiming)$('timing').textContent=timingText(currentTiming,timingObservedAt);}
 setInterval(renderTiming,1000);
 
-function example(schema){return schema?.examples?.[0] ?? schemaInitial(schema||{type:'object'}, schema||{type:'object'});}
 function getRequestedAgentId(){
   const pathParts=location.pathname.split('/').filter(Boolean);
   if(pathParts[0]==='agents'&&pathParts[1]){
@@ -172,7 +171,7 @@ function buildAgentRequest(){
   const nextKey=`${currentAgent.id}@${version||''}`;
   if(draftKey&&draftKey!==nextKey)saveDraft();
   if(draftKey!==nextKey){
-    const definition=currentDefinition(),body={agent_id:currentAgent.id,provider:$('provider').value,input:example(definition?.input_schema)};
+    const definition=currentDefinition(),body={agent_id:currentAgent.id,provider:$('provider').value,input:schemaInputExample(definition?.input_schema)};
     if($('version').value)body.version=$('version').value;
     $('body').value=drafts.get(nextKey)||pretty(body);
   }

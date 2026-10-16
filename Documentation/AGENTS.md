@@ -60,3 +60,13 @@ the development manifest, or mix `AgentAtomSource` into this dependency graph.
 Update all affected lockfiles together without unrelated upgrades. Preserve
 AGPL-3.0-only and dependency notices; see
 [distribution guidance](docs/AGENTATOM_DEPENDENCY.md).
+
+## Web input consistency
+
+Initialize every web request/example through `schemaInputExample` in
+`Packages/AgentServer/Sources/AgentResources/Web/schema-form.js`, using the selected
+agent version's `input_schema`. Never hardcode agent-specific fields/defaults in
+pages or maintain page-specific input example builders. After initialization,
+preserve user-edited JSON. The `registeredWebExamplesAgreeWithExecutionDefaults`
+test checks all registered agents/versions against server input preparation;
+run it after schema or web-input changes.

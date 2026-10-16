@@ -42,6 +42,35 @@ function schemaInitial(node, root, depth = 0) {
   return '';
 }
 
+// Initial requests include declared defaults; editing raw JSON never invokes this.
+function schemaInputExample(schema) {
+  const root = schema || {type: 'object'};
+  function defaults(value, original, depth = 0) {
+    if (depth > 32) return value;
+    const node = schemaNode(original, root, depth);
+    if (value === undefined && Object.hasOwn(node, 'default')) value = structuredClone(node.default);
+    if (Array.isArray(value)) return value.map(item => defaults(item, node.items || {}, depth + 1));
+    if (value === null || typeof value !== 'object') return value;
+    if (node.default && typeof node.default === 'object' && !Array.isArray(node.default)) {
+      for (const [key, fallback] of Object.entries(node.default)) {
+        if (!Object.hasOwn(value, key)) value[key] = structuredClone(fallback);
+      }
+    }
+    for (const [key, property] of Object.entries(node.properties || {})) {
+      const child = schemaNode(property, root, depth + 1);
+      if (!Object.hasOwn(value, key) && (Object.hasOwn(child, 'default') || node.required?.includes(key))) {
+        value[key] = schemaInitial(child, root, depth + 1);
+      }
+      if (Object.hasOwn(value, key)) value[key] = defaults(value[key], child, depth + 1);
+    }
+    return value;
+  }
+  const initial = root.examples?.length ? structuredClone(root.examples[0]) : schemaInitial(root, root);
+  return defaults(initial, root);
+}
+
+function schemaOutputExample(schema,depth=0){if(depth>5||!schema||typeof schema!=='object')return {};if(schema.examples?.length)return schema.examples[0];if('const'in schema)return schema.const;if('default'in schema)return schema.default;if(schema.enum?.length)return schema.enum[0];const type=Array.isArray(schema.type)?schema.type[0]:schema.type;if(type==='object'||schema.properties){const value={};for(const key of schema.required||Object.keys(schema.properties||{}))value[key]=schemaOutputExample(schema.properties?.[key],depth+1);return value;}if(type==='array')return schema.minItems?[schemaOutputExample(schema.items,depth+1)]:[];if(type==='integer'||type==='number')return schema.minimum??0;if(type==='boolean')return false;if(type==='null')return null;return 'example';}
+
 function schemaValueAt(value, path) {
   return path.reduce((node, key) => node?.[key], value);
 }
