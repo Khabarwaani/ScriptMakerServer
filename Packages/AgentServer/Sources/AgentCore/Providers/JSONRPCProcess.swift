@@ -8,6 +8,7 @@ actor JSONRPCProcess {
     private let arguments: [String]
     private var nextID = 0
     private var pending: [Int: CheckedContinuation<JSONValue, any Error>] = [:]
+    private var pendingMethods: [Int: String] = [:]
     private var deadlines: [Int: Task<Void, Never>] = [:]
     private var launched: CheckedContinuation<Void, any Error>?
     private var task: Task<Void, Never>?
@@ -42,6 +43,7 @@ actor JSONRPCProcess {
         let id = nextID
         return try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
+            pendingMethods[id] = method
             do {
                 try send(.object(["jsonrpc": .string("2.0"), "id": .number(Double(id)), "method": .string(method), "params": params]))
                 deadlines[id] = Task {
@@ -78,16 +80,35 @@ actor JSONRPCProcess {
                 }
             } else { try await handler?(value) }
         } else if let valueID = value["id"], case .number(let number) = valueID, let id = Int(exactly: number) {
-            if value["error"] != nil {
-                resolve(id, result: .failure(AgentError("provider_protocol_error", "The provider rejected a required session operation.")))
+            if let errorObj = value["error"] {
+                let method = pendingMethods[id] ?? "session operation"
+                let errorCode = errorObj["code"]?.number.flatMap { Int(exactly: $0) }
+                let rawMessage = errorObj["message"]?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let rawData = errorObj["data"]?.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let combined = !rawMessage.isEmpty && !rawData.isEmpty ? "\(rawMessage) (\(rawData))" : (!rawMessage.isEmpty ? rawMessage : rawData)
+                let isRateLimited = errorCode == -32003
+                    || combined.localizedCaseInsensitiveContains("rate limit")
+                    || combined.localizedCaseInsensitiveContains("too many requests")
+                    || combined.localizedCaseInsensitiveContains("429")
+                    || combined.localizedCaseInsensitiveContains("usage-exhausted")
+                    || combined.localizedCaseInsensitiveContains("quota")
+                if isRateLimited {
+                    let desc = combined.isEmpty ? "The provider rate limited the request." : combined
+                    resolve(id, result: .failure(AgentError("provider_rate_limited", "The provider rate limited '\(method)': \(desc)")))
+                } else {
+                    let desc = combined.isEmpty ? "The provider rejected a required session operation." : combined
+                    resolve(id, result: .failure(AgentError("provider_protocol_error", "The provider rejected '\(method)': \(desc)")))
+                }
             } else { resolve(id, result: .success(value["result"] ?? .object([:]))) }
         }
     }
     private func expire(_ id: Int) {
-        resolve(id, result: .failure(AgentError("provider_protocol_timeout", "The provider session operation timed out.")))
+        let method = pendingMethods[id] ?? "session operation"
+        resolve(id, result: .failure(AgentError("provider_protocol_timeout", "The provider '\(method)' operation timed out.")))
     }
     private func resolve(_ id: Int, result: Result<JSONValue, any Error>) {
         deadlines.removeValue(forKey: id)?.cancel()
+        pendingMethods.removeValue(forKey: id)
         pending.removeValue(forKey: id)?.resume(with: result)
     }
     private func finished(_ error: any Error) async {

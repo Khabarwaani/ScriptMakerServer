@@ -41,6 +41,10 @@ while let line = readLine() {
         contexts[context] = text
         if CommandLine.arguments.contains("--delay-result") { Thread.sleep(forTimeInterval: 3600) }
         if text == "crash" { exit(23) }
+        if text == "rate-limited" {
+            emit(["id": id, "error": ["code": -32003, "message": "Rate limited", "data": "API error (status 429 Too Many Requests): subscription:free-usage-exhausted"]])
+            continue
+        }
         var output: [String: Any] = text == "unfeasible" ? ["error": ["reason": "Fixture input is unfeasible."]] : ["result": text]
         if isCodex, params["outputSchema"] != nil {
             output = text == "unfeasible"
