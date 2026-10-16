@@ -12,7 +12,7 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
     public init?(configuration: Configuration = Configuration(executablePath: "codex", persistenceMode: .ephemeral)) {
         var adjusted = configuration
         // Codex batch CLI execution writes to a temporary file via -o and exits, so it requires ephemeral mode
-        if configuration.persistenceMode == .persistentStdio {
+        if case .persistentStdio = configuration.persistenceMode {
             adjusted.persistenceMode = .ephemeral
         }
         guard let engine = TerminalSessionEngine(configuration: adjusted) else { return nil }

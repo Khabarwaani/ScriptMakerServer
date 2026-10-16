@@ -216,17 +216,18 @@ struct TerminalSessionTests {
     func testContextPreservationAcrossTurns() async throws {
         let script = """
         #!/bin/bash
-        echo "{\\"reply\\":\\"Seen Turn\\"}"
-        exit 0
+        while IFS= read -r line; do
+            echo "{\\"reply\\":\\"Seen Turn\\"}"
+        done
         """
         let scriptURL = try createMockExecutable(script: script)
         defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
 
         let config = TerminalAgentConfiguration(
             executablePath: scriptURL.path,
-            memoryRetentionPolicy: .keep
+            persistenceMode: .persistentStdio(memory: .keep)
         )
-        let session = CodexTerminalSession(configuration: config)!
+        let session = GenericTerminalSession(configuration: config)!
 
         // Turn 1
         _ = try await session.execute(MockEchoSpec(message: "My name is Alice"))
@@ -294,8 +295,7 @@ struct TerminalSessionTests {
 
         let config = TerminalAgentConfiguration(
             executablePath: scriptURL.path,
-            persistenceMode: .persistentStdio,
-            memoryRetentionPolicy: .keep
+            persistenceMode: .persistentStdio(memory: .keep)
         )
         let session = GenericTerminalSession(configuration: config)!
 
@@ -334,8 +334,7 @@ struct TerminalSessionTests {
 
         let config = TerminalAgentConfiguration(
             executablePath: scriptURL.path,
-            persistenceMode: .ephemeral,
-            memoryRetentionPolicy: .clear
+            persistenceMode: .persistentStdio(memory: .clear)
         )
         let session = GenericTerminalSession(configuration: config)!
 
