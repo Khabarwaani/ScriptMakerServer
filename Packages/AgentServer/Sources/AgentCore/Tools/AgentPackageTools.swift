@@ -167,7 +167,7 @@ public enum AgentPackageTools {
             // swift-tools-version: 6.0
             import PackageDescription
             let package = Package(
-                name: "\(id)", platforms: [.macOS(.v14)],
+                name: "\(id)", platforms: [.macOS(\"27.0\")],
                 products: [.library(name: "\(id)", targets: ["\(id)"])],
                 targets: [
                     .target(name: "\(id)", path: ".", exclude: ["Tests", "README.md"],

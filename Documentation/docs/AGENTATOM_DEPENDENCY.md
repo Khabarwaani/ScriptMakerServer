@@ -22,7 +22,7 @@ Commit affected SwiftPM and Xcode lockfiles without unrelated upgrades.
 ## Platforms and runtime packaging
 
 The release contains universal macOS, iOS device and iOS simulator slices.
-NewsAgent declares macOS 14+ and iOS 16+; TerminalAgentSession requires macOS 15+.
+All packages and Xcode targets in this repository require macOS 27+.
 The previous tvOS/watchOS/visionOS NewsAgent declarations are removed because this
 binary release supplies no matching slices. Use a toolchain compatible with the
 release's Swift module interfaces (validated here with Xcode 27 / Swift 6.4).

@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ReelJokeMaker",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS("27.0")],
     products: [.library(name: "ReelJokeMaker", targets: ["ReelJokeMaker"])],
     dependencies: [
         .package(path: "../../../AgentCoreBase")

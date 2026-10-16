@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 let package = Package(
-    name: "ScriptRefiner", platforms: [.macOS(.v14)],
+    name: "ScriptRefiner", platforms: [.macOS("27.0")],
     products: [.library(name: "ScriptRefiner", targets: ["ScriptRefiner"])],
     targets: [
         .target(name: "ScriptRefiner", path: ".", exclude: ["Tests", "README.md"],

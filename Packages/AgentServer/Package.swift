@@ -8,7 +8,7 @@ let frameworkLinkerSettings: [LinkerSetting] = [
 
 let package = Package(
     name: "AgentServer",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS("27.0")],
     products: [
         .executable(name: "AgentServer", targets: ["AgentServer"]),
         .executable(name: "AgentTools", targets: ["AgentTools"]),

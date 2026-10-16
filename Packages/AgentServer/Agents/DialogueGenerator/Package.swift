@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 let package = Package(
-    name: "DialogueGenerator", platforms: [.macOS(.v14)],
+    name: "DialogueGenerator", platforms: [.macOS("27.0")],
     products: [.library(name: "DialogueGenerator", targets: ["DialogueGenerator"])],
     targets: [
         .target(name: "DialogueGenerator", path: ".", exclude: ["Tests", "README.md"],

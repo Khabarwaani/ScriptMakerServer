@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "NewsAgent",
-    platforms: [.macOS(.v14), .iOS(.v16)],
+    platforms: [.macOS("27.0")],
     products: [
         .library(name: "NewsAgent", targets: ["NewsAgent"])
     ],

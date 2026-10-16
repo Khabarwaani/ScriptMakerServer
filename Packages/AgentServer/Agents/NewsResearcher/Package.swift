@@ -1,7 +1,7 @@
 // swift-tools-version: 6.0
 import PackageDescription
 let package = Package(
-    name: "NewsResearcher", platforms: [.macOS(.v14)],
+    name: "NewsResearcher", platforms: [.macOS("27.0")],
     products: [.library(name: "NewsResearcher", targets: ["NewsResearcher"])],
     targets: [
         .target(name: "NewsResearcher", path: ".", exclude: ["Tests", "README.md"],

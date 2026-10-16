@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "ShekharJokeGenerator",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS("27.0")],
     products: [.library(name: "ShekharJokeGenerator", targets: ["ShekharJokeGenerator"])],
     dependencies: [
         .package(path: "../../../AgentCoreBase"),

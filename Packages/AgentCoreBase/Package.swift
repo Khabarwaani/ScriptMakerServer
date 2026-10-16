@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "AgentCoreBase",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS("27.0")],
     products: [
         .library(name: "AgentCoreBase", targets: ["AgentCoreBase"])
     ],
