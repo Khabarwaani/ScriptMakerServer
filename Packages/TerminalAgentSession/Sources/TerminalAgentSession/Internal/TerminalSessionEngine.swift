@@ -140,7 +140,7 @@ final class TerminalSessionEngine: Sendable {
             return spawned
         }
 
-        // If the process immediately exited on spawn (e.g. CLI that requires batch mode or runs to completion), fallback to streamLines
+        // If the process is not running (e.g. CLI that ran to completion immediately or exited), spawn fresh via streamLines
         if !process.isRunning {
             state.withLock { $0.managedProcess = nil }
             return try await runner.streamLines(
@@ -171,6 +171,11 @@ final class TerminalSessionEngine: Sendable {
             yield: yield
         )
 
+        // If process exited during or after read, clear it so next call respawns cleanly
+        if !process.isRunning {
+            state.withLock { $0.managedProcess = nil }
+        }
+
         let exitCode = process.terminationStatus ?? 0
         return TerminalProcessRunner.ExecutionResult(
             stdout: stdout,
@@ -178,4 +183,61 @@ final class TerminalSessionEngine: Sendable {
             exitCode: exitCode
         )
     }
+
+    /// Shared pipeline that executes CLI arguments, processes streamed output line-by-line,
+    /// checks exit codes, and extracts final structured output cleanly.
+    func runStreamedExecution(
+        arguments: [String],
+        operation: ObjectIdentifier,
+        defaultModel: String,
+        lineHandler: @Sendable (String) async -> (extracted: String?, yieldChunk: String?),
+        fallbackExtractor: (@Sendable (TerminalProcessRunner.ExecutionResult) -> String?)? = nil,
+        yield: @Sendable (String) async -> Void
+    ) async -> Result<String, AgenticError> {
+        do {
+            let extractedMutex = Mutex<String?>(nil)
+
+            let result = try await execute(
+                arguments: arguments,
+                operation: operation,
+                defaultModel: defaultModel,
+                yield: { line in
+                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    let (extracted, yieldChunk) = await lineHandler(trimmed)
+                    if let chunk = yieldChunk {
+                        await yield(chunk)
+                    }
+                    if let extracted = extracted {
+                        extractedMutex.withLock { $0 = extracted }
+                    }
+                }
+            )
+
+            guard result.exitCode == 0 else {
+                let err = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                return .failure(.operationFailed(reason: "\(configuration.executablePath) exited with code \(result.exitCode): \(err)"))
+            }
+
+            if let fallbackResult = fallbackExtractor?(result) {
+                return .success(fallbackResult)
+            }
+
+            if let finalOutput = extractedMutex.withLock({ $0 }), !finalOutput.isEmpty {
+                return .success(finalOutput)
+            }
+
+            let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedStdout.isEmpty {
+                return .success(trimmedStdout)
+            }
+
+            return .failure(.generationFailed(reason: "\(configuration.executablePath) produced no output."))
+        } catch let error as AgenticError {
+            return .failure(error)
+        } catch {
+            return .failure(.operationFailed(reason: error.localizedDescription))
+        }
+    }
 }
+

@@ -51,7 +51,7 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         instructions: String,
         schema: JSONString,
         for operation: ObjectIdentifier,
-        yield: (String) async -> Void
+        yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("codex_\(UUID().uuidString)")
         do {
@@ -82,36 +82,23 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         let prompt = "\(instructions)\n\nInput:\n\(input)"
         arguments.append(prompt)
 
-        do {
-            let result = try await engine.execute(
-                arguments: arguments,
-                operation: operation,
-                defaultModel: "codex",
-                yield: yield
-            )
-
-            guard result.exitCode == 0 else {
-                let err = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-                return .failure(.operationFailed(reason: "Codex CLI exited with status \(result.exitCode): \(err)"))
-            }
-
-            if FileManager.default.fileExists(atPath: outputFile.path),
-               let outputData = try? Data(contentsOf: outputFile),
-               let outputString = String(data: outputData, encoding: .utf8),
-               !outputString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return .success(outputString)
-            }
-
-            let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedStdout.isEmpty {
-                return .success(trimmedStdout)
-            }
-
-            return .failure(.generationFailed(reason: "Codex CLI produced no output."))
-        } catch let error as AgenticError {
-            return .failure(error)
-        } catch {
-            return .failure(.operationFailed(reason: error.localizedDescription))
-        }
+        return await engine.runStreamedExecution(
+            arguments: arguments,
+            operation: operation,
+            defaultModel: "codex",
+            lineHandler: { line in
+                return (extracted: nil, yieldChunk: line)
+            },
+            fallbackExtractor: { _ in
+                if FileManager.default.fileExists(atPath: outputFile.path),
+                   let outputData = try? Data(contentsOf: outputFile),
+                   let outputString = String(data: outputData, encoding: .utf8),
+                   !outputString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return outputString
+                }
+                return nil
+            },
+            yield: yield
+        )
     }
 }

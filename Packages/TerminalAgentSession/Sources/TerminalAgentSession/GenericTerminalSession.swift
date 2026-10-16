@@ -75,42 +75,16 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
     ) async -> Result<String, AgenticError> {
         let prompt = "\(instructions)\n\nInput:\n\(input)"
         let args = argumentBuilder(input, prompt, schema, configuration)
-        do {
-            var structuredOutput = ""
-            let result = try await engine.execute(
-                arguments: args,
-                operation: operation,
-                defaultModel: configuration.executablePath,
-                yield: { line in
-                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    await yield(trimmed)
-                    if (trimmed.hasPrefix("{") && trimmed.hasSuffix("}")) ||
-                       (trimmed.hasPrefix("[") && trimmed.hasSuffix("]")) {
-                        structuredOutput = trimmed
-                    }
-                }
-            )
-
-            guard result.exitCode == 0 else {
-                let err = result.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-                return .failure(.operationFailed(reason: "\(configuration.executablePath) exited with code \(result.exitCode): \(err)"))
-            }
-
-            if !structuredOutput.isEmpty {
-                return .success(structuredOutput)
-            }
-
-            let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedStdout.isEmpty {
-                return .success(trimmedStdout)
-            }
-
-            return .failure(.generationFailed(reason: "\(configuration.executablePath) produced no output."))
-        } catch let error as AgenticError {
-            return .failure(error)
-        } catch {
-            return .failure(.operationFailed(reason: error.localizedDescription))
-        }
+        return await engine.runStreamedExecution(
+            arguments: args,
+            operation: operation,
+            defaultModel: configuration.executablePath,
+            lineHandler: { line in
+                let isJSON = (line.hasPrefix("{") && line.hasSuffix("}")) ||
+                             (line.hasPrefix("[") && line.hasSuffix("]"))
+                return (extracted: isJSON ? line : nil, yieldChunk: line)
+            },
+            yield: yield
+        )
     }
 }
