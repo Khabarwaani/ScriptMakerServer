@@ -35,7 +35,7 @@ that a provider's cached credentials or backend are available.
 
 ## AgentAtom dependency
 
-NewsAgent and TerminalAgentSession use the public AgentAtom **0.1.0** binary
+KhabarwaaniAgent and TerminalAgentSession use the public AgentAtom **0.1.0** binary
 package. There is no local framework source or sibling-checkout requirement.
 See [ownership, licensing and executable packaging](docs/AGENTATOM_DEPENDENCY.md).
 

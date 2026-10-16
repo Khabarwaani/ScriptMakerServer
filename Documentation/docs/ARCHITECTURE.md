@@ -60,7 +60,7 @@ graph TD
 
 ## AgentAtom ownership
 
-`NewsAgent` owns domain specifications; `TerminalAgentSession` owns CLI sessions.
+`KhabarwaaniAgent` owns domain specifications; `TerminalAgentSession` owns CLI sessions.
 Both consume exact `0.1.0` of the public `AgentAtom` binary product from
 https://github.com/abhi266raj/AgentAtom. Generic specs, operations, schemas and
 session contracts belong upstream; do not reintroduce a local implementation.

@@ -1,7 +1,7 @@
 # AgentAtom dependency
 
 Canonical source, releases and internal tests: https://github.com/abhi266raj/AgentAtom.
-NewsAgent and TerminalAgentSession depend on exact **0.1.0**, binary product
+KhabarwaaniAgent and TerminalAgentSession depend on exact **0.1.0**, binary product
 `AgentAtom`, retaining `import AgentAtom`. Generic framework changes belong
 upstream. Domain specs and CLI adapters remain here. The source variant
 `AgentAtomSource` has a separate module identity; never mix variants in one graph.
@@ -23,7 +23,7 @@ Commit affected SwiftPM and Xcode lockfiles without unrelated upgrades.
 
 The release contains universal macOS, iOS device and iOS simulator slices.
 All packages and Xcode targets in this repository require macOS 27+.
-The previous tvOS/watchOS/visionOS NewsAgent declarations are removed because this
+The previous tvOS/watchOS/visionOS KhabarwaaniAgent declarations are removed because this
 binary release supplies no matching slices. Use a toolchain compatible with the
 release's Swift module interfaces (validated here with Xcode 27 / Swift 6.4).
 
@@ -46,7 +46,6 @@ unsigned framework must sign it as part of their own distribution. See the
 ## Validation and ownership
 
 ```sh
-swift test --package-path Packages/NewsAgent
 swift test --package-path Packages/AgentServer
 swift test --package-path Packages/AgentServer/Agents/ShekharJokeGenerator
 swift run --package-path Packages/AgentServer AgentTools docs --check

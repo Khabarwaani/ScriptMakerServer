@@ -1,5 +1,5 @@
 {
-  "originHash" : "186ef567247d364e5fc70beb447386b4f206d1e38ade33309c83c7902ac1b09d",
+  "originHash" : "46a136e03138e2d69db87081610f02bafb0e3908197e6e840e1b39294bb86e1b",
   "pins" : [
     {
       "identity" : "agentatom",
@@ -7,6 +7,15 @@
       "location" : "https://github.com/abhi266raj/AgentAtom",
       "state" : {
         "revision" : "df95fa03457ab53b72bbdce951ff6839632f53dc",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "khabarwaaniagent",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Khabarwaani/KhabarwaaniAgent",
+      "state" : {
+        "revision" : "4c04729da88d7cc9a9c36bcda3ab5e8be54a2deb",
         "version" : "0.1.0"
       }
     },
