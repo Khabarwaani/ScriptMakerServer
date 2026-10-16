@@ -53,7 +53,7 @@ public struct TerminalProvider: Sendable {
     public static func generic(
         name: String,
         executablePath: String,
-        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> [String])? = nil
+        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> CLIArguments)? = nil
     ) -> TerminalProvider {
         TerminalProvider(name: name, defaultExecutablePath: executablePath) { config in
             GenericTerminalSession(configuration: config, argumentBuilder: argumentBuilder)

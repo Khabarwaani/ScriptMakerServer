@@ -48,7 +48,7 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
     /// Working directory for subprocess execution.
     public var workingDirectory: URL?
     /// Additional CLI arguments passed directly to the tool.
-    public var extraArguments: [String]
+    public var extraArguments: CLIArguments
     /// Custom search paths to prepend when resolving the CLI binary.
     public var additionalSearchPaths: [String]
     /// Metadata tracking preferences.
@@ -68,7 +68,7 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
         executablePath: String,
         model: String? = nil,
         workingDirectory: URL? = nil,
-        extraArguments: [String] = [],
+        extraArguments: CLIArguments = [],
         additionalSearchPaths: [String] = [],
         metadata: AgenticExecutionMetadata.Fields = [],
         conversationID: String? = nil,
@@ -83,5 +83,27 @@ public struct TerminalAgentConfiguration: Sendable, Equatable {
         self.conversationID = conversationID
         self.persistenceMode = persistenceMode
         self.resolvedURL = nil
+    }
+
+    public init(
+        executablePath: String,
+        model: String? = nil,
+        workingDirectory: URL? = nil,
+        extraArguments: [String],
+        additionalSearchPaths: [String] = [],
+        metadata: AgenticExecutionMetadata.Fields = [],
+        conversationID: String? = nil,
+        persistenceMode: ProcessPersistenceMode = .persistentStdio
+    ) {
+        self.init(
+            executablePath: executablePath,
+            model: model,
+            workingDirectory: workingDirectory,
+            extraArguments: CLIArguments(extraArguments),
+            additionalSearchPaths: additionalSearchPaths,
+            metadata: metadata,
+            conversationID: conversationID,
+            persistenceMode: persistenceMode
+        )
     }
 }

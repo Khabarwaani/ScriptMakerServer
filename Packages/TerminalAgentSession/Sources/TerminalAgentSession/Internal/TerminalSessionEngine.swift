@@ -64,7 +64,7 @@ final class TerminalSessionEngine: Sendable {
 
     /// Executes CLI arguments with single-run admission, timing metadata recording, and streaming callback.
     func execute(
-        arguments: [String],
+        arguments: CLIArguments,
         operation: ObjectIdentifier,
         defaultModel: String,
         yield: (String) async -> Void
@@ -123,7 +123,7 @@ final class TerminalSessionEngine: Sendable {
 
     private func executeWithPersistentProcess(
         executableURL: URL,
-        arguments: [String],
+        arguments: CLIArguments,
         yield: (String) async -> Void
     ) async throws -> TerminalProcessRunner.ExecutionResult {
         // Reuse existing running in-memory process, or spawn and retain a new one
@@ -187,7 +187,7 @@ final class TerminalSessionEngine: Sendable {
     /// Shared pipeline that executes CLI arguments, processes streamed output line-by-line,
     /// checks exit codes, and extracts final structured output cleanly.
     func runStreamedExecution(
-        arguments: [String],
+        arguments: CLIArguments,
         operation: ObjectIdentifier,
         defaultModel: String,
         lineHandler: @Sendable (String) async -> (extracted: String?, yieldChunk: String?),

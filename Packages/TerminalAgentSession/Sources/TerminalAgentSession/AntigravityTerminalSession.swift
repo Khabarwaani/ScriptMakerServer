@@ -30,17 +30,13 @@ public final class AntigravityTerminalSession: TerminalSessionProtocol {
         for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
-        var arguments: [String] = [
-            "--output-format", "stream-json",
-            "--json-schema", schema.rawValue,
-            "--dangerously-skip-permissions"
-        ]
-        if let model = configuration.model {
-            arguments += ["--model", model]
-        }
+        var arguments = CLIArguments()
+        arguments.append(option: "--output-format", value: "stream-json")
+        arguments.append(option: "--json-schema", value: schema.rawValue)
+        arguments.append(flag: "--dangerously-skip-permissions")
+        arguments.append(option: "--model", optionalValue: configuration.model)
         arguments += configuration.extraArguments
-        let prompt = "\(instructions)\n\nInput:\n\(input)"
-        arguments.append(prompt)
+        arguments.append("\(instructions)\n\nInput:\n\(input)")
 
         return await engine.runStreamedExecution(
             arguments: arguments,

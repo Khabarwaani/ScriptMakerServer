@@ -13,19 +13,17 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
 
     public typealias Configuration = TerminalAgentConfiguration
     private let engine: TerminalSessionEngine
-    private let argumentBuilder: @Sendable (String, String, JSONString, TerminalAgentConfiguration) -> [String]
+    private let argumentBuilder: @Sendable (String, String, JSONString, TerminalAgentConfiguration) -> CLIArguments
 
     public init?(
         configuration: Configuration,
-        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> [String])? = nil
+        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> CLIArguments)? = nil
     ) {
         guard let engine = TerminalSessionEngine(configuration: configuration) else { return nil }
         self.engine = engine
         self.argumentBuilder = argumentBuilder ?? { input, instructions, schema, config in
             var args = config.extraArguments
-            if let model = config.model {
-                args += ["--model", model]
-            }
+            args.append(option: "--model", optionalValue: config.model)
             args.append("\(instructions)\n\nInput:\n\(input)")
             return args
         }
@@ -43,8 +41,8 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
         executablePath: String,
         model: String? = nil,
         workingDirectory: URL? = nil,
-        extraArguments: [String] = [],
-        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> [String])? = nil
+        extraArguments: CLIArguments = [],
+        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> CLIArguments)? = nil
     ) {
         self.init(
             configuration: TerminalAgentConfiguration(
@@ -53,6 +51,22 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
                 workingDirectory: workingDirectory,
                 extraArguments: extraArguments
             ),
+            argumentBuilder: argumentBuilder
+        )
+    }
+
+    public convenience init?(
+        executablePath: String,
+        model: String? = nil,
+        workingDirectory: URL? = nil,
+        extraArguments: [String],
+        argumentBuilder: (@Sendable (String, String, JSONString, TerminalAgentConfiguration) -> CLIArguments)? = nil
+    ) {
+        self.init(
+            executablePath: executablePath,
+            model: model,
+            workingDirectory: workingDirectory,
+            extraArguments: CLIArguments(extraArguments),
             argumentBuilder: argumentBuilder
         )
     }

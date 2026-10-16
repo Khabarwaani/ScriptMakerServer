@@ -62,7 +62,7 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
         executablePath: String,
         model: String? = nil,
         workingDirectory: URL? = nil,
-        extraArguments: [String] = []
+        extraArguments: CLIArguments = []
     ) {
         guard let session = GenericTerminalSession(
             executablePath: executablePath,
@@ -71,6 +71,20 @@ public final class TerminalAgentSession: TerminalSessionProtocol {
             extraArguments: extraArguments
         ) else { return nil }
         self.init(session: session)
+    }
+
+    public convenience init?(
+        executablePath: String,
+        model: String? = nil,
+        workingDirectory: URL? = nil,
+        extraArguments: [String]
+    ) {
+        self.init(
+            executablePath: executablePath,
+            model: model,
+            workingDirectory: workingDirectory,
+            extraArguments: CLIArguments(extraArguments)
+        )
     }
 
     /// Wraps any existing `TerminalSessionProtocol` implementation (from this package or any external package).

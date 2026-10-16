@@ -136,7 +136,7 @@ final class TerminalProcessRunner: Sendable {
     /// Spawns a long-running process with persistent stdio pipes.
     func spawnProcess(
         executableURL: URL,
-        arguments: [String],
+        arguments: CLIArguments,
         environment: [String: String]? = nil,
         currentDirectoryURL: URL? = nil
     ) throws -> ManagedProcess {
@@ -146,7 +146,7 @@ final class TerminalProcessRunner: Sendable {
         let stderrPipe = Pipe()
 
         process.executableURL = executableURL
-        process.arguments = arguments
+        process.arguments = arguments.rawTokens
         if let environment { process.environment = environment }
         if let currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
         process.standardInput = stdinPipe
@@ -170,7 +170,7 @@ final class TerminalProcessRunner: Sendable {
     /// Spawns a process and asynchronously returns lines as they are produced on standard output.
     func streamLines(
         executableURL: URL,
-        arguments: [String],
+        arguments: CLIArguments,
         environment: [String: String]? = nil,
         currentDirectoryURL: URL? = nil,
         yield: (String) async -> Void
@@ -182,7 +182,7 @@ final class TerminalProcessRunner: Sendable {
         configure(
             process: process,
             executableURL: executableURL,
-            arguments: arguments,
+            arguments: arguments.rawTokens,
             environment: environment,
             currentDirectoryURL: currentDirectoryURL,
             stdoutPipe: stdoutPipe,

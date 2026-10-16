@@ -51,17 +51,12 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
             return .failure(.operationFailed(reason: "Failed to write output schema: \(error.localizedDescription)"))
         }
 
-        var arguments: [String] = ["exec"]
-        if let model = configuration.model {
-            arguments += ["--model", model]
-        }
-        arguments += [
-            "--output-schema", schemaFile.path,
-            "-o", outputFile.path
-        ]
+        var arguments = CLIArguments(["exec"])
+        arguments.append(option: "--model", optionalValue: configuration.model)
+        arguments.append(option: "--output-schema", value: schemaFile.path)
+        arguments.append(option: "-o", value: outputFile.path)
         arguments += configuration.extraArguments
-        let prompt = "\(instructions)\n\nInput:\n\(input)"
-        arguments.append(prompt)
+        arguments.append("\(instructions)\n\nInput:\n\(input)")
 
         return await engine.runStreamedExecution(
             arguments: arguments,

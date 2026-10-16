@@ -30,16 +30,12 @@ public final class GrokTerminalSession: TerminalSessionProtocol {
         for operation: ObjectIdentifier,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
-        var arguments: [String] = [
-            "--output-format", "streaming-messages-json",
-            "--schema", schema.rawValue
-        ]
-        if let model = configuration.model {
-            arguments += ["--model", model]
-        }
+        var arguments = CLIArguments()
+        arguments.append(option: "--output-format", value: "streaming-messages-json")
+        arguments.append(option: "--schema", value: schema.rawValue)
+        arguments.append(option: "--model", optionalValue: configuration.model)
         arguments += configuration.extraArguments
-        let prompt = "\(instructions)\n\nInput:\n\(input)"
-        arguments.append(prompt)
+        arguments.append("\(instructions)\n\nInput:\n\(input)")
 
         return await engine.runStreamedExecution(
             arguments: arguments,
