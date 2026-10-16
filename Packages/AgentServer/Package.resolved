@@ -1,5 +1,5 @@
 {
-  "originHash" : "fb4d27f391fbc169579bd90598e69b2f5352966afcc935c8b11ca0b94b617d40",
+  "originHash" : "a3ade17f7df9f5a1ca6919369a347f5956143401358747e3de307830e291683e",
   "pins" : [
     {
       "identity" : "agentatom",
@@ -224,6 +224,15 @@
       "state" : {
         "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
         "version" : "1.8.1"
+      }
+    },
+    {
+      "identity" : "terminalagentsession",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/abhi266raj/TerminalAgentSession",
+      "state" : {
+        "revision" : "30db45c95f252d7d1ee2f090e085f6b20535a95c",
+        "version" : "0.1.2"
       }
     },
     {

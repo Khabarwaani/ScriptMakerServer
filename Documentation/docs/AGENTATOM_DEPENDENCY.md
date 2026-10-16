@@ -47,7 +47,6 @@ unsigned framework must sign it as part of their own distribution. See the
 
 ```sh
 swift test --package-path Packages/NewsAgent
-swift test --package-path Packages/TerminalAgentSession
 swift test --package-path Packages/AgentServer
 swift test --package-path Packages/AgentServer/Agents/ShekharJokeGenerator
 swift run --package-path Packages/AgentServer AgentTools docs --check
