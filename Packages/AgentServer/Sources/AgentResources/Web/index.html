@@ -8,6 +8,7 @@
 <p class="muted">Closing the page keeps execution running. <a href="/help">Read the HTTP API reference and agent contracts.</a></p></main>
 <script src="/assets/copy.js"></script>
 <script src="/assets/errors.js"></script>
+<script src="/assets/schema-form.js"></script>
 <script>
 const $=id=>document.getElementById(id);let catalog=[],currentID=null,receiving=false;const terminal=new Set(['completed','failed','cancelled']);
 let currentTiming=null,timingObservedAt=0;
@@ -32,7 +33,7 @@ function updateVersions(){
     $('selection').textContent='No valid agents were found.';
   }
 }
-function inputExample(){const agent=catalog.find(a=>a.id===$('agent').value);const version=$('version').value||agent?.latest;const schema=agent?.definitions?.find(d=>d.version===version)?.input_schema;$('input').value=JSON.stringify(schema?.examples?.[0]||{},null,2);}
+function inputExample(){const agent=catalog.find(a=>a.id===$('agent').value);const version=$('version').value||agent?.latest;const schema=agent?.definitions?.find(d=>d.version===version)?.input_schema;$('input').value=JSON.stringify(schemaInputExample(schema),null,2);}
 async function loadAgents(){try{const response=await serverFetch('/openapi.json');if(!response.ok)throw Error(`Agent discovery failed (HTTP ${response.status}).`);const data=await response.json(),previous=$('agent').value;catalog=data['x-agents'];$('agent').replaceChildren();for(const agent of catalog)$('agent').add(new Option(agent.name||agent.id,agent.id));if(catalog.some(a=>a.id===previous))$('agent').value=previous;updateVersions();inputExample();$('submit').disabled=!catalog.length||receiving;for(const option of $('provider').options){option.disabled=!(data['x-providers']||[]).some(p=>p.id===option.value&&p.available);option.textContent=({codex:'Codex',antigravity:'Antigravity',grok:'Grok'})[option.value]+(option.disabled?' (unavailable)':'');}}catch(error){$('selection').textContent=error.message;$('submit').disabled=true;}}
 $('agent').onchange=()=>{updateVersions();inputExample();};$('version').onchange=inputExample;$('refresh').onclick=loadAgents;$('preview').onclick=()=>{try{$('raw').textContent=JSON.stringify(request(),null,2);$('raw').parentElement.open=true;}catch(error){$('progress').textContent=error.message;setState('Invalid input',true);}};
 function appendRaw(text){$('raw').textContent=($('raw').textContent+text).slice(-200000);}

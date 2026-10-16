@@ -22,7 +22,6 @@ function timingText(record,observedAt){const active=['running','cancelling'].inc
 function updateTiming(record){if(!record.started_at)return;currentTiming={started_at:record.started_at,running_at:record.running_at,ended_at:record.ended_at,elapsed_seconds:record.elapsed_seconds,status:record.status};timingObservedAt=Date.now();renderTiming();}
 function renderTiming(){if(currentTiming)$('timing').textContent=timingText(currentTiming,timingObservedAt);}
 setInterval(renderTiming,1000);
-function example(schema){return schema?.examples?.[0] ?? schemaInitial(schema || {type:'object'}, schema || {type:'object'});}
 function selected(){return operations.find(item=>item.operation.operationId===$('operation').value);}
 function currentDefinition(){const agent=spec['x-agents'].find(a=>a.id===$('agent').value);const version=$('version').value||agent?.latest;return agent?.definitions.find(d=>d.version===version);}
 function saveDraft(){if(bodyContext==='execute'&&draftKey)drafts.set(draftKey,$('body').value);}
@@ -49,7 +48,7 @@ function buildAgentRequest(){
   const nextKey=`${agent?.id||''}@${version||''}`;
   if(bodyContext==='execute'&&draftKey!==nextKey)saveDraft();
   if(bodyContext!=='execute'||draftKey!==nextKey){
-    const definition=currentDefinition(),body={agent_id:agent?.id||'',provider:$('provider').value,input:example(definition?.input_schema)};
+    const definition=currentDefinition(),body={agent_id:agent?.id||'',provider:$('provider').value,input:schemaInputExample(definition?.input_schema)};
     if($('version').value)body.version=$('version').value;
     $('body').value=drafts.get(nextKey)||pretty(body);
   }
