@@ -27,27 +27,8 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         engine.purgeMemory()
     }
 
-    public func respond(
-        to input: String,
-        instructions: String,
-        schema: JSONString,
-        for operation: ObjectIdentifier
-    ) async -> Result<String, AgenticError> {
-        await runSession(input: input, instructions: instructions, schema: schema, for: operation, yield: { _ in })
-    }
-
     public func stream(
         to input: String,
-        instructions: String,
-        schema: JSONString,
-        for operation: ObjectIdentifier,
-        yield: @Sendable (String) async -> Void
-    ) async -> Result<String, AgenticError> {
-        await runSession(input: input, instructions: instructions, schema: schema, for: operation, yield: yield)
-    }
-
-    private func runSession(
-        input: String,
         instructions: String,
         schema: JSONString,
         for operation: ObjectIdentifier,

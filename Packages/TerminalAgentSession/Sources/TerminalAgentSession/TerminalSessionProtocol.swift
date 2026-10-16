@@ -21,6 +21,16 @@ extension TerminalSessionProtocol {
     public func purgeMemory() {
         clearMemory()
     }
+
+    /// Default implementation for `respond`: delegates directly to `stream` with a no-op yield handler.
+    public func respond(
+        to input: String,
+        instructions: String,
+        schema: JSONString,
+        for operation: ObjectIdentifier
+    ) async -> Result<String, AgenticError> {
+        await stream(to: input, instructions: instructions, schema: schema, for: operation, yield: { _ in })
+    }
 }
 
 /// A provider descriptor that can instantiate a `TerminalSessionProtocol` given a configuration.

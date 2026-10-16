@@ -57,14 +57,6 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
         )
     }
 
-    public func respond(
-        to input: String,
-        instructions: String,
-        schema: JSONString,
-        for operation: ObjectIdentifier
-    ) async -> Result<String, AgenticError> {
-        await stream(to: input, instructions: instructions, schema: schema, for: operation, yield: { _ in })
-    }
 
     public func stream(
         to input: String,

@@ -27,6 +27,20 @@ struct MockEchoSpec: ModelledSpec {
 
 @Suite("TerminalAgentSession Tests")
 struct TerminalSessionTests {
+    private func withMockExecutable<T>(
+        script: String,
+        operation: (URL) async throws -> T
+    ) async throws -> T {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("mock_cli_\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let scriptURL = tempDir.appendingPathComponent("mock_tool.sh")
+        try script.write(to: scriptURL, atomically: true, encoding: .utf8)
+        let permissions: [FileAttributeKey: Any] = [.posixPermissions: 0o755]
+        try FileManager.default.setAttributes(permissions, ofItemAtPath: scriptURL.path)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        return try await operation(scriptURL)
+    }
+
     private func createMockExecutable(script: String) throws -> URL {
         let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("mock_cli_\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -52,18 +66,17 @@ struct TerminalSessionTests {
         echo '{"reply":"Hello from Codex"}' > "$output_file"
         exit 0
         """
-        let scriptURL = try createMockExecutable(script: script)
-        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+        try await withMockExecutable(script: script) { scriptURL in
+            let config = CodexTerminalSession.Configuration(executablePath: scriptURL.path)
+            guard let session = CodexTerminalSession(configuration: config) else {
+                Issue.record("Failed to initialize CodexTerminalSession with mock script")
+                return
+            }
 
-        let config = CodexTerminalSession.Configuration(executablePath: scriptURL.path)
-        guard let session = CodexTerminalSession(configuration: config) else {
-            Issue.record("Failed to initialize CodexTerminalSession with mock script")
-            return
+            let spec = MockEchoSpec(message: "Hi")
+            let output = try await session.execute(spec)
+            #expect(output.reply == "Hello from Codex")
         }
-
-        let spec = MockEchoSpec(message: "Hi")
-        let output = try await session.execute(spec)
-        #expect(output.reply == "Hello from Codex")
     }
 
     @Test("AntigravityTerminalSession streams and decodes successfully via ModelledSpec convenience")
@@ -75,18 +88,17 @@ struct TerminalSessionTests {
         echo '{"type":"result","response":"{\\"reply\\":\\"Hello from Antigravity\\"}"}'
         exit 0
         """
-        let scriptURL = try createMockExecutable(script: script)
-        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+        try await withMockExecutable(script: script) { scriptURL in
+            let config = AntigravityTerminalSession.Configuration(executablePath: scriptURL.path)
+            guard let session = AntigravityTerminalSession(configuration: config) else {
+                Issue.record("Failed to initialize AntigravityTerminalSession with mock script")
+                return
+            }
 
-        let config = AntigravityTerminalSession.Configuration(executablePath: scriptURL.path)
-        guard let session = AntigravityTerminalSession(configuration: config) else {
-            Issue.record("Failed to initialize AntigravityTerminalSession with mock script")
-            return
+            let spec = MockEchoSpec(message: "Hi")
+            let output = try await session.execute(spec)
+            #expect(output.reply == "Hello from Antigravity")
         }
-
-        let spec = MockEchoSpec(message: "Hi")
-        let output = try await session.execute(spec)
-        #expect(output.reply == "Hello from Antigravity")
     }
 
     @Test("GrokTerminalSession streams and decodes successfully via typed respond convenience")
@@ -98,20 +110,19 @@ struct TerminalSessionTests {
         echo '{"result":"{\\"reply\\":\\"Hello from Grok\\"}"}'
         exit 0
         """
-        let scriptURL = try createMockExecutable(script: script)
-        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+        try await withMockExecutable(script: script) { scriptURL in
+            let config = GrokTerminalSession.Configuration(executablePath: scriptURL.path)
+            guard let session = GrokTerminalSession(configuration: config) else {
+                Issue.record("Failed to initialize GrokTerminalSession with mock script")
+                return
+            }
 
-        let config = GrokTerminalSession.Configuration(executablePath: scriptURL.path)
-        guard let session = GrokTerminalSession(configuration: config) else {
-            Issue.record("Failed to initialize GrokTerminalSession with mock script")
-            return
+            let output: MockEchoSpec.Output = try await session.respond(
+                input: MockEchoSpec.Input(message: "Hi"),
+                instructions: "Echo"
+            )
+            #expect(output.reply == "Hello from Grok")
         }
-
-        let output: MockEchoSpec.Output = try await session.respond(
-            input: MockEchoSpec.Input(message: "Hi"),
-            instructions: "Echo"
-        )
-        #expect(output.reply == "Hello from Grok")
     }
 
 
