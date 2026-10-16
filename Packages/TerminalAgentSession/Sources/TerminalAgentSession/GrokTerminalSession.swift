@@ -37,7 +37,7 @@ public final class GrokTerminalSession: TerminalSessionProtocol {
         arguments += configuration.extraArguments
         arguments.append("\(instructions)\n\nInput:\n\(input)")
 
-        return await engine.runStreamedExecution(
+        let request = TerminalSessionEngine.StreamExecutionRequest(
             arguments: arguments,
             operation: operation,
             defaultModel: "grok",
@@ -63,8 +63,8 @@ public final class GrokTerminalSession: TerminalSessionProtocol {
                     let isJSON = line.hasPrefix("{") && line.hasSuffix("}")
                     return (extracted: isJSON ? line : nil, yieldChunk: line)
                 }
-            },
-            yield: yield
+            }
         )
+        return await engine.runStreamedExecution(request: request, yield: yield)
     }
 }

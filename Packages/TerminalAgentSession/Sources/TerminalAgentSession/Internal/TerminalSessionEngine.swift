@@ -104,26 +104,22 @@ final class TerminalSessionEngine: Sendable {
             throw AgenticError.operationFailed(reason: "Executable not resolved at '\(configuration.executablePath)'")
         }
 
+        let launchRequest = TerminalProcessRunner.LaunchRequest(
+            executableURL: executableURL,
+            arguments: arguments,
+            currentDirectoryURL: configuration.workingDirectory
+        )
+
         switch configuration.persistenceMode {
         case .persistentStdio:
-            return try await executeWithPersistentProcess(
-                executableURL: executableURL,
-                arguments: arguments,
-                yield: yield
-            )
+            return try await executeWithPersistentProcess(request: launchRequest, yield: yield)
         case .daemon, .ephemeral:
-            return try await runner.streamLines(
-                executableURL: executableURL,
-                arguments: arguments,
-                currentDirectoryURL: configuration.workingDirectory,
-                yield: yield
-            )
+            return try await runner.streamLines(request: launchRequest, yield: yield)
         }
     }
 
     private func executeWithPersistentProcess(
-        executableURL: URL,
-        arguments: CLIArguments,
+        request: TerminalProcessRunner.LaunchRequest,
         yield: (String) async -> Void
     ) async throws -> TerminalProcessRunner.ExecutionResult {
         // Reuse existing running in-memory process, or spawn and retain a new one
@@ -131,11 +127,12 @@ final class TerminalSessionEngine: Sendable {
             if let existing = state.managedProcess, existing.isRunning {
                 return existing
             }
-            let spawned = try runner.spawnProcess(
-                executableURL: executableURL,
+            let spawnRequest = TerminalProcessRunner.LaunchRequest(
+                executableURL: request.executableURL,
                 arguments: configuration.extraArguments,
                 currentDirectoryURL: configuration.workingDirectory
             )
+            let spawned = try runner.spawnProcess(request: spawnRequest)
             state.managedProcess = spawned
             return spawned
         }
@@ -143,15 +140,10 @@ final class TerminalSessionEngine: Sendable {
         // If the process is not running (e.g. CLI that ran to completion immediately or exited), spawn fresh via streamLines
         if !process.isRunning {
             state.withLock { $0.managedProcess = nil }
-            return try await runner.streamLines(
-                executableURL: executableURL,
-                arguments: arguments,
-                currentDirectoryURL: configuration.workingDirectory,
-                yield: yield
-            )
+            return try await runner.streamLines(request: request, yield: yield)
         }
 
-        let inputPrompt = arguments.last ?? ""
+        let inputPrompt = request.arguments.last ?? ""
         if let inputData = (inputPrompt + "\n").data(using: .utf8) {
             try? process.stdinHandle.write(contentsOf: inputData)
         }
@@ -184,27 +176,46 @@ final class TerminalSessionEngine: Sendable {
         )
     }
 
+    /// Strongly typed parameters configuring streamed execution through the session engine.
+    struct StreamExecutionRequest: Sendable {
+        let arguments: CLIArguments
+        let operation: ObjectIdentifier
+        let defaultModel: String
+        let lineHandler: @Sendable (String) async -> (extracted: String?, yieldChunk: String?)
+        let fallbackExtractor: (@Sendable (TerminalProcessRunner.ExecutionResult) -> String?)?
+
+        init(
+            arguments: CLIArguments,
+            operation: ObjectIdentifier,
+            defaultModel: String,
+            lineHandler: @escaping @Sendable (String) async -> (extracted: String?, yieldChunk: String?),
+            fallbackExtractor: (@Sendable (TerminalProcessRunner.ExecutionResult) -> String?)? = nil
+        ) {
+            self.arguments = arguments
+            self.operation = operation
+            self.defaultModel = defaultModel
+            self.lineHandler = lineHandler
+            self.fallbackExtractor = fallbackExtractor
+        }
+    }
+
     /// Shared pipeline that executes CLI arguments, processes streamed output line-by-line,
     /// checks exit codes, and extracts final structured output cleanly.
     func runStreamedExecution(
-        arguments: CLIArguments,
-        operation: ObjectIdentifier,
-        defaultModel: String,
-        lineHandler: @Sendable (String) async -> (extracted: String?, yieldChunk: String?),
-        fallbackExtractor: (@Sendable (TerminalProcessRunner.ExecutionResult) -> String?)? = nil,
+        request: StreamExecutionRequest,
         yield: @Sendable (String) async -> Void
     ) async -> Result<String, AgenticError> {
         do {
             let extractedMutex = Mutex<String?>(nil)
 
             let result = try await execute(
-                arguments: arguments,
-                operation: operation,
-                defaultModel: defaultModel,
+                arguments: request.arguments,
+                operation: request.operation,
+                defaultModel: request.defaultModel,
                 yield: { line in
                     let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmed.isEmpty else { return }
-                    let (extracted, yieldChunk) = await lineHandler(trimmed)
+                    let (extracted, yieldChunk) = await request.lineHandler(trimmed)
                     if let chunk = yieldChunk {
                         await yield(chunk)
                     }
@@ -219,7 +230,7 @@ final class TerminalSessionEngine: Sendable {
                 return .failure(.operationFailed(reason: "\(configuration.executablePath) exited with code \(result.exitCode): \(err)"))
             }
 
-            if let fallbackResult = fallbackExtractor?(result) {
+            if let fallbackResult = request.fallbackExtractor?(result) {
                 return .success(fallbackResult)
             }
 

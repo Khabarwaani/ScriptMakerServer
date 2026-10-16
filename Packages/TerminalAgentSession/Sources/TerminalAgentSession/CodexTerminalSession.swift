@@ -58,12 +58,12 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
         arguments += configuration.extraArguments
         arguments.append("\(instructions)\n\nInput:\n\(input)")
 
-        return await engine.runStreamedExecution(
+        let request = TerminalSessionEngine.StreamExecutionRequest(
             arguments: arguments,
             operation: operation,
             defaultModel: "codex",
             lineHandler: { line in
-                return (extracted: nil, yieldChunk: line)
+                (extracted: nil, yieldChunk: line)
             },
             fallbackExtractor: { _ in
                 if FileManager.default.fileExists(atPath: outputFile.path),
@@ -73,8 +73,8 @@ public final class CodexTerminalSession: TerminalSessionProtocol {
                     return outputString
                 }
                 return nil
-            },
-            yield: yield
+            }
         )
+        return await engine.runStreamedExecution(request: request, yield: yield)
     }
 }

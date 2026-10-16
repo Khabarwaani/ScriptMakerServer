@@ -81,7 +81,7 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
     ) async -> Result<String, AgenticError> {
         let prompt = "\(instructions)\n\nInput:\n\(input)"
         let args = argumentBuilder(input, prompt, schema, configuration)
-        return await engine.runStreamedExecution(
+        let request = TerminalSessionEngine.StreamExecutionRequest(
             arguments: args,
             operation: operation,
             defaultModel: configuration.executablePath,
@@ -89,8 +89,8 @@ public final class GenericTerminalSession: TerminalSessionProtocol {
                 let isJSON = (line.hasPrefix("{") && line.hasSuffix("}")) ||
                              (line.hasPrefix("[") && line.hasSuffix("]"))
                 return (extracted: isJSON ? line : nil, yieldChunk: line)
-            },
-            yield: yield
+            }
         )
+        return await engine.runStreamedExecution(request: request, yield: yield)
     }
 }

@@ -133,22 +133,37 @@ final class TerminalProcessRunner: Sendable {
         }
     }
 
+    /// A strongly-typed request encapsulation describing how a subprocess should be launched.
+    struct LaunchRequest: Sendable {
+        let executableURL: URL
+        let arguments: CLIArguments
+        let environment: [String: String]?
+        let currentDirectoryURL: URL?
+
+        init(
+            executableURL: URL,
+            arguments: CLIArguments,
+            environment: [String: String]? = nil,
+            currentDirectoryURL: URL? = nil
+        ) {
+            self.executableURL = executableURL
+            self.arguments = arguments
+            self.environment = environment
+            self.currentDirectoryURL = currentDirectoryURL
+        }
+    }
+
     /// Spawns a long-running process with persistent stdio pipes.
-    func spawnProcess(
-        executableURL: URL,
-        arguments: CLIArguments,
-        environment: [String: String]? = nil,
-        currentDirectoryURL: URL? = nil
-    ) throws -> ManagedProcess {
+    func spawnProcess(request: LaunchRequest) throws -> ManagedProcess {
         let process = Process()
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
 
-        process.executableURL = executableURL
-        process.arguments = arguments.rawTokens
-        if let environment { process.environment = environment }
-        if let currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
+        process.executableURL = request.executableURL
+        process.arguments = request.arguments.rawTokens
+        if let environment = request.environment { process.environment = environment }
+        if let currentDirectoryURL = request.currentDirectoryURL { process.currentDirectoryURL = currentDirectoryURL }
         process.standardInput = stdinPipe
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
@@ -156,7 +171,7 @@ final class TerminalProcessRunner: Sendable {
         do {
             try process.run()
         } catch {
-            throw mapLaunchError(error, path: executableURL.path)
+            throw mapLaunchError(error, path: request.executableURL.path)
         }
 
         return ManagedProcess(
@@ -169,10 +184,7 @@ final class TerminalProcessRunner: Sendable {
 
     /// Spawns a process and asynchronously returns lines as they are produced on standard output.
     func streamLines(
-        executableURL: URL,
-        arguments: CLIArguments,
-        environment: [String: String]? = nil,
-        currentDirectoryURL: URL? = nil,
+        request: LaunchRequest,
         yield: (String) async -> Void
     ) async throws -> ExecutionResult {
         let process = Process()
@@ -181,10 +193,10 @@ final class TerminalProcessRunner: Sendable {
 
         configure(
             process: process,
-            executableURL: executableURL,
-            arguments: arguments.rawTokens,
-            environment: environment,
-            currentDirectoryURL: currentDirectoryURL,
+            executableURL: request.executableURL,
+            arguments: request.arguments.rawTokens,
+            environment: request.environment,
+            currentDirectoryURL: request.currentDirectoryURL,
             stdoutPipe: stdoutPipe,
             stderrPipe: stderrPipe
         )
@@ -192,7 +204,7 @@ final class TerminalProcessRunner: Sendable {
         do {
             try process.run()
         } catch {
-            throw mapLaunchError(error, path: executableURL.path)
+            throw mapLaunchError(error, path: request.executableURL.path)
         }
 
         let stderrTask = Task { readStream(from: stderrPipe.fileHandleForReading) }
