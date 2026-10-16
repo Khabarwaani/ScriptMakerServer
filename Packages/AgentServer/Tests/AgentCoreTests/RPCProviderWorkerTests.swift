@@ -104,6 +104,25 @@ func nativeWorkersPreserveFeasibilityErrors(kind: CLIProvider.Kind) async throws
 }
 
 @Test(arguments: [CLIProvider.Kind.codex, .grok])
+func nativeWorkersSurfaceRateLimitingWithErrorMapping(kind: CLIProvider.Kind) async throws {
+    let fixture = try AgentFixture()
+    let provider = CLIProvider(kind: kind, settings: .init(executable: try await FixtureCompiler.shared.executable().path))
+    let worker = try provider.makeWorker(ownership: nil)
+    let definition = try await AgentRegistry(packages: [EchoPackage.self], root: fixture.agents).resolve(id: "Echo", version: nil)
+    do {
+        _ = try await worker.execute(definition: definition, input: .object(["text": .string("rate-limited")]),
+            directory: fixture.runtime, timeoutSeconds: 10, onOutput: { _ in }, onProgress: { _ in }, onPhase: { _, _ in })
+        #expect(Bool(false), "Worker execution should have thrown provider_rate_limited")
+    } catch let error as AgentError {
+        #expect(error.code == "provider_rate_limited")
+        #expect(error.httpStatus == 429)
+        #expect(error.message.contains(kind == .codex ? "turn/start" : "session/prompt"))
+        #expect(error.message.contains("Rate limited"))
+    }
+    await worker.shutdown()
+}
+
+@Test(arguments: [CLIProvider.Kind.codex, .grok])
 func cancellingNativeWorkersReapsTheirProcess(kind: CLIProvider.Kind) async throws {
     let fixture = try AgentFixture()
     let binary = try await FixtureCompiler.shared.executable()
