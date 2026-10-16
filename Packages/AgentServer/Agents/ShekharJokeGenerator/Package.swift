@@ -7,14 +7,14 @@ let package = Package(
     products: [.library(name: "ShekharJokeGenerator", targets: ["ShekharJokeGenerator"])],
     dependencies: [
         .package(path: "../../../AgentCoreBase"),
-        .package(path: "../../../NewsAgent")
+        .package(url: "https://github.com/Khabarwaani/KhabarwaaniAgent", exact: "0.1.0")
     ],
     targets: [
         .target(
             name: "ShekharJokeGenerator",
             dependencies: [
                 .product(name: "AgentCoreBase", package: "AgentCoreBase"),
-                .product(name: "NewsAgent", package: "NewsAgent")
+                .product(name: "KhabarwaaniAgent", package: "KhabarwaaniAgent")
             ],
             path: ".",
             exclude: ["Tests", "README.md"],
@@ -26,7 +26,7 @@ let package = Package(
             dependencies: [
                 "ShekharJokeGenerator",
                 .product(name: "AgentCoreBase", package: "AgentCoreBase"),
-                .product(name: "NewsAgent", package: "NewsAgent")
+                .product(name: "KhabarwaaniAgent", package: "KhabarwaaniAgent")
             ]
         )
     ]

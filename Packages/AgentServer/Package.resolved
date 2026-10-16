@@ -29,6 +29,15 @@
       }
     },
     {
+      "identity" : "khabarwaaniagent",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Khabarwaani/KhabarwaaniAgent",
+      "state" : {
+        "revision" : "4c04729da88d7cc9a9c36bcda3ab5e8be54a2deb",
+        "version" : "0.1.0"
+      }
+    },
+    {
       "identity" : "swift-algorithms",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-algorithms.git",

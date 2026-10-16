@@ -1,6 +1,6 @@
 import Foundation
 import AgentCoreBase
-@_exported import NewsAgent
+@_exported import KhabarwaaniAgent
 
 extension ShekharJokeGeneratorInput: @retroactive JSONSchemaConvertible {
     public static func schema() -> SchemaDefinition {
