@@ -1,9 +1,39 @@
 import Foundation
 import AgentAtom
 
-// MARK: - Convenience extensions for ModelledSpec and Decodable execution
+// MARK: - Convenience extensions for Spec, ModelledSpec, and Decodable execution
 
 extension AgenticSessionProtocol {
+    /// Executes any standard `Spec` and returns the resulting raw response string.
+    ///
+    /// Usage:
+    /// ```swift
+    /// let session = TerminalAgentSession()!
+    /// let resultString = try await session.executeSpec(anySpec)
+    /// ```
+    public func executeSpec<S: Spec>(_ spec: S) async throws -> String {
+        let op = AgenticOperation(spec: spec, session: self)
+        let result = await op.execute()
+        switch result {
+        case .success(let output):
+            return output
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    /// Executes any standard `Spec` with failable semantics and returns the resulting response string.
+    public func executeFailableSpec<S: Spec>(_ spec: S) async throws -> String {
+        let op = FailableAgenticOperation(spec: spec, session: self)
+        let result = await op.execute()
+        switch result {
+        case .success(let output):
+            return output
+        case .failure(let error):
+            throw error
+        }
+    }
+
     /// Executes a `ModelledSpec` and automatically decodes the structured output into `Spec.Output`.
     ///
     /// Usage:

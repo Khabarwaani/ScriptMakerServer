@@ -425,5 +425,33 @@ struct TerminalSessionTests {
         #expect(persistentDuration > .zero)
         #expect(ephemeralDuration > .zero)
     }
+
+    struct PlainEchoSpec: Spec {
+        static var identity: Identity { Identity(id: "PlainEcho", name: "PlainEcho", version: "1.0.0") }
+        static var role: String { "Plain echo" }
+        static var outputSchema: JSONSchema { JSONSchema(String.self)! }
+        var inputJSON: JSONString { JSONString("{\"text\":\"hello plain\"}") }
+        var instructions: String { "Echo back" }
+    }
+
+    @Test("AgenticSessionProtocol executes non-modelled Spec directly and returns raw string")
+    func testRawSpecConvenienceExecute() async throws {
+        let script = """
+        #!/bin/bash
+        echo "Raw string response"
+        exit 0
+        """
+        let scriptURL = try createMockExecutable(script: script)
+        defer { try? FileManager.default.removeItem(at: scriptURL.deletingLastPathComponent()) }
+
+        let config = TerminalAgentConfiguration(
+            executablePath: scriptURL.path,
+            persistenceMode: .ephemeral
+        )
+        let session = GenericTerminalSession(configuration: config)!
+        let spec = PlainEchoSpec()
+        let rawResult = try await session.executeSpec(spec)
+        #expect(rawResult.contains("Raw string response"))
+    }
 }
 
