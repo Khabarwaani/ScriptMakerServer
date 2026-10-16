@@ -292,15 +292,34 @@ private struct DefaultedInputPackage: AgentPackageContract {
     #expect(captured?["count"] == .number(5))
 }
 
-@Test func testShekharJokeGeneratorExecutesViaTerminalAgentSessionInCLIProvider() async throws {
+@Test(arguments: ["legacy", "native", "failed"]) func testShekharJokeGeneratorExecutesViaTerminalAgentSessionInCLIProvider(transport: String) async throws {
     let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("shekhar_tas_\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     let scriptURL = tempDir.appendingPathComponent("mock_agy.sh")
+    let result: JSONValue = .object(["items": .array([.object([
+        "title": .string("ताज़ा खबर"), "date": .string("16-10-2026"),
+        "link": .string("https://news.in/story"), "category": .string("Trending"),
+        "joke1": .string("छोटा मज़ाक"), "joke2": .string("बड़ा मज़ाक"),
+        "script": .string("#1\ntitle: ताज़ा खबर")
+    ])])])
+    let final: JSONValue = transport == "legacy"
+        ? .object(["type": .string("result"), "response": .string(try result.text())])
+        : .object(["event": .string("result"), "result": .object([
+            "status": .string(transport == "failed" ? "FAILED" : "SUCCESS"),
+            "response": .string("Done"), "structured_output": result
+        ])])
+    let invocations = tempDir.appendingPathComponent("invocations.txt")
     let script = """
     #!/bin/bash
-    echo '{"type":"text","content":"Generating Shekhar joke..."}'
-    echo '{"type":"result","response":"{\\"items\\":[{\\"title\\":\\"ताज़ा खबर\\",\\"date\\":\\"16-10-2026\\",\\"link\\":\\"https://news.in/story\\",\\"category\\":\\"Trending\\",\\"joke1\\":\\"छोटा मज़ाक\\",\\"joke2\\":\\"बड़ा मज़ाक\\",\\"script\\":\\"#1\\\\ntitle: ताज़ा खबर\\"}]}"}'
-    exit 0
+    [[ "$1" == "--help" ]] && exit 0
+    arguments=("$@")
+    count=${#arguments[@]}
+    [[ "${arguments[$((count - 2))]}" == "--print" ]] || { echo 'Print must precede the prompt' >&2; exit 2; }
+    [[ "${arguments[$((count - 1))]}" == *"Input:"* ]] || { echo 'Missing prompt' >&2; exit 2; }
+    printf 'run\\n' >> '\(invocations.path)'
+    echo '{"event":"init"}'
+    echo '{"event":"step_update","step_update":{"text_delta":"Working"}}'
+    echo '\(try final.text())'
     """
     try script.write(to: scriptURL, atomically: true, encoding: .utf8)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
@@ -312,7 +331,8 @@ private struct DefaultedInputPackage: AgentPackageContract {
         registry: AgentRegistry(packages: [ShekharJokeGeneratorDefinition.self], root: fixture.agents),
         providers: ProviderCatalog(providers: [provider]),
         runtimeRoot: fixture.runtime,
-        maxProcesses: 2, timeoutSeconds: 30, retentionSeconds: 3600
+        maxProcesses: 2, timeoutSeconds: 30, retentionSeconds: 3600,
+        resourceSample: { SystemResources(physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296, load_average: 0, cpu_count: 8) }
     )
 
     let input: JSONValue = .object([
@@ -343,10 +363,58 @@ private struct DefaultedInputPackage: AgentPackageContract {
         return
     }
 
-    #expect(record.status == "completed")
-    #expect(record.error == nil)
-    #expect(finalResult?["items"]?.array?.count == 1)
-    #expect(finalResult?["items"]?.array?[0]["title"]?.string == "ताज़ा खबर")
-    #expect(finalResult?["items"]?.array?[0]["joke1"]?.string == "छोटा मज़ाक")
+    let runs = try String(contentsOf: invocations, encoding: .utf8).split(whereSeparator: \.isNewline)
+    #expect(runs.count == 1)
+    if transport == "failed" {
+        #expect(record.status == "failed")
+        #expect(record.error?.code == "provider_execution_failed")
+        #expect(finalResult == nil)
+    } else {
+        #expect(record.status == "completed")
+        #expect(record.error == nil)
+        #expect(finalResult?["items"]?.array?.count == 1)
+        #expect(finalResult?["items"]?.array?[0]["title"]?.string == "ताज़ा खबर")
+        #expect(finalResult?["items"]?.array?[0]["joke1"]?.string == "छोटा मज़ाक")
+    }
 }
 
+
+@Test func cpuPressureQueueFailsWithinItsDeadlineWithoutLaunchingProvider() async throws {
+    let fixture = try AgentFixture()
+    let provider = MockProvider()
+    let manager = ExecutionManager(
+        registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents),
+        providers: ProviderCatalog(providers: [provider]), runtimeRoot: fixture.runtime,
+        queueTimeoutSeconds: 1,
+        resourceSample: { SystemResources(
+            physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296,
+            load_average: 99, cpu_count: 8) })
+    let execution = try await manager.execute(request("blocked"))
+    let stream = await events(execution)
+    let snapshot = await manager.snapshot()
+    let record = try #require(snapshot.records.first)
+    #expect(record.status == "failed")
+    #expect(record.error?.code == "queue_timeout")
+    #expect(record.error?.httpStatus == 503)
+    #expect(record.running_at == nil)
+    #expect(record.queue_reasons == ["cpu_load"])
+    #expect((record.phase_timings?["queue_seconds"] ?? 0) >= 1)
+    #expect(snapshot.queuedCount == 0 && snapshot.activeCount == 0)
+    #expect(await provider.tracker.peak == 0)
+    #expect(stream.last?.name == "failed")
+}
+
+@Test func queueDeadlineDoesNotCancelAnExecutionThatAlreadyStarted() async throws {
+    let fixture = try AgentFixture()
+    let provider = MockProvider(delayMilliseconds: 1200)
+    let manager = ExecutionManager(
+        registry: AgentRegistry(packages: [EchoPackage.self], root: fixture.agents),
+        providers: ProviderCatalog(providers: [provider]), runtimeRoot: fixture.runtime,
+        queueTimeoutSeconds: 1,
+        resourceSample: { SystemResources(
+            physical_memory_bytes: 8_589_934_592, available_memory_bytes: 4_294_967_296,
+            load_average: 0, cpu_count: 8) })
+    let execution = try await manager.execute(request("started"))
+    #expect(await events(execution).last?.name == "completed")
+    #expect(await manager.snapshot().records.first?.error == nil)
+}

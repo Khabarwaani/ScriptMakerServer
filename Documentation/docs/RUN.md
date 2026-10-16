@@ -81,6 +81,7 @@ defaults. The server reads the built copy, not the source file at runtime.
 | `ports.testing.max_attempts` | `30` | Maximum distinct candidates; configurable from 1 through 30 |
 | `agents_directory` | `Agents` | Relative to built asset root, or an absolute runtime root |
 | `shutdown_timeout_seconds` | `900` | Fifteen-minute graceful shutdown allowance |
+| `queue_timeout_seconds` | `30` | Maximum queue wait (1–300 seconds); fails with `queue_timeout` if resources remain unavailable |
 | `execution_timeout_seconds` | `1800` | Running execution deadline |
 | `max_processes` | `8` | Configurable process resource budget; not a five-process cap |
 | `max_queued_executions` | `64` | Burst queue capacity |
@@ -356,3 +357,12 @@ error. Feasibility errors keep develop's direct HTTP 422 behavior and retire the
 worker. Grok discards provisional pre-tool message segments at explicit ACP tool
 boundaries; the complete final segment must still parse as JSON. See
 [measured checks and limitations](PROVIDER_BENCHMARKS.md).
+
+### Antigravity terminal sessions
+
+The server runs Shekhar through `TerminalAgentSession` with `.ephemeral` and
+Antigravity's `--print` mode, passing the configured execution deadline through
+`--print-timeout`. Provider-specific arguments and native result normalization
+belong to the server adapter; the TerminalAgentSession package remains unchanged.
+A malformed or failed final result fails that execution without starting another
+generation. Heartbeats confirm server connectivity, not provider progress.

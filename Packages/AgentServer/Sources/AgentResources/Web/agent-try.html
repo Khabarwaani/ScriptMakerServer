@@ -129,7 +129,7 @@ const pretty=value=>JSON.stringify(value,null,2);
 let currentTiming=null,timingObservedAt=0;
 
 function duration(seconds){seconds=Math.floor(Math.max(0,seconds));const hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60);return `${hours?hours+'h ':''}${minutes?minutes+'m ':''}${seconds%60}s`;}
-function timingText(record,observedAt){const active=['running','cancelling'].includes(record.status)&&record.running_at&&!record.ended_at;const elapsed=(record.elapsed_seconds||0)+(active?(Date.now()-observedAt)/1000:0);const started=record.running_at?`Started ${new Date(record.running_at).toLocaleString()}`:'Not started';return `Accepted ${new Date(record.started_at).toLocaleString()} · ${started} · ${active?'Running for':'Duration'} ${duration(elapsed)}`;}
+function timingText(record,observedAt){const active=['running','cancelling'].includes(record.status)&&record.running_at&&!record.ended_at;const elapsed=(record.elapsed_seconds||0)+(active?(Date.now()-observedAt)/1000:0);if(!record.running_at){const wait=((record.ended_at?new Date(record.ended_at):Date.now())-new Date(record.started_at))/1000;return terminal.has(record.status)?`${record.status==='failed'?'Failed':record.status==='cancelled'?'Cancelled':'Finished'} after ${duration(wait)} in queue`:`Waiting to start · ${duration(wait)}`;}const labels={completed:'Completed in',failed:'Failed after',cancelled:'Cancelled after',cancelling:'Cancelling ·'};const label=labels[record.status]||'Running for';const queued=record.running_at?Math.max(0,(new Date(record.running_at)-new Date(record.started_at))/1000):0;return `${label} ${duration(elapsed)}${queued>=1?` · Queue wait ${duration(queued)}`:''}`;}
 function updateTiming(record){if(!record.started_at)return;currentTiming={started_at:record.started_at,running_at:record.running_at,ended_at:record.ended_at,elapsed_seconds:record.elapsed_seconds,status:record.status};timingObservedAt=Date.now();renderTiming();}
 function renderTiming(){if(currentTiming)$('timing').textContent=timingText(currentTiming,timingObservedAt);}
 setInterval(renderTiming,1000);
@@ -182,7 +182,7 @@ function buildAgentRequest(){
   if(def)$('contract').textContent=pretty({agent_id:currentAgent.id,version:def.version,role:def.role,input_schema:def.input_schema,output_schema:def.output_schema});
 }
 
-function state(text,error=false){$('state').textContent=text;$('state').classList.toggle('error',error);}
+function state(text,error=false){$('state').textContent=text;$('state').classList.toggle('error',error);if(terminal.has(text)){$('cancel').disabled=true;$('cancel').hidden=true;$('heartbeat').hidden=true;$('heartbeat').textContent='';if(currentTiming){currentTiming.status=text;renderTiming();}}else if(['queued','running','cancelling'].includes(text)){$('cancel').hidden=!$('include-status').checked;$('cancel').disabled=!currentID||text==='cancelling';$('heartbeat').hidden=!$('include-status').checked;}}
 function raw(text){$('raw').textContent=($('raw').textContent+text).slice(-200000);}
 
 function event(block){
@@ -190,12 +190,12 @@ function event(block){
   for(const line of block.split('\n')){if(line.startsWith('event:'))name=line.slice(6).trim();if(line.startsWith('data:'))lines.push(line.slice(5).trimStart());}
   if(!lines.length)return;
   let value;try{value=JSON.parse(lines.join('\n'));}catch{return;}
-  if(value.execution_id){currentID=value.execution_id;$('execution').textContent=currentID;}
+  if(terminal.has($('state').textContent)&&!terminal.has(name))return;if(value.execution_id){currentID=value.execution_id;$('execution').textContent=currentID;}
   if(value.started_at)updateTiming({...value,status:value.status||(terminal.has(name)?name:$('state').textContent)});
   if(name==='started'){state(value.status||'queued');$('cancel').disabled=false;}
-  if(name==='status'){if(value.status)state(value.status);if(value.progress)$('progress').textContent=value.progress.message;else $('heartbeat').textContent=`Heartbeat · ${new Date().toLocaleTimeString()} · ${value.status}`;}
+  if(name==='status'){if(value.status)state(value.status);if(value.progress)$('progress').textContent=value.progress.message;else $('heartbeat').textContent=`Server connected · ${new Date().toLocaleTimeString()}`;}
   if(name==='result')$('result').textContent=pretty(value.result);
-  if(terminal.has(name)){state(name,name==='failed');$('cancel').disabled=true;$('progress').textContent=name==='failed'?formatAgentError(value.error):name==='completed'?'Final output passed schema validation.':'Provider termination confirmed.';}
+  if(terminal.has(name)){state(name,name==='failed');$('cancel').disabled=true;$('progress').textContent=name==='failed'?formatAgentError(value.error):name==='completed'?'Result ready.':'Provider termination confirmed.';}
 }
 
 function request(){
@@ -270,8 +270,8 @@ $('version').onchange=buildAgentRequest;
 $('provider').onchange=patchMetadata;
 $('include-status').onchange=()=>{
   const stream=$('include-status').checked;
-  $('heartbeat').hidden=!stream;
-  $('cancel').hidden=!stream;
+  $('heartbeat').hidden=!stream||terminal.has($('state').textContent);
+  $('cancel').hidden=!stream||!currentID||terminal.has($('state').textContent);
 };
 $('body').oninput=()=>{
   saveDraft();
@@ -331,7 +331,7 @@ $('send').onclick=async()=>{
       let display=text,value;
       try{value=JSON.parse(text);display=pretty(value);}catch{}
       if(response.ok){
-        $('result').textContent=display;state('completed');$('progress').textContent='Final JSON passed schema validation.';
+        $('result').textContent=display;state('completed');$('progress').textContent='Result ready.';
       }else{
         $('response').textContent=display;
         if(value?.error)$('progress').textContent=formatAgentError(value.error);
