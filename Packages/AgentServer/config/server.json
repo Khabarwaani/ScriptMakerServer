@@ -8,6 +8,7 @@
   },
   "agents_directory": "Agents",
   "shutdown_timeout_seconds": 900,
+  "queue_timeout_seconds": 30,
   "execution_timeout_seconds": 1800,
   "max_processes": 8,
   "provider_pool_size": 5,

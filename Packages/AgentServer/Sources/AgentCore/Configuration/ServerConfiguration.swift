@@ -10,6 +10,7 @@ public struct ServerConfiguration: Sendable {
     public let testingPorts: TestingPortConfiguration
     public let agentsDirectory: URL
     public let shutdownTimeoutSeconds: Int
+    public let queueTimeoutSeconds: Int
     public let executionTimeoutSeconds: Int
     public let maxProcesses: Int
     public let providerPoolSize: Int
@@ -83,16 +84,18 @@ public struct ServerConfiguration: Sendable {
         let timeout = settings.shutdown_timeout_seconds ?? 900
         guard (1...900).contains(timeout) else { throw ConfigurationError.invalidShutdownTimeout }
         self.shutdownTimeoutSeconds = timeout
+        let queueTimeout = settings.queue_timeout_seconds ?? 30
         let executionTimeout = settings.execution_timeout_seconds ?? 1800
         let processes = settings.max_processes ?? 8
         let poolSize = settings.provider_pool_size ?? min(5, processes)
         let queued = settings.max_queued_executions ?? 64
         let retention = settings.retention_seconds ?? 3600
-        guard (1...86400).contains(executionTimeout), (1...128).contains(processes),
+        guard (1...300).contains(queueTimeout), (1...86400).contains(executionTimeout), (1...128).contains(processes),
             (1...10000).contains(queued), (1...86400).contains(retention), (0...processes).contains(poolSize)
         else {
             throw ConfigurationError.invalidConfigurationFile
         }
+        self.queueTimeoutSeconds = queueTimeout
         self.executionTimeoutSeconds = executionTimeout
         self.maxProcesses = processes
         self.providerPoolSize = poolSize
@@ -125,6 +128,7 @@ public struct ServerConfiguration: Sendable {
         var port: Int?
         var agents_directory: String?
         var shutdown_timeout_seconds: Int?
+        var queue_timeout_seconds: Int?
         var execution_timeout_seconds: Int?
         var max_processes: Int?
         var provider_pool_size: Int?

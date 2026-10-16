@@ -25,6 +25,7 @@ public actor ExecutionManager {
     private var pumping = false
     private let maxProcesses: Int
     private let maxQueued: Int
+    private let queueTimeoutSeconds: Int
     private let timeoutSeconds: Int
     private let retentionSeconds: Int
     private let resourceSample: @Sendable () -> SystemResources
@@ -37,7 +38,7 @@ public actor ExecutionManager {
     public init(
         registry: AgentRegistry, providers: ProviderCatalog, runtimeRoot: URL,
         maxProcesses: Int = 8, maxQueued: Int = 64, timeoutSeconds: Int = 1800, retentionSeconds: Int = 3600,
-        sessionLog: ExecutionSessionLog? = nil,
+        sessionLog: ExecutionSessionLog? = nil, queueTimeoutSeconds: Int = 30,
         providerPoolSize: Int = 5, ownership: WorkerOwnershipStore? = nil,
         resourceSample: @escaping @Sendable () -> SystemResources = { SystemResources.sample() }
     ) {
@@ -49,6 +50,7 @@ public actor ExecutionManager {
         self.pool = ProviderWorkerPool(capacity: providerPoolSize, maxProcesses: maxProcesses)
         self.maxProcesses = maxProcesses
         self.maxQueued = maxQueued
+        self.queueTimeoutSeconds = queueTimeoutSeconds
         self.timeoutSeconds = timeoutSeconds
         self.retentionSeconds = retentionSeconds
         self.resourceSample = resourceSample
@@ -90,6 +92,10 @@ public actor ExecutionManager {
             "preparation_seconds": max(0, Date().timeIntervalSince(requestBegan) - readinessDuration),
         ]
         entries[id] = Entry(record: record, continuation: continuation, requestBegan: requestBegan)
+        entries[id]?.timer = Task {
+            do { try await Task.sleep(for: .seconds(self.queueTimeoutSeconds)) } catch { return }
+            self.queueTimeout(id)
+        }
         pending[id] = Work(definition: definition, input: effectiveInput, provider: provider)
         queue.append(id)
         logState(id)
@@ -252,6 +258,7 @@ public actor ExecutionManager {
             logState(id)
             emit(id, "status", ["status": .string("running")])
             entries[id]?.task = Task { await self.perform(id, work: work, lease: lease) }
+            entries[id]?.timer?.cancel()
             entries[id]?.timer = Task {
                 do { try await Task.sleep(for: .seconds(self.timeoutSeconds)) } catch { return }
                 self.timeout(id)
@@ -275,6 +282,14 @@ public actor ExecutionManager {
                 reasons.append(reason)
                 entries[id]?.record.queue_reasons = reasons
                 logState(id)
+                let label = switch reason {
+                case "cpu_load": "the CPU to become available"
+                case "process_limit": "a provider slot"
+                default: "available memory"
+                }
+                emit(id, "status", ["status": .string("queued"), "progress": .object([
+                    "message": .string("Waiting for \(label). Queue limit: \(queueTimeoutSeconds) seconds.")
+                ])])
             }
         }
         // Free an idle cached process before allowing pressure to starve queued
@@ -300,7 +315,18 @@ public actor ExecutionManager {
             pool.removed(lease.id)
         }
     }
+    private func queueTimeout(_ id: String) {
+        guard let entry = entries[id], entry.record.status == "queued" else { return }
+        pending[id] = nil
+        queue.removeAll { $0 == id }
+        recordPhase(id, "queue_seconds", Date().timeIntervalSince(entry.record.started_at))
+        let reason = entry.record.queue_reasons?.joined(separator: ", ") ?? "resource pressure"
+        finish(id, state: "failed", event: "failed", error: AgentError(
+            "queue_timeout", "Execution could not start within \(queueTimeoutSeconds) seconds (\(reason)). Retry when resources are available."))
+        pump()
+    }
     private func timeout(_ id: String) {
+
         guard let entry = entries[id], !terminal(entry.record.status) else { return }
         entries[id]?.timedOut = true
         _ = try? cancel(id)

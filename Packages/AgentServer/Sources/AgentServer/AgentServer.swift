@@ -104,7 +104,7 @@ struct AgentServer {
             maxProcesses: configuration.maxProcesses, maxQueued: configuration.maxQueuedExecutions,
             timeoutSeconds: configuration.executionTimeoutSeconds,
             retentionSeconds: configuration.retentionSeconds, sessionLog: sessionLog,
-            providerPoolSize: configuration.providerPoolSize, ownership: ownership)
+            queueTimeoutSeconds: configuration.queueTimeoutSeconds, providerPoolSize: configuration.providerPoolSize, ownership: ownership)
         let router = ServerRoutes.makeRouter(registry: registry, providers: providers, manager: manager)
         let readiness = StartupReadiness()
         let app = Application(

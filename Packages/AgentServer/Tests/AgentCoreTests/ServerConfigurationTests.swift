@@ -9,6 +9,7 @@ import Testing
     #expect(configuration.serverEnvironment == .development)
     #expect(configuration.shutdownTimeoutSeconds == 900)
     #expect(configuration.providerPoolSize == 5)
+    #expect(configuration.queueTimeoutSeconds == 30)
     #expect(configuration.agentsDirectory.lastPathComponent == "Agents")
 }
 
@@ -148,3 +149,19 @@ func rejectsInvalidPorts(value: String) {
     }
 }
 
+
+@Test(arguments: [0, 1, 30, 300, 301])
+func validatesQueueTimeoutConfiguration(seconds: Int) throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let file = root.appendingPathComponent("server.json")
+    try Data("{\"queue_timeout_seconds\":\(seconds)}".utf8).write(to: file)
+    if (1...300).contains(seconds) {
+        #expect(try ServerConfiguration(environment: ["AGENT_SERVER_CONFIG": file.path]).queueTimeoutSeconds == seconds)
+    } else {
+        #expect(throws: ServerConfiguration.ConfigurationError.self) {
+            try ServerConfiguration(environment: ["AGENT_SERVER_CONFIG": file.path])
+        }
+    }
+}

@@ -99,12 +99,21 @@ public struct CLIProvider: AIProvider {
         }
     }
 
-    public func makeTerminalSession(workingDirectory: URL) throws -> TerminalAgentSession {
+    public func makeTerminalSession(workingDirectory: URL, timeoutSeconds: Int = 1800) throws -> TerminalAgentSession {
         let exe = try executable()
+        var extraArguments: [String] = []
+        if kind == .antigravity {
+            extraArguments = ["--print-timeout", "\(timeoutSeconds)s", "--sandbox", "--disable-slash-commands"]
+            if let effort = settings.reasoning_effort { extraArguments += ["--effort", effort] }
+            // agy consumes the next argument as the print prompt; keep this last.
+            extraArguments.append("--print")
+        }
         let config = TerminalAgentConfiguration(
             executablePath: exe.path,
             model: settings.model,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            extraArguments: extraArguments,
+            persistenceMode: .ephemeral
         )
         let session: (any TerminalSessionProtocol)? = switch kind {
         case .codex: CodexTerminalSession(configuration: config)
@@ -122,36 +131,44 @@ public struct CLIProvider: AIProvider {
         timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
         onProgress: @escaping @Sendable (JSONValue) async -> Void
     ) async throws -> JSONValue {
-        if definition.id == ShekharJokeGeneratorDefinition.id,
-           let inputData = try? input.data(),
-           let jokeInput = try? JSONDecoder().decode(ShekharJokeGeneratorInput.self, from: inputData),
-           let session = try? makeTerminalSession(workingDirectory: directory) {
+        if definition.id == ShekharJokeGeneratorDefinition.id {
+            let jokeInput = try JSONDecoder().decode(ShekharJokeGeneratorInput.self, from: input.data())
+            let session = try makeTerminalSession(workingDirectory: directory, timeoutSeconds: timeoutSeconds)
             await onProgress(.object(["message": .string("Executing ShekharJokeGenerator via TerminalAgentSession (\(kind.rawValue)).")]))
             let spec = ShekharJokeGeneratorSpec(input: jokeInput)
             let streamOp = StreamingAgenticOperation(spec: spec, session: session)
             var lastChunk: String?
+            var receivedOutput = false
             for await event in await streamOp.execute() {
                 switch event {
                 case .success(let text):
+                    if !receivedOutput {
+                        receivedOutput = true
+                        await onProgress(.object(["message": .string("Provider response received; generating the result.")]))
+                    }
                     await onOutput(text)
                     lastChunk = text
                 case .failure(let error):
                     throw AgentError("provider_execution_failed", error.localizedDescription)
                 }
             }
-            if let lastChunk, let value = try? JSONValue.parse(lastChunk) {
-                return value
+            await onProgress(.object(["message": .string("Provider finished; validating the result.")]))
+            guard let lastChunk else {
+                throw AgentError("invalid_final_json", "The provider did not return a final result.")
             }
-            do {
-                let output = try await session.execute(spec)
-                let outputData = try JSONEncoder().encode(output)
-                return try JSONValue.parse(String(decoding: outputData, as: UTF8.self))
-            } catch {
-                if let lastChunk, !lastChunk.isEmpty {
-                    return try JSONValue.parse(lastChunk)
+            if kind == .antigravity {
+                if let value = try? JSONValue.parse(lastChunk), value["type"] == nil, value["event"] == nil {
+                    return Self.removeAntigravityToolAnnotations(value, schema: definition.outputSchema)
                 }
-                throw AgentError("provider_execution_failed", error.localizedDescription)
+                // The shared session can return native NDJSON unchanged; decode it at this provider boundary.
+                let accumulator = ProviderAccumulator(kind: .antigravity)
+                for line in lastChunk.split(whereSeparator: \.isNewline) {
+                    _ = try await accumulator.consume(String(line))
+                }
+                return Self.removeAntigravityToolAnnotations(
+                    try await accumulator.finalResult(), schema: definition.outputSchema)
             }
+            return try JSONValue.parse(lastChunk)
         }
 
         // Antigravity resolves local refs against schema.json when cwd contains spaces.
