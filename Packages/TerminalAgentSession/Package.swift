@@ -8,7 +8,7 @@ let package = Package(
         .library(name: "TerminalAgentSession", targets: ["TerminalAgentSession"])
     ],
     dependencies: [
-        .package(path: "../AgentAtom")
+        .package(url: "https://github.com/abhi266raj/AgentAtom", exact: "0.1.0")
     ],
     targets: [
         .target(

@@ -1,6 +1,15 @@
 {
-  "originHash" : "3388d011cf3266f951195456f93689ce083f4b0ae495f76f4d51f43e1f399e99",
+  "originHash" : "6da653bedbbac46c050c48bc3c91b6dad5a8b0cb732bb5e6e74f83b469a79c02",
   "pins" : [
+    {
+      "identity" : "agentatom",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/abhi266raj/AgentAtom",
+      "state" : {
+        "revision" : "df95fa03457ab53b72bbdce951ff6839632f53dc",
+        "version" : "0.1.0"
+      }
+    },
     {
       "identity" : "async-http-client",
       "kind" : "remoteSourceControl",
@@ -215,6 +224,15 @@
       "state" : {
         "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
         "version" : "1.8.1"
+      }
+    },
+    {
+      "identity" : "typedecoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kitura/TypeDecoder.git",
+      "state" : {
+        "revision" : "fd1e4909a065e9ca083c9dd01048d8070c9cefdd",
+        "version" : "2.0.0"
       }
     }
   ],

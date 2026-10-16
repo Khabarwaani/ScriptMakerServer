@@ -33,6 +33,12 @@ cancellation are implemented. See [run instructions](docs/RUN.md) for verificati
 limitations and CLI integration checks. Provider installation alone does not prove
 that a provider's cached credentials or backend are available.
 
+## AgentAtom dependency
+
+NewsAgent and TerminalAgentSession use the public AgentAtom **0.1.0** binary
+package. There is no local framework source or sibling-checkout requirement.
+See [ownership, licensing and executable packaging](docs/AGENTATOM_DEPENDENCY.md).
+
 ## Build, run and stop
 
 Requires macOS 14+, Swift 6 and network access for initial dependency resolution.
