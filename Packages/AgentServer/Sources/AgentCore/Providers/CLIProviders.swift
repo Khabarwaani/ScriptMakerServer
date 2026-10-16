@@ -1,4 +1,7 @@
 import Foundation
+import TerminalAgentSession
+import ShekharJokeGenerator
+import AgentAtom
 
 /// CLI differences are localized here; the manager sees only AIProvider.
 public struct CLIProvider: AIProvider {
@@ -96,11 +99,61 @@ public struct CLIProvider: AIProvider {
         }
     }
 
+    public func makeTerminalSession(workingDirectory: URL) throws -> TerminalAgentSession {
+        let exe = try executable()
+        let config = TerminalAgentConfiguration(
+            executablePath: exe.path,
+            model: settings.model,
+            workingDirectory: workingDirectory
+        )
+        let session: (any TerminalSessionProtocol)? = switch kind {
+        case .codex: CodexTerminalSession(configuration: config)
+        case .antigravity: AntigravityTerminalSession(configuration: config)
+        case .grok: GrokTerminalSession(configuration: config)
+        }
+        guard let session else {
+            throw AgentError("provider_unavailable", "Could not initialize TerminalAgentSession for \(kind.rawValue)")
+        }
+        return TerminalAgentSession(session: session)
+    }
+
     public func execute(
         definition: AgentDefinition, input: JSONValue, runner: ProcessRunner, directory: URL,
         timeoutSeconds: Int, onOutput: @escaping @Sendable (String) async -> Void,
         onProgress: @escaping @Sendable (JSONValue) async -> Void
     ) async throws -> JSONValue {
+        if definition.id == ShekharJokeGeneratorDefinition.id,
+           let inputData = try? input.data(),
+           let jokeInput = try? JSONDecoder().decode(ShekharJokeGeneratorInput.self, from: inputData),
+           let session = try? makeTerminalSession(workingDirectory: directory) {
+            await onProgress(.object(["message": .string("Executing ShekharJokeGenerator via TerminalAgentSession (\(kind.rawValue)).")]))
+            let spec = ShekharJokeGeneratorSpec(input: jokeInput)
+            let streamOp = StreamingAgenticOperation(spec: spec, session: session)
+            var lastChunk: String?
+            for await event in await streamOp.execute() {
+                switch event {
+                case .success(let text):
+                    await onOutput(text)
+                    lastChunk = text
+                case .failure(let error):
+                    throw AgentError("provider_execution_failed", error.localizedDescription)
+                }
+            }
+            if let lastChunk, let value = try? JSONValue.parse(lastChunk) {
+                return value
+            }
+            do {
+                let output = try await session.execute(spec)
+                let outputData = try JSONEncoder().encode(output)
+                return try JSONValue.parse(String(decoding: outputData, as: UTF8.self))
+            } catch {
+                if let lastChunk, !lastChunk.isEmpty {
+                    return try JSONValue.parse(lastChunk)
+                }
+                throw AgentError("provider_execution_failed", error.localizedDescription)
+            }
+        }
+
         // Antigravity resolves local refs against schema.json when cwd contains spaces.
         let schemaURL = directory.appendingPathComponent(kind == .antigravity ? "schema.json" : "output.schema.json")
         let promptURL = directory.appendingPathComponent("prompt.txt")
