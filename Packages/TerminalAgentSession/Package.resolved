@@ -1,6 +1,15 @@
 {
-  "originHash" : "4fd2b76def65484784ea9f5cc74f885343b989981f05be8b38b510faf2e2b192",
+  "originHash" : "68c1e634675ee4b478191018212acbc971d42f55da078ce38fdf6654fa32cec5",
   "pins" : [
+    {
+      "identity" : "agentatom",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/abhi266raj/AgentAtom",
+      "state" : {
+        "revision" : "df95fa03457ab53b72bbdce951ff6839632f53dc",
+        "version" : "0.1.0"
+      }
+    },
     {
       "identity" : "typedecoder",
       "kind" : "remoteSourceControl",

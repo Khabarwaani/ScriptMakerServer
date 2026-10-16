@@ -1,6 +1,11 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
+// Command-line tools load the distributed framework beside their executable.
+let frameworkLinkerSettings: [LinkerSetting] = [
+    .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path"], .when(platforms: [.macOS]))
+]
+
 let package = Package(
     name: "AgentServer",
     platforms: [.macOS(.v14)],
@@ -49,8 +54,8 @@ let package = Package(
         ], sources: ["Sources/AgentResources/AgentResources.swift"], resources: [
             .copy("Sources/AgentResources/Web"), .copy("config")
         ]),
-        .executableTarget(name: "AgentTools", dependencies: ["AgentCore"]),
-        .executableTarget(name: "AgentValidator", dependencies: ["AgentCore"]),
+        .executableTarget(name: "AgentTools", dependencies: ["AgentCore"], linkerSettings: frameworkLinkerSettings),
+        .executableTarget(name: "AgentValidator", dependencies: ["AgentCore"], linkerSettings: frameworkLinkerSettings),
         .plugin(
             name: "ValidateAgentsPlugin",
             capability: .buildTool(),
@@ -72,6 +77,7 @@ let package = Package(
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
             ],
+            linkerSettings: frameworkLinkerSettings,
             plugins: ["ValidateAgentsPlugin"]
         ),
         .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore"], exclude: ["Fixtures"]),

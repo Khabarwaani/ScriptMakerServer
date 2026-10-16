@@ -2,6 +2,15 @@
   "originHash" : "fb4d27f391fbc169579bd90598e69b2f5352966afcc935c8b11ca0b94b617d40",
   "pins" : [
     {
+      "identity" : "agentatom",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/abhi266raj/AgentAtom",
+      "state" : {
+        "revision" : "df95fa03457ab53b72bbdce951ff6839632f53dc",
+        "version" : "0.1.0"
+      }
+    },
+    {
       "identity" : "async-http-client",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/async-http-client.git",

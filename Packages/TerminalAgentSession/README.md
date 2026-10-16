@@ -10,7 +10,7 @@ A lightweight, zero-server-dependency Swift package implementing `AgentAtom.Agen
 `TerminalAgentSession` conforms to `AgentAtom`'s `AgenticSessionProtocol`. It allows any `AgentAtom.Spec` or `ModelledSpec` (such as `NewsAgent.ShekharJokeGeneratorSpec`) to be executed via standard `AgenticOperation`, `FailableAgenticOperation`, or streaming operations with zero modifications to your spec.
 
 ### Dependencies
-- `AgentAtom`
+- [`AgentAtom`](https://github.com/abhi266raj/AgentAtom) (remote binary product, exact `0.1.0`)
 - System Foundation process APIs
 
 No server dependencies, HTTP libraries, or third-party networking packages are required.
@@ -52,3 +52,11 @@ for item in result.items {
     print("[\(item.category)] \(item.joke)")
 }
 ```
+
+## Distribution
+
+Uses `import AgentAtom` from the published, checksum-pinned XCFramework.
+Do not add a sibling checkout or mix `AgentAtomSource` into the dependency graph.
+See [package ownership and runtime embedding](../../Documentation/docs/AGENTATOM_DEPENDENCY.md)
+for platform support, command-line packaging and AGPL-3.0-only notices.
+AgentAtom's implementation and internal tests are maintained upstream.

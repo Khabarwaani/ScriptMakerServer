@@ -58,6 +58,15 @@ graph TD
 - **Pure Domain Specifications**: Pure, immutable version directories containing `role.md`, `instructions.md`, optional `input.schema.json`, and `output.schema.json`.
 - **Zero Framework Pollution**: Agent packages contain no server or transport logic, allowing them to remain portable and clean.
 
+## AgentAtom ownership
+
+`NewsAgent` owns domain specifications; `TerminalAgentSession` owns CLI sessions.
+Both consume exact `0.1.0` of the public `AgentAtom` binary product from
+https://github.com/abhi266raj/AgentAtom. Generic specs, operations, schemas and
+session contracts belong upstream; do not reintroduce a local implementation.
+The binary supports macOS 14+ and iOS 16+; TerminalAgentSession remains macOS 15+.
+See [distribution and licensing](AGENTATOM_DEPENDENCY.md).
+
 ## Boundaries
 
 `AgentServer` is the composition root, HTTP contract mapping and SSE transport.

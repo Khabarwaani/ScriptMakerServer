@@ -50,3 +50,13 @@ Keep the repository root limited to Xcode entry points, `.gitignore`, and groupe
   Never force-remove a dirty worktree. Keep the worktree and branch if PR creation,
   checks, merge, or verification fails; never discard unfinished work. Finish every
   task by checking `git worktree list` and `git branch -vv` for leftover task state.
+
+## AgentAtom dependency
+
+Consume the public AgentAtom binary product at exact version `0.1.0`; retain
+`import AgentAtom`. Generic framework changes and internal tests belong in
+https://github.com/abhi266raj/AgentAtom. Never restore `Packages/AgentAtom`, use
+the development manifest, or mix `AgentAtomSource` into this dependency graph.
+Update all affected lockfiles together without unrelated upgrades. Preserve
+AGPL-3.0-only and dependency notices; see
+[distribution guidance](docs/AGENTATOM_DEPENDENCY.md).
