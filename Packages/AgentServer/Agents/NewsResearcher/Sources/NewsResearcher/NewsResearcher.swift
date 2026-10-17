@@ -72,8 +72,15 @@ public enum NewsResearcherDefinition: AgentProtocol, FailureRecoverableAgent {
     public typealias Output = NewsResearcherOutput
 
     public static let id = NewsResearcherSpec.identity.id
-    public static let name = NewsResearcherSpec.identity.name
-    public static let versions: [String] = [NewsResearcherSpec.identity.version]
+    public static var name: String {
+        KhabarwaaniAgent.agents[id]?.name ?? NewsResearcherSpec.identity.name
+    }
+    public static var versions: [String] {
+        if let descriptor = KhabarwaaniAgent.agents[id] {
+            return [descriptor.latestVersion]
+        }
+        return [NewsResearcherSpec.identity.version]
+    }
     public static var bundle: Bundle { Bundle.module }
 
     public static func verifyFeasibility(input: NewsResearcherInput) -> FeasibilityResult {

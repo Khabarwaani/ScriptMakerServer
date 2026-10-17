@@ -7,7 +7,7 @@ let package = Package(
     products: [.library(name: "ShekharJokeGenerator", targets: ["ShekharJokeGenerator"])],
     dependencies: [
         .package(path: "../../../AgentCoreBase"),
-        .package(url: "https://github.com/Khabarwaani/KhabarwaaniAgent", exact: "0.3.2")
+        .package(url: "https://github.com/Khabarwaani/KhabarwaaniAgent", exact: "1.0.0")
     ],
     targets: [
         .target(

@@ -113,8 +113,15 @@ public enum ThreeSceneStoryCreatorDefinition: AgentProtocol, FailureRecoverableA
     public typealias Output = ThreeSceneStoryCreatorOutput
 
     public static let id = ThreeSceneStoryCreatorSpec.identity.id
-    public static let name = ThreeSceneStoryCreatorSpec.identity.name
-    public static let versions: [String] = [ThreeSceneStoryCreatorSpec.identity.version]
+    public static var name: String {
+        KhabarwaaniAgent.agents[id]?.name ?? ThreeSceneStoryCreatorSpec.identity.name
+    }
+    public static var versions: [String] {
+        if let descriptor = KhabarwaaniAgent.agents[id] {
+            return [descriptor.latestVersion]
+        }
+        return [ThreeSceneStoryCreatorSpec.identity.version]
+    }
     public static var bundle: Bundle { Bundle.module }
 
     public static func verifyFeasibility(input: ThreeSceneStoryCreatorInput) -> FeasibilityResult {
