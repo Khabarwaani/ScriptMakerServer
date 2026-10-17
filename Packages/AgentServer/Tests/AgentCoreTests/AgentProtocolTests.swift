@@ -175,7 +175,7 @@ func allAgentVersionsReceiveGlobalClarityGuidance(nativeEnvelope: Bool) async th
         userJoke: "Chalan seedha chat pe aayega",
         outputCount: 1
     )
-    let prompt = try ThreeSceneStoryCreatorDefinition.buildPrompt(version: "1.0.0", input: input)
+    let prompt = try ThreeSceneStoryCreatorDefinition.buildPrompt(version: "2.0.0", input: input)
     #expect(prompt.components(separatedBy: GenerationGuidance.clarity).count == 2)
     #expect(prompt.contains("Traffic police introduces drone fines"))
     #expect(prompt.contains("Chalan seedha chat pe aayega"))

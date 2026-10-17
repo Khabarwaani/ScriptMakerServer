@@ -46,15 +46,11 @@ extension ThreeSceneStoryCreatorInput: @retroactive JSONSchemaConvertible {
 
 extension ThreeSceneStoryCreatorOutput: @retroactive JSONSchemaConvertible {
     public static func schema() -> SchemaDefinition {
-        let sceneItemSchema = SchemaDefinition(
-            title: "ThreeSceneItem",
+        let dialogueSchema = SchemaDefinition(
+            title: "ThreeSceneDialogue",
             properties: [
-                SchemaProperty(name: "purpose", type: "string", description: "Purpose/Focus of the scene.", required: true),
-                SchemaProperty(name: "characters", type: "string", description: "Character name(s) or persona(s) appearing in this scene.", required: true),
-                SchemaProperty(name: "setting", type: "string", description: "Setting/Environment where this scene occurs.", required: true),
-                SchemaProperty(name: "speech", type: "string", description: "Spoken dialogue in natural running spoken flow (strictly 20 to 35 words).", required: true),
-                SchemaProperty(name: "speech_word_count", type: "integer", description: "Exact word count of speech.", required: true),
-                SchemaProperty(name: "joke_applied", type: "string", description: "Optional field showing the joke applied.", required: false)
+                SchemaProperty(name: "speaker", type: "string", description: "Name or persona of speaking character.", required: true),
+                SchemaProperty(name: "dialogue", type: "string", description: "Spoken line in natural reply-response flow.", required: true)
             ],
             additionalProperties: false
         )
@@ -62,10 +58,24 @@ extension ThreeSceneStoryCreatorOutput: @retroactive JSONSchemaConvertible {
         let verificationSchema = SchemaDefinition(
             title: "ThreeSceneVerification",
             properties: [
-                SchemaProperty(name: "different_concepts", type: "boolean", description: "True if Scene 1, 2, and 3 each hold completely different concepts.", required: true),
-                SchemaProperty(name: "freshness_maintained", type: "boolean", description: "True if concept freshness and fresh faces are maintained across all three.", required: true),
-                SchemaProperty(name: "shareability_verified", type: "boolean", description: "True if Scene 3 delivers strong fun/shareability.", required: true),
+                SchemaProperty(name: "passed", type: "boolean", description: "True if all verification checks passed.", required: true),
+                SchemaProperty(name: "dialogue_sensible", type: "boolean", description: "True if dialogue makes complete sense, is meaningful, and has natural reply-response flow.", required: true),
+                SchemaProperty(name: "different_concepts", type: "boolean", description: "True if this scene holds a distinct concept.", required: true),
+                SchemaProperty(name: "freshness_maintained", type: "boolean", description: "True if fresh faces, fresh setting, and no recycled setups are maintained.", required: true),
                 SchemaProperty(name: "notes", type: "string", description: "Short summary of verification check.", required: true)
+            ],
+            additionalProperties: false
+        )
+
+        let sceneItemSchema = SchemaDefinition(
+            title: "ThreeSceneItem",
+            properties: [
+                SchemaProperty(name: "title", type: "string", description: "Scene title.", required: true),
+                SchemaProperty(name: "goal", type: "string", description: "Goal/Purpose of the scene (Curiosity / News Discussion / Shareable Reaction).", required: true),
+                SchemaProperty(name: "location", type: "string", description: "Setting or environment where this scene occurs.", required: true),
+                SchemaProperty(name: "verification", type: "object", description: "Internal verification record for this scene.", required: true, nestedSchema: verificationSchema),
+                SchemaProperty(name: "dialogues", type: "array", description: "List of natural reply-response dialogue turns between characters.", required: true, itemsSchema: dialogueSchema),
+                SchemaProperty(name: "words_count", type: "integer", description: "Total count of spoken words across all dialogues, calculated last (strictly 20 to 35 words).", required: true, minimum: 20, maximum: 35)
             ],
             additionalProperties: false
         )
@@ -74,10 +84,7 @@ extension ThreeSceneStoryCreatorOutput: @retroactive JSONSchemaConvertible {
             title: "ThreeSceneStoryPackage",
             properties: [
                 SchemaProperty(name: "title", type: "string", description: "Catchy story title/headline.", required: true),
-                SchemaProperty(name: "scene_1", type: "object", description: "Scene 1: Creating Curiosity (20 to 35 words).", required: true, nestedSchema: sceneItemSchema),
-                SchemaProperty(name: "scene_2", type: "object", description: "Scene 2: News Getting Discussed (20 to 35 words).", required: true, nestedSchema: sceneItemSchema),
-                SchemaProperty(name: "scene_3", type: "object", description: "Scene 3: Fun & Shareable Reaction (20 to 35 words).", required: true, nestedSchema: sceneItemSchema),
-                SchemaProperty(name: "verification", type: "object", description: "Mandatory internal verification step before final output.", required: true, nestedSchema: verificationSchema)
+                SchemaProperty(name: "scenes", type: "array", description: "Array of 3 Scene objects (Curiosity, News Discussion, Shareable Reaction).", required: true, itemsSchema: sceneItemSchema, minItems: 3, maxItems: 3)
             ],
             additionalProperties: false
         )

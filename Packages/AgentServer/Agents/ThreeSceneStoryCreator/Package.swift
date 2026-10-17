@@ -7,7 +7,7 @@ let package = Package(
     products: [.library(name: "ThreeSceneStoryCreator", targets: ["ThreeSceneStoryCreator"])],
     dependencies: [
         .package(path: "../../../AgentCoreBase"),
-        .package(url: "https://github.com/Khabarwaani/KhabarwaaniAgent", exact: "0.3.0")
+        .package(url: "https://github.com/Khabarwaani/KhabarwaaniAgent", exact: "0.3.2")
     ],
     targets: [
         .target(
@@ -19,7 +19,7 @@ let package = Package(
             path: ".",
             exclude: ["Tests", "README.md"],
             sources: ["Sources/ThreeSceneStoryCreator/ThreeSceneStoryCreator.swift"],
-            resources: [.copy("1.0.0")]
+            resources: [.copy("2.0.0")]
         ),
         .testTarget(
             name: "ThreeSceneStoryCreatorTests",
