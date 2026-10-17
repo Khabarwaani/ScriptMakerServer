@@ -32,9 +32,6 @@ extension AgentPackageContract {
     }
 }
 
-extension NewsResearcherDefinition: AgentPackageContract {
-    public static var name: String { "News Researcher" }
-}
 extension ScriptRefinerDefinition: AgentPackageContract {
     public static var name: String { "Script Refiner" }
 }
