@@ -88,8 +88,15 @@ public enum ShekharJokeGeneratorDefinition: AgentProtocol, FailureRecoverableAge
     public typealias Output = ShekharJokeGeneratorOutput
 
     public static let id = ShekharJokeGeneratorSpec.identity.id
-    public static let name = ShekharJokeGeneratorSpec.identity.name
-    public static let versions: [String] = [ShekharJokeGeneratorSpec.identity.version]
+    public static var name: String {
+        KhabarwaaniAgent.agents[id]?.name ?? ShekharJokeGeneratorSpec.identity.name
+    }
+    public static var versions: [String] {
+        if let descriptor = KhabarwaaniAgent.agents[id] {
+            return [descriptor.latestVersion]
+        }
+        return [ShekharJokeGeneratorSpec.identity.version]
+    }
     public static var bundle: Bundle { Bundle.module }
 
     public static func verifyFeasibility(input: ShekharJokeGeneratorInput) -> FeasibilityResult {

@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Khabarwaani/KhabarwaaniAgent",
       "state" : {
-        "revision" : "919a1043e10893f6c4c1752b806c760715ad2ebc",
-        "version" : "0.3.2"
+        "revision" : "74606b5a152173d9476e1a2656621566173a721f",
+        "version" : "1.0.0"
       }
     },
     {

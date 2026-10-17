@@ -1,5 +1,5 @@
 {
-  "originHash" : "18e6f037eecf3b249f536fdd202813c00592353c21cfd240c423a8832954e44b",
+  "originHash" : "2508aab180eae1ad121a9b8c726c4a577ea9a1df685cc53339a91edce15fb435",
   "pins" : [
     {
       "identity" : "agentatom",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Khabarwaani/KhabarwaaniAgent",
       "state" : {
-        "revision" : "919a1043e10893f6c4c1752b806c760715ad2ebc",
-        "version" : "0.3.2"
+        "revision" : "74606b5a152173d9476e1a2656621566173a721f",
+        "version" : "1.0.0"
       }
     },
     {
