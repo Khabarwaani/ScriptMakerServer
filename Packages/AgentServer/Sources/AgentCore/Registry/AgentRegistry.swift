@@ -7,6 +7,7 @@ import DialogueGenerator
 import ThemeMixer
 import ReelJokeMaker
 import ShekharJokeGenerator
+import ThreeSceneStoryCreator
 
 public struct AgentDefinition: Sendable {
     public let id: String
@@ -69,6 +70,7 @@ public actor AgentRegistry {
         ThemeMixerDefinition.self,
         ReelJokeMakerDefinition.self,
         ShekharJokeGeneratorDefinition.self,
+        ThreeSceneStoryCreatorDefinition.self,
     ]
 
     private let packages: [any AgentPackageContract.Type]
