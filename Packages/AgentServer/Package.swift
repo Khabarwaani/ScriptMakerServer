@@ -25,6 +25,7 @@ let package = Package(
         .package(path: "Agents/ThemeMixer"),
         .package(path: "Agents/ReelJokeMaker"),
         .package(path: "Agents/ShekharJokeGenerator"),
+        .package(path: "Agents/ThreeSceneStoryCreator"),
         .package(path: "../AgentCoreBase"),
         .package(path: "../ScriptDomainModels"),
         .package(url: "https://github.com/abhi266raj/TerminalAgentSession", exact: "0.1.4"),
@@ -47,6 +48,7 @@ let package = Package(
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
                 .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
                 .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"),
+                .product(name: "ThreeSceneStoryCreator", package: "ThreeSceneStoryCreator"),
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOPosix", package: "swift-nio"),
             ]
@@ -77,13 +79,14 @@ let package = Package(
                 .product(name: "ThemeMixer", package: "ThemeMixer"),
                 .product(name: "ReelJokeMaker", package: "ReelJokeMaker"),
                 .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"),
+                .product(name: "ThreeSceneStoryCreator", package: "ThreeSceneStoryCreator"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ServiceLifecycle", package: "swift-service-lifecycle")
             ],
             linkerSettings: frameworkLinkerSettings,
             plugins: ["ValidateAgentsPlugin"]
         ),
-        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore", .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator")], exclude: ["Fixtures"]),
+        .testTarget(name: "AgentCoreTests", dependencies: ["AgentCore", .product(name: "ShekharJokeGenerator", package: "ShekharJokeGenerator"), .product(name: "ThreeSceneStoryCreator", package: "ThreeSceneStoryCreator")], exclude: ["Fixtures"]),
         .testTarget(name: "AgentServerTests", dependencies: ["AgentServer", "AgentCore", .product(name: "HummingbirdTesting", package: "hummingbird")])
     ]
 )

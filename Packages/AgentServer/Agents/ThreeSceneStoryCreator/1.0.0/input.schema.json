@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThreeSceneStoryCreatorInput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["news"],
+  "properties": {
+    "news": {
+      "type": "string",
+      "description": "Verified news details, headline, or article facts."
+    },
+    "user_joke": {
+      "type": "string",
+      "description": "Optional user-provided joke or humorous angle to incorporate into Scene 3."
+    },
+    "output_count": {
+      "type": "integer",
+      "description": "Number of 3-scene story packages to generate. Defaults to 1.",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 5
+    }
+  },
+  "examples": [
+    {
+      "news": "Traffic department issues flying car fines"
+    },
+    {
+      "news": "Traffic department issues flying car fines",
+      "user_joke": "Ab to chalan hawa me katega",
+      "output_count": 1
+    }
+  ]
+}

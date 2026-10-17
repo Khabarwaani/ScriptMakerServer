@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import ReelJokeMaker
+import ThreeSceneStoryCreator
 
 @testable import AgentCore
 
@@ -167,3 +168,17 @@ func allAgentVersionsReceiveGlobalClarityGuidance(nativeEnvelope: Bool) async th
     #expect(prompt.contains("City opens a new park"))
     #expect(prompt.contains("OUTPUT CONTRACT"))
 }
+
+@Test func threeSceneStoryCreatorPromptUsesGlobalClarityGuidance() throws {
+    let input = ThreeSceneStoryCreatorInput(
+        news: "Traffic police introduces drone fines",
+        userJoke: "Chalan seedha chat pe aayega",
+        outputCount: 1
+    )
+    let prompt = try ThreeSceneStoryCreatorDefinition.buildPrompt(version: "1.0.0", input: input)
+    #expect(prompt.components(separatedBy: GenerationGuidance.clarity).count == 2)
+    #expect(prompt.contains("Traffic police introduces drone fines"))
+    #expect(prompt.contains("Chalan seedha chat pe aayega"))
+    #expect(prompt.contains("OUTPUT CONTRACT"))
+}
+
