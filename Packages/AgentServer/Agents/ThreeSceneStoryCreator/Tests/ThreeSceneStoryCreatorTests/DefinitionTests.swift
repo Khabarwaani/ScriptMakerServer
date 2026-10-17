@@ -22,7 +22,7 @@ import ThreeSceneStoryCreator
         news: "Traffic department issues flying car fines",
         userJoke: "Ab to chalan hawa me katega"
     )
-    let prompt = try ThreeSceneStoryCreatorDefinition.buildPrompt(version: "1.0.0", input: input)
+    let prompt = try ThreeSceneStoryCreatorDefinition.buildPrompt(version: "2.0.0", input: input)
     #expect(prompt.contains("MASTER SYSTEM PROTOCOL"))
     #expect(prompt.contains("ROLE"))
     #expect(prompt.contains("INSTRUCTIONS"))

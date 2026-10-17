@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ThreeSceneStoryCreatorOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "description": "Array of generated 3-scene story packages matching requested output_count.",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "title": "ThreeSceneStoryPackage",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "scenes"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Catchy story title/headline."
+          },
+          "scenes": {
+            "type": "array",
+            "description": "Array of 3 Scene objects (Curiosity, News Discussion, Shareable Reaction).",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "title": "ThreeSceneItem",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["title", "goal", "location", "verification", "dialogues", "words_count"],
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "description": "Scene title."
+                },
+                "goal": {
+                  "type": "string",
+                  "description": "Goal/Purpose of the scene (Curiosity / News Discussion / Shareable Reaction)."
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Setting or environment where this scene occurs."
+                },
+                "verification": {
+                  "title": "ThreeSceneVerification",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["passed", "dialogue_sensible", "different_concepts", "freshness_maintained", "notes"],
+                  "properties": {
+                    "passed": { "type": "boolean", "description": "True if all verification checks passed." },
+                    "dialogue_sensible": { "type": "boolean", "description": "True if dialogue makes complete sense, is meaningful, and has natural reply-response flow." },
+                    "different_concepts": { "type": "boolean", "description": "True if this scene holds a distinct concept." },
+                    "freshness_maintained": { "type": "boolean", "description": "True if fresh faces, fresh setting, and no recycled setups are maintained." },
+                    "notes": { "type": "string", "description": "Short summary of verification check." }
+                  }
+                },
+                "dialogues": {
+                  "type": "array",
+                  "description": "List of natural reply-response dialogue turns between characters.",
+                  "items": {
+                    "title": "ThreeSceneDialogue",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["speaker", "dialogue"],
+                    "properties": {
+                      "speaker": { "type": "string", "description": "Name or persona of speaking character." },
+                      "dialogue": { "type": "string", "description": "Spoken line in natural reply-response flow." }
+                    }
+                  }
+                },
+                "words_count": {
+                  "type": "integer",
+                  "description": "Total count of spoken words across all dialogues, calculated last (strictly 20 to 35 words).",
+                  "minimum": 20,
+                  "maximum": 35
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
